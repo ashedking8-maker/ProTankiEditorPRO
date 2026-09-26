@@ -20,6 +20,13 @@ int main(int argc,char** argv) {
     const auto house=NativeCollisionImport::Read(dir/"nubu_3.3ds");
     const auto waffle=NativeCollisionImport::Read(dir/"waffle_wall_1.3ds");
     const auto billboard=NativeCollisionImport::Read(dir/"promotion_bilboard.3ds");
+    const auto tower=NativeCollisionImport::Read(dir/"fab_tow.3ds");
+    const auto brokenTower=NativeCollisionImport::Read(dir/"fab_tow2.3ds");
+    if (!tower.Valid() || tower.planes.size()!=6 || !tower.boxes.empty() || !tower.triangles.empty())
+        return Fail(40,"original Fabr Tower non-rigid plane matrices must preserve six real rectangles: "+tower.error);
+    if (!brokenTower.Valid() || brokenTower.planes.size()!=6 || !brokenTower.boxes.empty() || !brokenTower.triangles.empty())
+        return Fail(41,"original Broken Fabr Tower non-rigid plane matrices must preserve six real rectangles: "+brokenTower.error);
+
     if(!wall.Valid()||wall.planes.size()!=6||wall.triangles.size()!=10)
         return Fail(2,"original Wall End 1 3DS must provide 6 planes + 10 triangles: "+wall.error);
     if(!broken.Valid()||!broken.planes.empty()||broken.triangles.size()!=6)

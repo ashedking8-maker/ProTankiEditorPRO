@@ -177,8 +177,18 @@ inline Result Read(const std::filesystem::path& file) {
         if(!plane&&!tri&&!box)continue;
         Frame helper{};
         if(!frame(n,helper)) {
-            result.error="Unverified scale/shear/mirror on 3DS collision helper: "+n.name;
-            return result;
+            // Plane and triangle vertices in the 3DS 0x4110 chunk are already
+            // stored in authoring/world coordinates. Their native collision
+            // surface is reconstructed from those vertices below, not from
+            // the 0x4160 helper matrix. Original Fabr Tower planes carry a
+            // 1.64 Z scale in that matrix despite forming valid rectangles.
+            // Do NOT relax this for boxes: their matrix defines box axes and
+            // dimensions, and a non-rigid decomposition needs its own proof.
+            if(box || !n.hasMatrix || !std::all_of(n.matrix.begin(),n.matrix.end(),
+                [](float v){return std::isfinite(v) && std::fabs(v)<1.e7f;})) {
+                result.error="Unverified scale/shear/mirror on 3DS collision helper: "+n.name;
+                return result;
+            }
         }
         for(auto face:n.faces)for(auto id:face)if(id>=n.vertices.size()) {result.error="Invalid helper face indices.";return result;}
         if(box) {

@@ -1,4 +1,4 @@
-# ProTanki Editor PRO 0.5.20 — Original 3DS frame transforms (source candidate)
+# ProTanki Editor PRO 0.5.21 — Original 3DS frame transforms (source candidate)
 
 Apply the changed-files patch over the user's 0.5.19 repository. This release adds validated
 rotated helper/visual frame handling, retains box dimensions in helper-local axes, and

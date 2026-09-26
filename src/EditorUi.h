@@ -7,6 +7,7 @@
 #include "ObjectDraft.h"
 #include <filesystem>
 #include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -98,7 +99,7 @@ private:
     void DrawScene(MapDocument&, SceneRenderer&);
     void DrawLibrary(MapDocument&, const AssetRegistry&, SceneRenderer&, SceneRenderer& previewScene);
     void DrawBrowseLibrary(MapDocument&, const AssetRegistry&, SceneRenderer&, SceneRenderer&);
-    void CaptureBrowseThumbnail(size_t assetIndex, const AssetRegistry&, SceneRenderer&);
+    void CaptureBrowseThumbnail(size_t assetIndex, size_t variantIndex, const AssetRegistry&, SceneRenderer&);
     void DrawProperties(MapDocument&, const AssetRegistry&, SceneRenderer&);
     void DrawFunctionalProperties(MapDocument&, SceneRenderer&);
     void DrawViewport(MapDocument&, const AssetRegistry&, SceneRenderer&);
@@ -257,12 +258,13 @@ private:
         DirectX::XMFLOAT3 dimensions{}; // width/depth/height, computed only after this item's 3DS is opened
         unsigned long long touched{}; bool failed{}, hasDimensions{};
     };
-    std::unordered_map<size_t,BrowseThumbnail> browseThumbnails_;
+    std::unordered_map<uint64_t,BrowseThumbnail> browseThumbnails_;
     unsigned long long browseFrame_{};
     bool browseRenderedThisFrame_{};
     bool browsePreviewNeedsRestore_{};
     bool showZones_ = false;
     bool snap_ = true;
+    bool absoluteGridSnap_ = true;
     float gridSize_ = 500.0f;
     float rotationSnapDeg_ = 90.0f;
     float ghostRotation_{};
@@ -292,7 +294,7 @@ private:
     float selectionStartX_{}, selectionStartY_{}, selectionEndX_{}, selectionEndY_{};
     std::vector<PropTransformState> dragBefore_;
     std::vector<int> dragIndices_;
-    struct RecentAsset { size_t index{}; Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> thumbnail; };
+    struct RecentAsset { size_t index{}; Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> thumbnail; int textureVariant{}; };
     std::vector<RecentAsset> recentAssets_;
     bool axPinned_{}, axOnlyUsed_{}, axConfirmRemove_{};
     int axRemovalIndex_{-1};

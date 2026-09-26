@@ -772,7 +772,11 @@ void EditorUi::DeleteFunctional(MapDocument& map, SceneRenderer& scene) {
 
 void EditorUi::Undo(MapDocument& map, SceneRenderer& scene) {
     std::vector<size_t> changed;
-    if (!history_.Undo(map,changed)) return;
+    if (!history_.Undo(map,changed)) {Log::Info("Undo requested with no available history entry.");return;}
+    Log::Info("Map Undo applied; affected prop transforms="+std::to_string(changed.size())+
+        " current collision counts planes="+std::to_string(map.CollisionPlanes().size())+
+        " boxes="+std::to_string(map.CollisionBoxes().size())+
+        " triangles="+std::to_string(map.CollisionTriangles().size()));
     for (size_t i:changed) if (i<map.Props().size()) scene.UpdatePropTransform(static_cast<int>(i),map.Props()[i]);
     if (!changed.empty()) SelectOnly(static_cast<int>(changed.back()),scene);
     else { SelectOnly(-1,scene); functionalSelected_=FunctionalType::None; RequestSceneRebuild(true); }
@@ -815,6 +819,10 @@ void EditorUi::RememberCopiedAssets(const AssetRegistry& assets) {
         const auto old=std::find_if(recentAssets_.begin(),recentAssets_.end(),[&](const RecentAsset& entry){return entry.index==id;});
         if(old!=recentAssets_.end()) {RecentAsset existing=*old;recentAssets_.erase(old);recentAssets_.insert(recentAssets_.begin(),std::move(existing));}
         else recentAssets_.insert(recentAssets_.begin(),RecentAsset{id,{}});
+        if(!recentAssets_.empty() && recentAssets_.front().index==id) {
+            const auto variant=std::find_if(asset->textures.begin(),asset->textures.end(),[&](const TextureVariant& v){return v.name==prop.texture;});
+            recentAssets_.front().textureVariant=variant==asset->textures.end()?0:static_cast<int>(variant-asset->textures.begin());
+        }
         if(recentAssets_.size()>24)recentAssets_.resize(24);
     }
     axCurrent_=0;
@@ -979,7 +987,7 @@ bool EditorUi::CaptureNativeWheel(short delta) {
     // ImGui processes wheel input during NewFrame, so clearing MouseWheel in Draw is too late.
     // Route placement/history wheel at the Win32 boundary to prevent dockspace scrolling.
     const bool tab=(GetAsyncKeyState(VK_TAB)&0x8000)!=0 && navigationMode_==NavigationMode::Simple;
-    if (!(placementActive_ || axPinned_ || tab)) return false;
+    if (!tab || browseLibraryOpen_) return false;
     pendingNativeWheel_ += static_cast<float>(delta)/static_cast<float>(WHEEL_DELTA);
     return true;
 }
@@ -995,9 +1003,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
     // Tab is momentary: do not steal typing from any input or modal.
     axTabHeld_=!io.WantTextInput && navigationMode_==NavigationMode::Simple && ImGui::IsKeyDown(ImGuiKey_Tab);
     placementWheel_=pendingNativeWheel_; pendingNativeWheel_=0.0f;
-    const ImGuiViewport* mainView=ImGui::GetMainViewport();
-    const bool overPinnedAx=axPinned_ && io.MousePos.x>=mainView->WorkPos.x+mainView->WorkSize.x-340.0f;
-    if ((axTabHeld_ || placementActive_ || overPinnedAx) && io.MouseWheel!=0.0f) {
+    if (axTabHeld_ && io.MouseWheel!=0.0f) {
         placementWheel_=io.MouseWheel;
         io.MouseWheel=0.0f; // Do not scroll dock panels or zoom while browsing placement history.
     }
@@ -1217,6 +1223,16 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
         const auto before=StateOf(map.Props()[static_cast<size_t>(index)]);
         auto after=before;
         after.position.x+=delta.x; after.position.y+=delta.y; after.position.z+=delta.z;
+        // Quantize the WORLD position, not only the camera-relative delta. This
+        // removes fractional drift left by mouse placement and prior transforms.
+        if (absoluteGridSnap_ && (right!=0 || forward!=0 || height!=0)) {
+            const float cell=GridStep::KeyboardStep(gridSize_,io.KeyShift);
+            if (right!=0 || forward!=0) {
+                after.position.x=GridStep::Quantize(after.position.x,cell);
+                after.position.y=GridStep::Quantize(after.position.y,cell);
+            }
+            if (height!=0) after.position.z=GridStep::Quantize(after.position.z,cell);
+        }
         after.rotation.z+=angle*rotation;
         ApplyLiveTransform(map,scene,index,after);
         edits.push_back({static_cast<size_t>(index),before,after,"Keyboard transform"});
@@ -1251,7 +1267,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
         ActivateRecent(static_cast<size_t>(axCurrent_),assets,previewScene);
     }
     axTabWasHeld_=axTabHeld_;
-    if (placementWheel_!=0.0f && !recentAssets_.empty()) {
+    if (axTabHeld_ && placementWheel_!=0.0f && !recentAssets_.empty()) {
         axCurrent_=(axCurrent_+(placementWheel_<0?1:static_cast<int>(recentAssets_.size())-1))%static_cast<int>(recentAssets_.size());
         ActivateRecent(static_cast<size_t>(axCurrent_),assets,previewScene);
         placementWheel_=0.0f;
@@ -1398,6 +1414,8 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
     }
     if (ImGui::BeginMenu("Tools")) {
         if(ImGui::MenuItem("Placement settings...")) showPlacementSettings_=true;
+        if(ImGui::MenuItem("Absolute grid snap",nullptr,absoluteGridSnap_)) absoluteGridSnap_=!absoluteGridSnap_;
+        if(ImGui::IsItemHovered()) ImGui::SetTooltip("Quantize the final world position during keyboard movement, not only the movement delta.");
         ImGui::Separator();
         ImGui::BeginDisabled(); ImGui::MenuItem("Map validator (not implemented)"); ImGui::MenuItem("Profiler (not implemented)"); ImGui::EndDisabled(); ImGui::Separator();
         if (ImGui::MenuItem("Open logs folder")) { Log::Flush(); launchWindowsPath(Log::LogDirectory(),false); }
@@ -1415,6 +1433,8 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         ImGui::SetNextWindowSize({445.f,0.f},ImGuiCond_FirstUseEver);
         if(ImGui::Begin("Placement settings##tools",&showPlacementSettings_,
                         ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoDocking)) {
+            ImGui::Checkbox("Absolute grid snap (keyboard movement)",&absoluteGridSnap_);
+            HoverHelp("When enabled, final world coordinates snap to Grid Step; Shift uses one tenth step. Existing maps are not modified automatically.");
             ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
             HoverHelp("Only for deliberate visual placement. New unsupported 3DS solids will not receive collision.");
             ImGui::Checkbox("Allow opaque XML copy for NEXT placement (advanced)",&allowOpaqueMetadataCopy_);
@@ -1511,6 +1531,14 @@ void EditorUi::DrawScene(MapDocument& map, SceneRenderer& scene) {
                 const auto at=values[i].position;
                 if(!matches(at))continue;
                 if(++displayed>150 && showAllColliders_) {ImGui::TextDisabled("Showing first 150; select a prop to filter.");break;}
+                // Linked native helper sets belong to their prop. Hide the
+                // misleading individual Remove action and show ownership.
+                if(values[i].authoredOwnerIndex>=0) {
+                    ImGui::TextDisabled("Linked %s #%zu (prop #%d)  (%.1f, %.1f, %.1f)",
+                        type,i+1,values[i].authoredOwnerIndex+1,at.x,at.y,at.z);
+                    HoverHelp("Delete or transform the parent object to change its complete native collision set.");
+                    continue;
+                }
                 const auto label=std::string("Remove##collision_")+type+std::to_string(i);
                 if(ImGui::SmallButton(label.c_str())) {
                     MapDocument before=map;
@@ -1633,7 +1661,12 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
             ImGui::SetNextItemWidth(-1);
             if (ImGui::BeginCombo("##texture_variant", current)) {
                 for (int t=0;t<static_cast<int>(a.textures.size());++t) {
-                    if (ImGui::Selectable(a.textures[static_cast<size_t>(t)].name.c_str(), selectedTextureVariant_==t)) { selectedTextureVariant_=t; RebuildAssetPreview(assets,previewScene); if (placementActive_) BeginPlacement(assets); }
+                    if (ImGui::Selectable(a.textures[static_cast<size_t>(t)].name.c_str(), selectedTextureVariant_==t)) { selectedTextureVariant_=t;
+                        if(!recentAssets_.empty() && recentAssets_.front().index==static_cast<size_t>(selectedAsset_)) {
+                            recentAssets_.front().textureVariant=t;
+                            recentAssets_.front().thumbnail.Reset();
+                        }
+                        RebuildAssetPreview(assets,previewScene); if (placementActive_) BeginPlacement(assets); }
                 }
                 ImGui::EndCombo();
             }
@@ -1666,14 +1699,15 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
 
 // Full-workspace browser. Library names are metadata-only until the user opens one.
 // One visible thumbnail is generated per frame; hidden/collapsed categories do no GPU work.
-void EditorUi::CaptureBrowseThumbnail(size_t index, const AssetRegistry& assets, SceneRenderer& previewScene) {
+void EditorUi::CaptureBrowseThumbnail(size_t index, size_t variantIndex, const AssetRegistry& assets, SceneRenderer& previewScene) {
     if (browseRenderedThisFrame_ || index>=assets.Assets().size()) return;
-    auto it=browseThumbnails_.find(index);
+    const uint64_t key=(static_cast<uint64_t>(index)<<32)|static_cast<uint64_t>(variantIndex);
+    auto it=browseThumbnails_.find(key);
     if (it!=browseThumbnails_.end()) { it->second.touched=browseFrame_; return; }
     browseRenderedThisFrame_=true;
     const auto& asset=assets.Assets()[index];
     std::string variant;
-    if (!asset.textures.empty()) variant=asset.textures.front().name;
+    if (!asset.textures.empty() && variantIndex<asset.textures.size()) variant=asset.textures[variantIndex].name;
     std::string error;
     BrowseThumbnail thumb; thumb.touched=browseFrame_;
     const bool built=previewScene.BuildAssetPreview(asset,variant,error);
@@ -1703,7 +1737,7 @@ void EditorUi::CaptureBrowseThumbnail(size_t index, const AssetRegistry& assets,
         }
     }
     thumb.failed=!thumb.srv;
-    browseThumbnails_.insert_or_assign(index,std::move(thumb));
+    browseThumbnails_.insert_or_assign(key,std::move(thumb));
     previewScene.ReleasePreviewResources(); // Map renderer has its own separate caches.
     // Fixed upper bound: 96 * 194 * 146 * 4 bytes ~= 10.9 MiB of thumbnail pixels.
     constexpr size_t budget=96;
@@ -1769,78 +1803,84 @@ void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
         }
         if (!matched) {start=finish;continue;}
         ImGui::PushID(library.c_str());
-        // There is intentionally no DefaultOpen: collapsed libraries only render one text row.
-        const std::string heading=library+"  ("+std::to_string(matched)+")";
+        // UI is deliberately flat beneath each library: the native `group`
+        // remains intact in AssetDefinition and therefore in exported XML.
+        const std::string heading=library+"  ("+std::to_string(matched)+" objects)";
         if (ImGui::TreeNodeEx(heading.c_str(),ImGuiTreeNodeFlags_SpanAvailWidth)) {
-            size_t g=start;
-            while (g<finish) {
-                const std::string group=items[g].group;
-                const size_t groupStart=g;
-                while (g<finish&&items[g].group==group)++g;
-                std::vector<size_t> visible;
-                for (size_t i=groupStart;i<g;++i)
-                    if ((!filter||ContainsInsensitive(items[i].library+" / "+items[i].group+" / "+items[i].name,browseSearch_)) &&
-                        (browseCategory_==0 || BrowseKind(items[i])==browseCategory_)) visible.push_back(i);
-                if (visible.empty()) continue;
-                if (browseSort_!=0) std::stable_sort(visible.begin(),visible.end(),[&](size_t a,size_t b) {
-                    if (browseSort_==2 && BrowseKind(items[a])!=BrowseKind(items[b])) return BrowseKind(items[a])<BrowseKind(items[b]);
-                    return Lower(items[a].name)<Lower(items[b].name);
-                });
-                ImGui::PushID(group.c_str());
-                const std::string groupLabel=(group.empty()?"default":group)+" ("+std::to_string(visible.size())+")";
-                if (ImGui::TreeNodeEx(groupLabel.c_str(),ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_SpanAvailWidth)) {
-                    const float cellWidth=222.0f*browseThumbnailScale_;
-                    const float rowHeight=206.f*browseThumbnailScale_;
-                    const ImVec2 thumbnailSize{194.f*browseThumbnailScale_,146.f*browseThumbnailScale_};
-                    const int columns=std::max(1,static_cast<int>(ImGui::GetContentRegionAvail().x/cellWidth));
-                    const int rows=(static_cast<int>(visible.size())+columns-1)/columns;
-                    ImGuiListClipper clipper;
-                    clipper.Begin(rows,rowHeight);
-                    while (clipper.Step()) {
-                        for(int row=clipper.DisplayStart;row<clipper.DisplayEnd;++row) {
-                            const ImVec2 rowPos=ImGui::GetCursorScreenPos();
-                            for(int col=0;col<columns;++col) {
-                                const int at=row*columns+col;
-                                if (at>=static_cast<int>(visible.size())) break;
-                                const size_t index=visible[static_cast<size_t>(at)];
-                                const auto& a=items[index];
-                                ImGui::PushID(static_cast<int>(index));
-                                const ImVec2 startPos{rowPos.x+cellWidth*col,rowPos.y};
-                                ImGui::SetCursorScreenPos(startPos);
-                                ImGui::BeginGroup();
-                                const auto thumb=browseThumbnails_.find(index);
-                                if (thumb==browseThumbnails_.end()) CaptureBrowseThumbnail(index,assets,previewScene);
-                                const auto stored=browseThumbnails_.find(index);
-                                if (stored!=browseThumbnails_.end()) stored->second.touched=browseFrame_;
-                                if (stored!=browseThumbnails_.end()&&stored->second.srv)
-                                    ImGui::Image((ImTextureID)stored->second.srv.Get(),thumbnailSize);
-                                else {
-                                    ImGui::InvisibleButton("##thumbnail",thumbnailSize);
-                                    ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),IM_COL32(19,23,29,255));
-                                    ImGui::GetWindowDrawList()->AddText({startPos.x+10,startPos.y+thumbnailSize.y*.42f},IM_COL32(140,150,160,255),
-                                        stored!=browseThumbnails_.end()&&stored->second.failed?"Preview unavailable":"Loading preview...");
-                                }
-                                // An invisible selectable covers both the thumbnail and its caption.
-                                ImGui::SetCursorScreenPos(startPos);
-                                if (ImGui::InvisibleButton("##select_asset",{thumbnailSize.x,189.f*browseThumbnailScale_})) {
-                                    SelectAsset(assets,index,previewScene);
-                                    browseLibraryOpen_=false; browsePreviewNeedsRestore_=false;
-                                }
-                                ImGui::SetCursorScreenPos({startPos.x,startPos.y+150.f*browseThumbnailScale_});
-                                ImGui::TextUnformatted(a.name.c_str());
-                                if(stored!=browseThumbnails_.end()&&stored->second.hasDimensions) {
-                                    const auto d=stored->second.dimensions;
-                                    ImGui::SetCursorScreenPos({startPos.x,startPos.y+171.f*browseThumbnailScale_});
-                                    ImGui::TextDisabled("%.0f x %.0f x %.0f",d.x,d.y,d.z);
-                                }
-                                ImGui::EndGroup();ImGui::PopID();
-                            }
-                            ImGui::SetCursorScreenPos({rowPos.x,rowPos.y+rowHeight});
-                        }
-                    }
-                    ImGui::TreePop();
+            struct BrowseTile { size_t asset, variant; };
+            std::vector<BrowseTile> visible;
+            for (size_t i=start;i<finish;++i) {
+                const auto& a=items[i];
+                if (browseCategory_!=0 && BrowseKind(a)!=browseCategory_) continue;
+                const size_t count=std::max(size_t{1},a.textures.size());
+                for (size_t variant=0;variant<count;++variant) {
+                    const std::string name=a.library+" / "+a.group+" / "+a.name+" / "+
+                        (a.textures.empty()?std::string("default"):a.textures[variant].name);
+                    if (!filter || ContainsInsensitive(name,browseSearch_)) visible.push_back({i,variant});
                 }
-                ImGui::PopID();
+            }
+            if (browseSort_!=0) std::stable_sort(visible.begin(),visible.end(),[&](const BrowseTile& a,const BrowseTile& b) {
+                if(browseSort_==2 && BrowseKind(items[a.asset])!=BrowseKind(items[b.asset]))
+                    return BrowseKind(items[a.asset])<BrowseKind(items[b.asset]);
+                return Lower(items[a.asset].name)<Lower(items[b.asset].name);
+            });
+            const float cellWidth=222.0f*browseThumbnailScale_;
+            const float rowHeight=206.f*browseThumbnailScale_;
+            const ImVec2 thumbnailSize{194.f*browseThumbnailScale_,146.f*browseThumbnailScale_};
+            const int columns=std::max(1,static_cast<int>(ImGui::GetContentRegionAvail().x/cellWidth));
+            const int rows=(static_cast<int>(visible.size())+columns-1)/columns;
+            ImGuiListClipper clipper;
+            clipper.Begin(rows,rowHeight);
+            while (clipper.Step()) {
+                for(int row=clipper.DisplayStart;row<clipper.DisplayEnd;++row) {
+                    const ImVec2 rowPos=ImGui::GetCursorScreenPos();
+                    for(int col=0;col<columns;++col) {
+                        const int at=row*columns+col;
+                        if (at>=static_cast<int>(visible.size())) break;
+                        const auto tile=visible[static_cast<size_t>(at)];
+                        const size_t index=tile.asset;
+                        const auto& a=items[index];
+                        const uint64_t key=(static_cast<uint64_t>(index)<<32)|static_cast<uint64_t>(tile.variant);
+                        ImGui::PushID(static_cast<int>(index));ImGui::PushID(static_cast<int>(tile.variant));
+                        const ImVec2 startPos{rowPos.x+cellWidth*col,rowPos.y};
+                        ImGui::SetCursorScreenPos(startPos);
+                        ImGui::BeginGroup();
+                        auto thumb=browseThumbnails_.find(key);
+                        if (thumb==browseThumbnails_.end()) CaptureBrowseThumbnail(index,tile.variant,assets,previewScene);
+                        auto stored=browseThumbnails_.find(key);
+                        if (stored!=browseThumbnails_.end()) stored->second.touched=browseFrame_;
+                        if (stored!=browseThumbnails_.end()&&stored->second.srv)
+                            ImGui::Image((ImTextureID)stored->second.srv.Get(),thumbnailSize);
+                        else {
+                            ImGui::InvisibleButton("##thumbnail",thumbnailSize);
+                            ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),IM_COL32(19,23,29,255));
+                            ImGui::GetWindowDrawList()->AddText({startPos.x+10,startPos.y+thumbnailSize.y*.42f},IM_COL32(140,150,160,255),
+                                stored!=browseThumbnails_.end()&&stored->second.failed?"Preview unavailable":"Loading preview...");
+                        }
+                        ImGui::SetCursorScreenPos(startPos);
+                        if (ImGui::InvisibleButton("##select_asset",{thumbnailSize.x,189.f*browseThumbnailScale_})) {
+                            SelectAsset(assets,index,previewScene);
+                            selectedTextureVariant_=static_cast<int>(tile.variant);
+                            if(!recentAssets_.empty() && recentAssets_.front().index==index) {
+                                recentAssets_.front().textureVariant=selectedTextureVariant_;
+                                recentAssets_.front().thumbnail.Reset();
+                            }
+                            RebuildAssetPreview(assets,previewScene);
+                            BeginPlacement(assets);
+                            browseLibraryOpen_=false; browsePreviewNeedsRestore_=false;
+                        }
+                        ImGui::SetCursorScreenPos({startPos.x,startPos.y+150.f*browseThumbnailScale_});
+                        const std::string caption=a.name+(a.textures.empty()?std::string{}:" / "+a.textures[tile.variant].name);
+                        ImGui::TextUnformatted(caption.c_str());
+                        if(stored!=browseThumbnails_.end()&&stored->second.hasDimensions) {
+                            const auto d=stored->second.dimensions;
+                            ImGui::SetCursorScreenPos({startPos.x,startPos.y+171.f*browseThumbnailScale_});
+                            ImGui::TextDisabled("%.0f x %.0f x %.0f",d.x,d.y,d.z);
+                        }
+                        ImGui::EndGroup();ImGui::PopID();ImGui::PopID();
+                    }
+                    ImGui::SetCursorScreenPos({rowPos.x,rowPos.y+rowHeight});
+                }
             }
             ImGui::TreePop();
         }
@@ -3853,7 +3893,7 @@ void EditorUi::ActivateRecent(size_t recentPosition, const AssetRegistry& assets
     if (recentPosition>=recentAssets_.size()) return;
     const size_t asset=recentAssets_[recentPosition].index;
     if (asset>=assets.Assets().size()) return;
-    selectedAsset_=static_cast<int>(asset); selectedTextureVariant_=0;
+    selectedAsset_=static_cast<int>(asset); selectedTextureVariant_=recentAssets_[recentPosition].textureVariant;
     RebuildAssetPreview(assets,previewScene);
     BeginPlacement(assets);
 }
@@ -3896,7 +3936,7 @@ void EditorUi::DrawAxLibrary(const MapDocument& map, const AssetRegistry& assets
     }
     if (!visible.empty()) {
         if (axCurrent_<0 || axCurrent_>=static_cast<int>(visible.size())) axCurrent_=0;
-        const bool scroll=ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) || axTabHeld_;
+        const bool scroll=axTabHeld_;
         if (scroll && ImGui::GetIO().MouseWheel!=0.0f) {
             axCurrent_=(axCurrent_+(ImGui::GetIO().MouseWheel<0?1:static_cast<int>(visible.size())-1))%static_cast<int>(visible.size());
             const int currentRow=axCurrent_;

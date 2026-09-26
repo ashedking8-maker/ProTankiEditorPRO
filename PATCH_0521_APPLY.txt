@@ -1,0 +1,1 @@
+Apply on complete ProTankiEditorPRO 0.5.20 source repo, preserving paths and overwriting same-name files. Build using GitHub Windows workflow. This patch does NOT include the original external GTanks game library. Review RELEASE_NOTES_0521.md for tested and pending functions.
