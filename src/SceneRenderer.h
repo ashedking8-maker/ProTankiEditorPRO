@@ -114,6 +114,7 @@ private:
         uint32_t firstIndex{}, indexCount{};
         std::filesystem::path diffuse;
         DirectX::XMFLOAT4 color{1,1,1,1};
+        bool oppositeFaceAtlas{};
     };
     struct MeshGpu {
         std::vector<MeshPart> parts;
@@ -266,6 +267,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler_;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> spriteSampler_;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_;
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerPairedAtlas_;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthState_;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> spriteDepthState_;
     Microsoft::WRL::ComPtr<ID3D11BlendState> opaqueBlend_;

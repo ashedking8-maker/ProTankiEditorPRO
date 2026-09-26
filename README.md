@@ -1,11 +1,11 @@
-# ProTanki Editor PRO 0.5.17 — Lossless Object Snapshots source candidate
+# ProTanki Editor PRO 0.5.18 — Compact UI and Bridge 1 rendering source candidate
 
 Windows x64 / Direct3D 11 C++20. This is a source candidate. Windows MSVC compile,
 CTest, installer packaging and runtime/game compatibility have NOT been tested for
-these 0.5.17 changes. Upload the contents, including `.github/`, to your existing
+these 0.5.18 changes. Upload the contents, including `.github/`, to your existing
 repository, then inspect GitHub Actions before distributing the generated installer.
 
-Read **[RELEASE_NOTES_0517.md](RELEASE_NOTES_0517.md)** and **[BUILD_STATUS_0517.md](BUILD_STATUS_0517.md)** for the current candidate and exact validation status. Earlier release notes remain available for rollback.
+Read **[RELEASE_NOTES_0518.md](RELEASE_NOTES_0518.md)** and **[BUILD_STATUS_0518.md](BUILD_STATUS_0518.md)** for the current patch and its exact validation status. The patch also includes the prior 0.5.17 Release CTest repair. Earlier release notes remain available for rollback.
 
 ## Current changes
 

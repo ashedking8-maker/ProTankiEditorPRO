@@ -32,7 +32,7 @@ class LosslessObject0517Audit(unittest.TestCase):
         h=source('src/EditorUi.h'); c=source('src/EditorUi.cpp')
         self.assertIn('bool allowOpaqueMetadataCopy_{}',h)
         self.assertIn('Allow opaque XML copy for NEXT placement (advanced)',c)
-        self.assertIn('Approve opaque XML copy for NEXT placement',c)
+        self.assertIn('Approve next copy##opaque_prop',c)
         self.assertIn('p.allowOpaqueMetadataCopy=allowOpaqueMetadataCopy_',c)
         self.assertIn('hasInvalidNativeMetadata',c)
         self.assertIn('allowOpaqueMetadataCopy_=false; // approval',c)

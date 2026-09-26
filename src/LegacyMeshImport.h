@@ -5,6 +5,8 @@
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
 #include <algorithm>
+#include <array>
+#include <map>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -23,6 +25,7 @@ struct Part {
     uint32_t firstIndex{}, indexCount{};
     std::filesystem::path diffuse;
     aiColor4D color{1,1,1,1};
+    bool oneSidedPairedAtlas{}; // opposite, exactly coincident faces use distinct UV halves
 };
 struct Model {
     std::vector<Vertex> vertices;
@@ -54,6 +57,48 @@ inline std::filesystem::path TexturePath(const std::filesystem::path& dir, std::
         if (e.is_regular_file() && Lower(e.path().filename().string()) == wanted) return e.path();
     return candidate; // Let texture loading report the missing file.
 }
+// Some native 3DS meshes (e.g. Industrial Bridge / brid_1) contain two
+// opposite-facing, co-planar triangle sets mapped to DIFFERENT halves of one
+// atlas. If both sets are drawn with CULL_NONE and LESS_EQUAL, the later dark
+// underside can overwrite the earlier bright upper surface at equal depth.
+// Only detect *fully paired* parts; keep unpaired legacy geometry two-sided.
+inline bool HasOppositeFaceAtlas(const std::vector<Vertex>& vertices,
+                                 const std::vector<uint32_t>& indices,
+                                 uint32_t firstIndex, uint32_t indexCount) {
+    if (indexCount < 12 || indexCount % 6 != 0 ||
+        static_cast<size_t>(firstIndex) + indexCount > indices.size()) return false;
+    struct Face { aiVector3D normal; float averageU{}; };
+    using FaceKey=std::array<long long,9>;
+    std::map<FaceKey,std::vector<Face>> groups;
+    const auto quantize=[](float v)->long long {return std::llround(static_cast<double>(v)*1000.0);};
+    for(uint32_t i=firstIndex;i<firstIndex+indexCount;i+=3) {
+        const auto a=indices[i],b=indices[i+1],c=indices[i+2];
+        if(a>=vertices.size()||b>=vertices.size()||c>=vertices.size())return false;
+        const auto& va=vertices[a],&vb=vertices[b],&vc=vertices[c];
+        std::array<std::array<long long,3>,3> corners{};
+        const Vertex* trio[3]={&va,&vb,&vc};
+        for(int j=0;j<3;++j)corners[j]={quantize(trio[j]->position.x),
+            quantize(trio[j]->position.y),quantize(trio[j]->position.z)};
+        std::sort(corners.begin(),corners.end());
+        FaceKey key{};
+        for(int j=0;j<3;++j)for(int k=0;k<3;++k)key[3*j+k]=corners[j][k];
+        const auto u=vb.position-va.position,v=vc.position-va.position;
+        aiVector3D normal(u.y*v.z-u.z*v.y,u.z*v.x-u.x*v.z,u.x*v.y-u.y*v.x);
+        if(normal.SquareLength()<1e-10f)return false;
+        normal.Normalize();
+        groups[key].push_back({normal,(va.uv.x+vb.uv.x+vc.uv.x)/3.f});
+    }
+    if(groups.size()*6 != indexCount)return false; // every triangle exactly paired
+    for(const auto& [key,faces]:groups) {
+        (void)key;
+        if(faces.size()!=2)return false;
+        const auto& a=faces[0],&b=faces[1];
+        const float dot=a.normal.x*b.normal.x+a.normal.y*b.normal.y+a.normal.z*b.normal.z;
+        if(dot>-.99f || std::abs(a.averageU-b.averageU)<.25f)return false;
+    }
+    return true;
+}
+
 inline Model Load(const std::filesystem::path& file) {
     // Read via filesystem::path so Windows Unicode paths do not depend on ACP.
     std::ifstream stream(file, std::ios::binary);
@@ -158,6 +203,9 @@ inline Model Load(const std::filesystem::path& file) {
             result.indices.push_back(base+f.mIndices[mirrored ? 1 : 2]);
         }
         part.indexCount = static_cast<uint32_t>(result.indices.size())-part.firstIndex;
+        part.oneSidedPairedAtlas=HasOppositeFaceAtlas(result.vertices,result.indices,part.firstIndex,part.indexCount);
+        if (part.oneSidedPairedAtlas)
+            result.warnings.push_back("Opposite-face UV atlas detected; use selective front-face rendering");
         if (part.indexCount) result.parts.push_back(part);
     }
 

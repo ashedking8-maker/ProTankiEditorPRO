@@ -183,7 +183,7 @@ void SceneRenderer::Shutdown() {
     spriteVs_.Reset(); spritePs_.Reset(); spriteLayout_.Reset();
     gridVs_.Reset(); gridPs_.Reset(); gridLayout_.Reset();
     cameraBuffer_.Reset(); nativeLightBuffer_.Reset(); spriteVertexBuffer_.Reset(); spriteIndexBuffer_.Reset(); gridVertexBuffer_.Reset(); selectionVertexBuffer_.Reset(); debugVertexBuffer_.Reset(); collisionFaceBuffer_.Reset(); collisionEdgeBuffer_.Reset(); functionalPadBuffer_.Reset(); functionalGhostBuffer_.Reset(); functionalGhostModelBuffer_.Reset();
-    sampler_.Reset(); spriteSampler_.Reset(); rasterizer_.Reset(); depthState_.Reset(); spriteDepthState_.Reset();
+    sampler_.Reset(); spriteSampler_.Reset(); rasterizer_.Reset(); rasterizerPairedAtlas_.Reset(); depthState_.Reset(); spriteDepthState_.Reset();
     opaqueBlend_.Reset(); alphaBlend_.Reset();
     wic_.Reset();
     device_ = nullptr;
@@ -417,6 +417,15 @@ bool SceneRenderer::CreateStates(std::string& error) {
     rd.CullMode = D3D11_CULL_NONE; // Legacy .3ds assets are not consistently wound.
     rd.DepthClipEnable = TRUE;
     if (FAILED(device_->CreateRasterizerState(&rd, &rasterizer_))) { error = "Could not create rasterizer state."; return false; }
+    // Only meshes with fully paired opposite-winding UV atlas faces need culling.
+    // This avoids painting the underside over the upper face at identical depth.
+    rd.CullMode = D3D11_CULL_BACK;
+    // The source 3DS exterior winding (positive legacy Z on Bridge 1 top)
+    // becomes CCW under the Y-up render basis; preserve that front face.
+    rd.FrontCounterClockwise = TRUE;
+    if (FAILED(device_->CreateRasterizerState(&rd, &rasterizerPairedAtlas_))) {
+        error = "Could not create paired-atlas rasterizer state."; return false;
+    }
 
     D3D11_DEPTH_STENCIL_DESC dd{};
     dd.DepthEnable = TRUE;
@@ -541,7 +550,7 @@ std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::files
     auto gpu = std::make_shared<MeshGpu>();
     gpu->cpuVertices=vertices;
     gpu->cpuIndices=indices;
-    for (const auto& part : imported.parts) gpu->parts.push_back({part.firstIndex,part.indexCount,part.diffuse,{part.color.r,part.color.g,part.color.b,part.color.a}});
+    for (const auto& part : imported.parts) gpu->parts.push_back({part.firstIndex,part.indexCount,part.diffuse,{part.color.r,part.color.g,part.color.b,part.color.a},part.oneSidedPairedAtlas});
     Log::Debug("Mesh visual anchor: " + imported.anchor + " parts=" + std::to_string(imported.parts.size()) + " ignoredHelperNodes=" + std::to_string(imported.ignoredMeshNodes));
     D3D11_BUFFER_DESC vb{}; vb.ByteWidth = static_cast<UINT>(vertices.size() * sizeof(Vertex)); vb.Usage = D3D11_USAGE_IMMUTABLE; vb.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     D3D11_SUBRESOURCE_DATA vd{vertices.data()};
@@ -1428,11 +1437,13 @@ void SceneRenderer::RenderMeshes(const CameraConstants&) {
         context_->IASetIndexBuffer(batch.mesh->indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
         for (size_t i=0; i<batch.mesh->parts.size(); ++i) {
             const auto& part = batch.mesh->parts[i];
+            context_->RSSetState(part.oppositeFaceAtlas?rasterizerPairedAtlas_.Get():rasterizer_.Get());
             ID3D11ShaderResourceView* srv = batch.textures[i]->srv.Get();
             context_->PSSetShaderResources(0, 1, &srv);
             context_->DrawIndexedInstanced(part.indexCount, static_cast<UINT>(batch.instances.size()), part.firstIndex, 0, 0);
         }
     }
+    context_->RSSetState(rasterizer_.Get());
 }
 
 void SceneRenderer::RenderSprites(const CameraConstants&) {
@@ -1623,10 +1634,12 @@ void SceneRenderer::RenderGhost() {
             context_->IASetIndexBuffer(item.mesh->indexBuffer.Get(),DXGI_FORMAT_R32_UINT,0);
             for (size_t i=0;i<item.mesh->parts.size();++i) {
                 const auto& part=item.mesh->parts[i];
+                context_->RSSetState(part.oppositeFaceAtlas?rasterizerPairedAtlas_.Get():rasterizer_.Get());
                 ID3D11ShaderResourceView* srv=item.textures[i]->srv.Get();
                 context_->PSSetShaderResources(0,1,&srv);
                 context_->DrawIndexedInstanced(part.indexCount,1,part.firstIndex,0,0);
             }
+            context_->RSSetState(rasterizer_.Get());
         } else if (item.sprite) {
             context_->IASetInputLayout(spriteLayout_.Get());
             context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1696,6 +1709,7 @@ bool SceneRenderer::UpdatePreviewMeshGeometry(const std::vector<XMFLOAT3>& point
         mesh->vertexBuffer.Reset();
     }
     for(size_t i=0;i<points.size();++i)mesh->cpuVertices[i].position=points[i];
+    for(auto& part:mesh->parts)part.oppositeFaceAtlas=false; // edited topology is not the original paired atlas
     if(!mesh->vertexBuffer) {
         D3D11_BUFFER_DESC desc{};desc.ByteWidth=static_cast<UINT>(mesh->cpuVertices.size()*sizeof(Vertex));
         desc.BindFlags=D3D11_BIND_VERTEX_BUFFER;desc.Usage=D3D11_USAGE_DYNAMIC;desc.CPUAccessFlags=D3D11_CPU_ACCESS_WRITE;
@@ -1806,10 +1820,12 @@ void SceneRenderer::RenderFunctionalModels(unsigned overlayMask,unsigned modeMas
         context_->IASetIndexBuffer(b.mesh->indexBuffer.Get(),DXGI_FORMAT_R32_UINT,0);
         for (size_t part=0;part<b.mesh->parts.size();++part) {
             const auto& segment=b.mesh->parts[part];
+            context_->RSSetState(segment.oppositeFaceAtlas?rasterizerPairedAtlas_.Get():rasterizer_.Get());
             ID3D11ShaderResourceView* tex=b.textures[part]->srv.Get();
             context_->PSSetShaderResources(0,1,&tex);
             context_->DrawIndexedInstanced(segment.indexCount,static_cast<UINT>(b.instances.size()),segment.firstIndex,0,0);
         }
+        context_->RSSetState(rasterizer_.Get());
     }
 }
 
@@ -1929,10 +1945,12 @@ void SceneRenderer::RenderFunctionalGhost() {
                     context_->IASetIndexBuffer(b.mesh->indexBuffer.Get(),DXGI_FORMAT_R32_UINT,0);
                     for(size_t part=0;part<b.mesh->parts.size();++part) {
                         const auto& segment=b.mesh->parts[part];
+                        context_->RSSetState(segment.oppositeFaceAtlas?rasterizerPairedAtlas_.Get():rasterizer_.Get());
                         ID3D11ShaderResourceView* tex=b.textures[part]->srv.Get();
                         context_->PSSetShaderResources(0,1,&tex);
                         context_->DrawIndexedInstanced(segment.indexCount,1,segment.firstIndex,0,0);
                     }
+                    context_->RSSetState(rasterizer_.Get());
                     return;
                 }
             }

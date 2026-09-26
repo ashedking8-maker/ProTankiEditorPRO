@@ -104,6 +104,11 @@ void ToolbarToggle(const char* label, bool& value) {
     }
 }
 
+void HoverHelp(const char* explanation) {
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        ImGui::SetTooltip("%s", explanation);
+}
+
 bool ToolButton(const char* label, bool active) {
     const bool pressed = ImGui::Button(label);
     if (active) {
@@ -1374,7 +1379,7 @@ void EditorUi::DrawScene(MapDocument& map, SceneRenderer& scene) {
     if (ImGui::Button("Open gameplay inspector...")) ImGui::SetWindowFocus("Gameplay");
     char collisionLabel[96]; std::snprintf(collisionLabel, sizeof(collisionLabel), "Collision (%zu)", map.Stats().collisionPlanes + map.Stats().collisionBoxes + map.Stats().collisionTriangles);
     if(ImGui::TreeNode(collisionLabel)) {
-        ImGui::TextWrapped("Collision is stored separately from visible props. Deleting a visual alone leaves an invisible obstacle. Listed positions are from the real XML.");
+        HoverHelp("Collision is stored separately from visible props; deleting a visual alone can leave an invisible obstacle. Positions come from the real XML.");
         ImGui::Checkbox("Show all colliders",&showAllColliders_);
         // Windows headers may define `near` as a legacy macro. Avoid that identifier here.
         const bool hasSelectedProp=selected_>=0 && static_cast<size_t>(selected_)<map.Props().size();
@@ -1460,6 +1465,19 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
     if (ImGui::Button("Browse Library")) { browseLibraryOpen_=true; axPinned_=false; axTabHeld_=false; }
     ImGui::SameLine();
     if (ImGui::Button("AX")) { axPinned_=!axPinned_; axPinnedOpenedAt_=ImGui::GetTime(); }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Settings...##library_placement_settings"))
+        ImGui::OpenPopup("Placement settings##library");
+    HoverHelp("Advanced placement options. Normal native collision authoring is automatic and remains enabled by default.");
+    if (ImGui::BeginPopup("Placement settings##library")) {
+        ImGui::TextUnformatted("Advanced placement settings");
+        ImGui::Separator();
+        ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
+        HoverHelp("Opt in only when a solid 3DS asset has unsupported native helpers. The new prop will have no authored tank collision. Normal supported props still receive full collision.");
+        ImGui::Checkbox("Allow opaque XML copy for NEXT placement (advanced)",&allowOpaqueMetadataCopy_);
+        HoverHelp("One-shot approval for copying an existing map instance with unknown original XML fields. Those fields may contain instance-specific IDs or coordinates. This does not validate their meaning in ProTLVK.");
+        ImGui::EndPopup();
+    }
     ImGui::Separator();
     static char search[128]{}; ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##asset_filter", "Search props...", search, sizeof(search)); ImGui::Spacing();
     if (!assets.AssetCount()) {
@@ -1468,12 +1486,6 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
         ImGui::End(); return;
     }
     ImGui::TextDisabled("%zu libraries / %zu assets", assets.LibraryCount(), assets.AssetCount());
-    ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
-    ImGui::Checkbox("Allow opaque XML copy for NEXT placement (advanced)",&allowOpaqueMetadataCopy_);
-    if(ImGui::IsItemHovered())ImGui::SetTooltip("Copies unknown original XML unchanged. Engine-specific IDs, references or location-dependent fields may not be safe to duplicate. OFF by default.");
-    ImGui::TextDisabled("Opaque copy keeps all source fields; it does not validate their game semantics.");
-    ImGui::TextDisabled("Sprite decorations are visual-only by design; solid 3DS props require helpers or explicit opt-in.");
-    if(ImGui::IsItemHovered())ImGui::SetTooltip("Off by default. Refuse static meshes without supported 3DS helpers instead of making invisible holes.");
 
     const auto& all = assets.Assets();
     const float listHeight = std::max(130.0f, ImGui::GetContentRegionAvail().y * 0.42f);
@@ -1522,7 +1534,7 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
                 }
                 ImGui::EndCombo();
             }
-        } else ImGui::TextDisabled("Default embedded material / sprite");
+        }
 
         ImVec2 previewSize{ImGui::GetContentRegionAvail().x, std::min(220.0f, ImGui::GetContentRegionAvail().x * 0.68f)};
         previewSize.x=std::max(previewSize.x,80.0f); previewSize.y=std::max(previewSize.y,90.0f);
@@ -1537,42 +1549,10 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Click to rotate");
         CaptureRecentThumbnail(previewScene);
-        ImGui::SetNextItemWidth(90); ImGui::DragFloat("Placement Z", &placementZ_, 50.0f, -100000.0f, 100000.0f, "%.0f");
-        if (ImGui::Button(placementActive_ ? "Cancel [RMB]" : "Follow cursor [Space]")) {
-            if (placementActive_) { placementActive_=false; scene.ClearGhost(); }
-            else BeginPlacement(assets);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Add at view focus")) {
-            PropInstance p=placementTemplate_;
-            if (p.name.empty()) { BeginPlacement(assets); p=placementTemplate_; placementActive_=false; }
-            auto at=scene.CameraTargetLegacy(); p.position={SnapPosition(at.x),SnapPosition(at.y),SnapPosition(at.z)};
-            MapDocument before=map;
-            if(p.hasUncopyableMetadata)p.allowOpaqueMetadataCopy=allowOpaqueMetadataCopy_;
-            allowOpaqueMetadataCopy_=false;
-            const size_t newIndex=map.AddProp(std::move(p));
-            std::string info;
-            const bool hasNativeCollision=AuthorCollisionForPlacement(map,assets,newIndex,info);
-            const auto* pendingAsset=assets.Find(map.Props()[newIndex].library,
-                map.Props()[newIndex].group,map.Props()[newIndex].name);
-            const bool intentionalSprite=pendingAsset&&!pendingAsset->sprite.empty();
-            if(!hasNativeCollision&&(map.Props()[newIndex].hasInvalidNativeMetadata ||
-                (map.Props()[newIndex].hasUncopyableMetadata &&
-                !map.Props()[newIndex].allowOpaqueMetadataCopy) ||
-                map.Props()[newIndex].nativeWithCollision==1 ||
-                (!allowVisualOnlyPlacement_&&!intentionalSprite))) {
-                map=std::move(before);
-                SetMessage("Object was NOT placed: "+info+
-                    ". A copied native with_collision=1 also requires verified new colliders.",true);
-            } else {
-                selected_=static_cast<int>(newIndex);
-                history_.PushSnapshot(std::move(before),map); RequestSceneRebuild(true);
-                if(hasNativeCollision)SetMessage("Added "+a.name+" with "+info);
-                else SetMessage("Added "+a.name+" VISUAL ONLY: "+info,true);
-            }
-        }
+        // Choosing an asset already starts its cursor-following placement.
+        // The preview is a clean, interactive image without duplicate placement controls.
     } else {
-        ImGui::Spacing(); ImGui::TextWrapped("Single click selects the prop and starts its cursor-following preview. Space places; RMB cancels.");
+        ImGui::TextDisabled("Select an object to preview");
     }
     ImGui::End();
 }
@@ -1826,7 +1806,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoDocking);
     if(!windowOpen) {if(objectDirty_)objectCloseRequested_=true;else objectEditorOpen_=false;}
     if(!shown) {ImGui::End();return;}
-    ImGui::TextDisabled("Independent model workspace");
+    ImGui::TextDisabled("Object draft"); HoverHelp("Separate model workspace; original library files are never changed.");
     ImGui::SameLine();if(ImGui::SmallButton("?##obj_help"))objectHelpRequested_=true;
     ImGui::Separator();
     ImGui::BeginChild("##object_controls",{310,0},ImGuiChildFlags_Borders);
@@ -1861,7 +1841,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     }
     ImGui::TextWrapped("Source: %s",objectDraft_.model.empty()?"None":objectDraft_.model.filename().string().c_str());
     if(ImGui::CollapsingHeader("Attach native library reference (read only)")) {
-        ImGui::TextWrapped("Copy ALL original library XML into draft sidecars, including unknown properties. It is not a verified game export.");
+        HoverHelp("Copy ALL original library XML into draft sidecars, including unknown properties. This does not produce a native game export.");
         ImGui::InputTextWithHint("##obj_template_search","Search library / group / prop...",objectLegacySearch_,sizeof(objectLegacySearch_));
         ImGui::BeginChild("##obj_template_select",{0,110},ImGuiChildFlags_Borders);
         size_t shownTemplates=0;
@@ -1887,7 +1867,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
             objectDraft_.templateLibrary.clear();objectDraft_.templateGroup.clear();objectDraft_.templateName.clear();
             objectDirty_=true;
         }
-    } else ImGui::TextDisabled("No native library template attached; new draft has no inherited gameplay properties.");
+    } else { ImGui::TextDisabled("Template: none"); HoverHelp("A new draft does not inherit native gameplay properties unless a library template is attached."); }
     // Shared native helper inspector. Draft boxes remain independently editable;
     // GLB-to-game 3DS export is intentionally NOT claimed or silently performed.
     static std::filesystem::path inspectedSource;
@@ -1903,8 +1883,8 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
             ImGui::TextColored({.30f,.88f,.50f,1.f},"Native 3DS helpers: %zu planes + %zu triangles (source read-only)",
                 inspectedHelpers.planes.size(),inspectedHelpers.triangles.size());
         else ImGui::TextWrapped("Native helper import blocked: %s",inspectedHelpers.error.c_str());
-        ImGui::TextDisabled("Custom collision boxes below are separate editable drafts, not yet native game export.");
-    } else ImGui::TextWrapped("GLB: edit solid/trigger boxes below. No native 3DS or ProTLVK export is available yet.");
+        HoverHelp("Custom collision boxes below are separate editable drafts, not a native game export.");
+    } else { ImGui::TextDisabled("GLB: collision draft"); HoverHelp("Edit solid/trigger boxes below. There is no native 3DS or ProTLVK game export yet."); }
     char draftName[128]{};
     std::memcpy(draftName,objectDraft_.name.data(),std::min(objectDraft_.name.size(),sizeof(draftName)-1));
     if(ImGui::InputText("Object name",draftName,sizeof(draftName))) {objectDraft_.name=draftName;objectDirty_=true;}
@@ -1953,7 +1933,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
             }
         }
         ImGui::SeparatorText("Mesh topology / point tools");
-        ImGui::TextWrapped("Ctrl+click 3 points to choose a triangle. A new point starts near the selected point. New faces use the last source material (draft only).");
+        HoverHelp("Ctrl+click three points to choose a triangle. New points start near the selection; new faces reuse the last source material. Draft only.");
         if(ImGui::Button("Add mesh point") && objectVisualVertices_.size()<200000) {
             PushObjectUndo();DirectX::XMFLOAT3 next{0,0,0};
             if(objectSelectedVertex_>=0 && static_cast<size_t>(objectSelectedVertex_)<objectVisualVertices_.size()) {
@@ -1997,7 +1977,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         } else if(objectDraft_.boxes.empty())objectDraft_.boxes.push_back(ObjectDraft::Box{});
         objectDirty_=true;
     }
-    ImGui::TextWrapped("Draft intent only. Native collision, with_collision flags and dirt/dust material effects are NOT exported to ProTLVK from this workspace.");
+    HoverHelp("Draft intent only: native collision, with_collision flags and dirt/dust material effects are NOT exported to ProTLVK from this workspace.");
     ImGui::Checkbox("Show collision boxes",&objectShowBoxes_);
     ImGui::Text("Collision draft (%zu boxes)",objectDraft_.boxes.size());
     ImGui::Spacing();
@@ -2058,7 +2038,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     ImGui::Separator();
     if(ImGui::Button("Choose output folder...",{-1,0}))objectPickerRequest_=2;
     ImGui::TextWrapped("Output: %s",objectDraftOutputRoot_.empty()?"Choose a separate writable folder":objectDraftOutputRoot_.string().c_str());
-    ImGui::TextDisabled("A new subfolder is created; existing drafts are never overwritten.");
+    HoverHelp("A new subfolder is created; existing drafts are never overwritten.");
     std::string validation;
     const bool outputInsideOriginal=ObjectDraft::IsWithin(objectDraftOutputRoot_,assets.Root());
     const bool valid=ObjectDraft::Validate(objectDraft_,validation) && !objectDraftOutputRoot_.empty() &&
@@ -2135,7 +2115,8 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     }
     ImGui::TextUnformatted("3D model + independent collision boxes");
     ImGui::SameLine(); if(ImGui::Button("Frame model") && objectSceneInitialized_)objectScene_.FrameScene();
-    ImGui::TextDisabled("Right drag: orbit | Middle drag: pan | Wheel: zoom | Left-click point, drag in view plane");
+    // View controls are available on hover, not as a permanent instruction row.
+    HoverHelp("Right drag: orbit | Middle drag: pan | Wheel: zoom | Left-click point: drag in view plane");
     if(objectSceneInitialized_) {
         const ImVec2 size={std::max(300.f,ImGui::GetContentRegionAvail().x),
                            std::max(240.f,ImGui::GetContentRegionAvail().y-14.f)};
@@ -2273,26 +2254,24 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     const ImGuiViewport* draftViewport=ImGui::GetMainViewport();
     ImGui::SetNextWindowPos({draftViewport->WorkPos.x+draftViewport->WorkSize.x*.5f,
         draftViewport->WorkPos.y+draftViewport->WorkSize.y*.5f},ImGuiCond_Appearing,{.5f,.5f});
-    ImGui::SetNextWindowSize({540.f,185.f},ImGuiCond_Appearing);
-    if(ImGui::BeginPopupModal("Confirm object draft save",nullptr,ImGuiWindowFlags_NoResize)) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX()+490.f);
-        ImGui::TextWrapped("Save a NEW isolated draft folder? Existing drafts and original library files will NOT be overwritten.");
-        ImGui::TextWrapped("This does not produce a game-ready 3DS/library.xml. Only the verified draft and edited mesh data are saved.");
+    ImGui::SetNextWindowSizeConstraints({340.f,0.f},{490.f,280.f});
+    if(ImGui::BeginPopupModal("Confirm object draft save",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("Save a new isolated object draft?");
+        HoverHelp("Creates a new draft folder; original library assets are not overwritten. Native 3DS/library.xml game export is not available.");
         if(ImGui::Button("Save draft")) {
             SaveObjectDraft(assets);
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();if(ImGui::Button("Cancel##save_draft"))ImGui::CloseCurrentPopup();
-        ImGui::PopTextWrapPos();
         ImGui::EndPopup();
     }
     if(objectCloseRequested_) {ImGui::OpenPopup("Save object changes?##objclose");objectCloseRequested_=false;}
     ImGui::SetNextWindowPos({draftViewport->WorkPos.x+draftViewport->WorkSize.x*.5f,
         draftViewport->WorkPos.y+draftViewport->WorkSize.y*.5f},ImGuiCond_Appearing,{.5f,.5f});
-    ImGui::SetNextWindowSize({555.f,175.f},ImGuiCond_Appearing);
-    if(ImGui::BeginPopupModal("Save object changes?##objclose",nullptr,ImGuiWindowFlags_NoResize)) {
+    ImGui::SetNextWindowSizeConstraints({420.f,0.f},{510.f,320.f});
+    if(ImGui::BeginPopupModal("Save object changes?##objclose",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::TextWrapped("Save your changes as a new custom object draft?");
-        ImGui::TextDisabled("Drafts do not replace original library assets or export native game objects.");
+        HoverHelp("A draft is isolated. This does not replace original library assets or export a native game object.");
         ImGui::BeginDisabled(!objectDirty_);
         if(ImGui::Button("Save as new draft")) {
             if(SaveObjectDraft(assets)) {objectEditorOpen_=false;ImGui::CloseCurrentPopup();}
@@ -2312,8 +2291,7 @@ void EditorUi::DrawLighting(MapDocument& map, SceneRenderer& scene) {
     ImGui::Checkbox("Show editable light markers",&showLights_);
     if(ImGui::Checkbox("Preview nearby light on surfaces",&previewNativeLighting_)) SaveControls();
     if(ImGui::SliderFloat("Preview reach (editor only)",&previewLightReach_,1.f,500.f,"x%.0f"))SaveControls();
-    ImGui::TextDisabled("Approximate preview; original client light rendering may differ.");
-    ImGui::TextWrapped("Surface lighting is an approximate editor preview. ProTLVK is authoritative for native light appearance, skybox and shadows.");
+    HoverHelp("Approximate editor preview only. ProTLVK remains authoritative for native lighting, skybox and shadows.");
     float tint[3]={((pendingLight_.color>>16)&255)/255.f,((pendingLight_.color>>8)&255)/255.f,(pendingLight_.color&255)/255.f};
     if(ImGui::ColorEdit3("New light color",tint)) {
         const auto toByte=[](float x){return static_cast<unsigned>(std::clamp(x,0.f,1.f)*255.f+0.5f);};
@@ -2328,12 +2306,12 @@ void EditorUi::DrawLighting(MapDocument& map, SceneRenderer& scene) {
     }
     const bool ready=!map.Version().empty() && std::isfinite(pendingLight_.intensity) && pendingLight_.intensity>=0;
     ImGui::BeginDisabled(!ready);
-    if(ImGui::Button(lightPlacementActive_?"Cancel light placement":"Place light on map...")) {
+    if(ImGui::Button(lightPlacementActive_?"Cancel light placement":"Add Light")) {
         lightPlacementActive_=!lightPlacementActive_;showLights_=true;
         if(lightPlacementActive_) {placementActive_=false;functionalPlacement_=FunctionalPlacement::None;scene.ClearGhost();}
     }
     ImGui::EndDisabled();
-    if(lightPlacementActive_)ImGui::TextDisabled("Click viewport to place at Placement Z; RMB cancels.");
+    if(lightPlacementActive_)HoverHelp("Click in the viewport to place the light at the current placement height; RMB cancels.");
     if(selected_>=0 && static_cast<size_t>(selected_)<map.Props().size()) {
         const auto& prop=map.Props()[static_cast<size_t>(selected_)];
         ImGui::TextDisabled("Selected prop: %s",prop.name.c_str());
@@ -2350,7 +2328,7 @@ void EditorUi::DrawLighting(MapDocument& map, SceneRenderer& scene) {
             }
         }
         ImGui::EndDisabled();
-        ImGui::TextDisabled("The lamp and light remain separate native XML items.");
+        HoverHelp("The lamp and light remain separate native XML items.");
     }
     ImGui::SeparatorText("Existing native lights");
     for(size_t i=0;i<map.Lights().size();++i){
@@ -2377,7 +2355,7 @@ void EditorUi::DrawLighting(MapDocument& map, SceneRenderer& scene) {
         ImGui::SameLine();
         if(ImGui::Button("Delete selected light"))DeleteFunctional(map,scene);
     }
-    ImGui::TextDisabled("Map XML: type, decimal RGB, intensity, attenuation and position.");
+    HoverHelp("Native XML stores light type, RGB, intensity, attenuation and position.");
     ImGui::End();
 }
 
@@ -2505,7 +2483,7 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
     if(gameplayPaletteOpen_) {
         ImGui::SetNextWindowSize({540,680},ImGuiCond_FirstUseEver);
         if(ImGui::Begin("Add gameplay elements##palette",&gameplayPaletteOpen_)) {
-            ImGui::TextWrapped("Choose an element, move your cursor into the map and press Space. Right-click cancels placement.");
+            HoverHelp("Choose an element, move the cursor into the map and press Space. Right-click cancels placement.");
             ImGui::SeparatorText("Spawns");
             if(ImGui::Button("DM spawn##palette")) BeginFunctionalPlacement(FunctionalPlacement::SpawnDm,scene);
             ImGui::SameLine(); if(ImGui::Button("Red spawn##palette")) BeginFunctionalPlacement(FunctionalPlacement::SpawnRed,scene);
@@ -2513,7 +2491,7 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
             if(ImGui::Button("DOM red spawn##palette")) BeginFunctionalPlacement(FunctionalPlacement::SpawnDomRed,scene);
             ImGui::SameLine(); if(ImGui::Button("DOM blue spawn##palette")) BeginFunctionalPlacement(FunctionalPlacement::SpawnDomBlue,scene);
             ImGui::InputFloat("New spawn rotation Z (radians)",&newSpawnYaw_,0,0,"%.5f");
-            ImGui::TextDisabled("X: +45 degrees (8 headings); Shift+X: -45 degrees. Exact radians above.");
+            HoverHelp("X: +45 degrees (8 headings); Shift+X: -45 degrees. Exact radians above.");
             ImGui::SeparatorText("Flags and objectives");
             if(ImGui::Button("Red CTF flag##palette")) BeginFunctionalPlacement(FunctionalPlacement::RedFlag,scene);
             ImGui::SameLine(); if(ImGui::Button("Blue CTF flag##palette")) BeginFunctionalPlacement(FunctionalPlacement::BlueFlag,scene);
@@ -2542,7 +2520,7 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
             const std::string pendingType=newBonusTypeOverride_.empty() ?
                 GameplayAuthoring::KnownBonusTypes[std::clamp(newBonusKind_,0,6)] : newBonusTypeOverride_;
             ImGui::TextDisabled("New region type: %s",pendingType.c_str());
-            ImGui::TextWrapped("The listed names are evidenced by original map files. Other existing XML names are preserved; arbitrary names need an original-game check.");
+            HoverHelp("Listed names were observed in original maps. Existing unknown names are preserved; new names need game verification.");
             ImGui::Checkbox("Free drop##new",&newBonusFree_);
             ImGui::SameLine(); ImGui::Checkbox("Parachute##new",&newBonusParachute_);
             for(int bit=0;bit<5;++bit) {
@@ -2556,15 +2534,15 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
             const bool validBonusType=GameplayAuthoring::ValidBonusType(pendingType);
             const bool anyBonusModes=GameplayAuthoring::HasExplicitModes(newBonusModes_);
             if(!anyBonusModes)
-                ImGui::TextWrapped("Select at least one game mode. Zero <game-mode> entries have unverified game semantics; no mode is added automatically.");
+                HoverHelp("Select at least one game mode. Zero native game-mode entries have unverified semantics; no mode is added automatically.");
             if(!validBonusType)
-                ImGui::TextWrapped("Bonus type must contain 1-64 letters, digits, underscore or hyphen.");
+                HoverHelp("Bonus type must contain 1-64 letters, digits, underscore or hyphen.");
             ImGui::BeginDisabled(!anyBonusModes || !validBonusType);
             if(ImGui::Button("Bonus / drop region##palette")) BeginFunctionalPlacement(FunctionalPlacement::BonusRegion,scene);
             ImGui::EndDisabled();
             if(ImGui::Button("Kill zone##palette")) BeginFunctionalPlacement(FunctionalPlacement::KillZone,scene);
             ImGui::SameLine(); if(ImGui::Button("Kick zone##palette")) BeginFunctionalPlacement(FunctionalPlacement::KickZone,scene);
-            ImGui::TextDisabled("Select an existing item in Gameplay to edit its XML bounds in Properties.");
+            HoverHelp("Select an existing gameplay item to edit its native XML bounds in Properties.");
         }
         ImGui::End();
     }
@@ -2631,10 +2609,10 @@ void EditorUi::DrawFunctionalProperties(MapDocument& map,SceneRenderer& scene) {
 if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().size()) {
         auto light=map.Lights()[functionalIndex_];
         ImGui::SeparatorText("Native omni light");
-        ImGui::TextDisabled("Uses actual <lights>/<light> XML; no invented glow/pulse fields.");
+        HoverHelp("Reads native lights XML. No invented glow or pulse fields are written.");
         ImGui::TextDisabled("Legacy type: %s",light.type.c_str());
         if(light.type!="omni") {
-            ImGui::TextWrapped("Unsupported original light type: preserved verbatim unless the lights section is changed.");
+            HoverHelp("Unsupported original light type is preserved verbatim unless the native lights section is changed.");
         } else {
             float tint[3]={((light.color>>16)&255)/255.f,((light.color>>8)&255)/255.f,(light.color&255)/255.f};
             if(ImGui::ColorEdit3("Light color",tint))change([&]{
@@ -2652,7 +2630,7 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
             finish();
             if(ImGui::InputFloat("Light rotation Z",&light.rotationZ,0,0,"%.6f"))change([&]{map.SetLight(functionalIndex_,light);});
             finish();
-            ImGui::TextDisabled("Attenuation units from original data; editor marker size is symbolic.");
+            HoverHelp("Attenuation uses original units; the editor marker size is symbolic.");
         }
     }
     if(functionalSelected_==FunctionalType::Bonus && functionalIndex_<map.Bonuses().size()) {
@@ -2668,14 +2646,14 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
         if(ImGui::InputText("Bonus type (legacy XML)",typeBuffer,sizeof(typeBuffer)))
             change([&]{region.bonusType=typeBuffer;map.SetBonusRegion(functionalIndex_,region);});
         finish();
-        ImGui::TextDisabled("Examples in verified fixtures: armorup, crystal_100; other native names are preserved.");
+        HoverHelp("Examples in original fixtures: armorup, crystal_100. Other native names are preserved.");
         if(ImGui::Checkbox("Free drop",&region.free))change([&]{map.SetBonusRegion(functionalIndex_,region);});
         finish();
         if(ImGui::Checkbox("Parachute",&region.parachute))change([&]{map.SetBonusRegion(functionalIndex_,region);});
         finish();
 
         if(region.modes.empty())
-            ImGui::TextWrapped("Legacy region has no explicit game-mode nodes. Original-game interpretation is not verified; select a mode to author it explicitly.");
+            HoverHelp("Legacy region has no explicit game-mode nodes. Game behavior is unverified until you author a mode explicitly.");
         for(const char* mode:{"dm","tdm","ctf","dom","as"}) {
             const auto has=[&](const std::string& m){return Lower(m)==mode;};
             bool enabled=std::any_of(region.modes.begin(),region.modes.end(),has);
@@ -2692,9 +2670,9 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
             }
             finish();
         }
-        ImGui::TextDisabled("AS is an observed native XML mode; its game mechanics are not inferred here.");
+        HoverHelp("AS occurs in native XML. Its exact game mechanics have not been inferred.");
         if(bonusModeExplanation_)
-            ImGui::TextWrapped("Select at least one explicit game mode. Existing zero-mode native records are preserved until you choose a mode; their original-game semantics are unverified.");
+            HoverHelp("Select at least one explicit mode. Existing zero-mode records remain unchanged until you select a mode.");
         float lo[3]={region.min.x,region.min.y,region.min.z},hi[3]={region.max.x,region.max.y,region.max.z};
         if(ImGui::InputFloat3("Minimum",lo,"%.3f"))change([&]{region.min={lo[0],lo[1],lo[2]};map.SetBonusRegion(functionalIndex_,region);});
         finish();
@@ -2710,7 +2688,7 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
         if(ImGui::InputFloat3("Maximum",hi,"%.3f"))change([&]{region.max={hi[0],hi[1],hi[2]};map.SetSpecialBox(functionalIndex_,region);});
         finish();
         if(region.min.x>region.max.x || region.min.y>region.max.y || region.min.z>region.max.z)
-            ImGui::TextDisabled("Note: Minimum should not exceed Maximum on any axis.");
+            HoverHelp("Minimum must not exceed Maximum on any axis.");
         int action=region.action=="kill"?0:region.action=="kick"?1:2;
         if(ImGui::Combo("Action",&action,"Kill\0Kick\0Other (preserved)\0")) {
             if(action<2) {const auto before=region;region.action=action==0?"kill":"kick";
@@ -2732,7 +2710,7 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
     if(ImGui::Button("Delete selected functional object")) {
         functionalPropertyBefore_.reset();zonePropertyBefore_.reset();DeleteFunctional(map,scene);
     }
-    ImGui::TextDisabled("Save writes to the original functional XML sections; Undo restores edits.");
+    HoverHelp("Save writes to the original functional XML sections; Undo restores edits.");
 }
 
 void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, SceneRenderer& scene) {
@@ -2753,49 +2731,78 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
     if (ImGui::InputFloat("Rotation Z",&rz,0,0,"%.6f")) { auto state=StateOf(map.Props()[static_cast<size_t>(selected_)]); state.rotation.z=rz; ApplyLiveTransform(map,scene,selected_,state); }
     if (ImGui::IsItemActivated()) { propertyEditActive_=true; propertyEditIndex_=selected_; propertyEditBefore_=StateOf(map.Props()[static_cast<size_t>(selected_)]); }
     if (ImGui::IsItemDeactivatedAfterEdit() && propertyEditActive_ && propertyEditIndex_==selected_) { const auto after=StateOf(map.Props()[static_cast<size_t>(selected_)]); history_.Push({static_cast<size_t>(selected_),propertyEditBefore_,after,"Edit rotation"}); propertyEditActive_=false; }
-    ImGui::Spacing(); ImGui::TextDisabled("Legacy static props export position at 3 decimals and Z rotation at 6 decimals.");
-    ImGui::Spacing(); ImGui::SeparatorText("Material"); ImGui::Text("Texture"); ImGui::SameLine(95); ImGui::TextDisabled("%s", p.texture.empty()?"<default>":p.texture.c_str());
-    ImGui::Spacing(); ImGui::SeparatorText("Original object metadata (read only)");
-    if(p.nativeWithCollision<0)ImGui::TextDisabled("with_collision: absent / unrecognized");
-    else ImGui::TextDisabled("with_collision: %d (original XML)",p.nativeWithCollision);
-    if(p.nativeFree<0)ImGui::TextDisabled("free attribute: absent / unrecognized");
-    else ImGui::TextDisabled("free attribute: %s",p.nativeFree?"true":"false");
-    if(p.hasInvalidNativeMetadata)
-        ImGui::TextColored({1.f,.43f,.36f,1.f},"Malformed native fields: duplicating this prop is blocked, even with approval.");
-    if(p.hasUncopyableMetadata) {
-        ImGui::Checkbox("Approve opaque XML copy for NEXT placement",&allowOpaqueMetadataCopy_);
-        if(ImGui::IsItemHovered())ImGui::SetTooltip("Advanced: retain unknown XML exactly when duplicating. OFF by default; game semantics of unknown fields are unverified.");
-        ImGui::TextWrapped("Opaque original XML: all fields are retained. Duplication is off by default; see Library > Allow opaque XML copy for NEXT placement (advanced).");
-        ImGui::TextWrapped("Unknown IDs/references/coordinates may be instance-specific. Copying them is not equivalent to validating their game meaning.");
-    }
-    ImGui::TextDisabled("Full source prop snapshot: %s",p.originalPropXml?"retained":"new instance");
-    ImGui::TextWrapped("The original library remains external and unchanged. with_collision does not itself prove physical collision or a surface effect.");
-    if(VerifiedCollisionTemplates::Available(p.library,p.group,p.name)) {
-        ImGui::Spacing();ImGui::SeparatorText("Native collision");
-        const size_t selectedIndex=static_cast<size_t>(selected_);
-        if(map.HasVerifiedCollisionForProp(selectedIndex))
-            ImGui::TextDisabled("Verified: 6 native planes + 10 triangles");
-        else if(ImGui::Button("Repair saved wall collision")) {
-            MapDocument before=map;
-            if(map.AddVerifiedCollisionForProp(selectedIndex)) {
-                history_.PushSnapshot(std::move(before),map);
-                RequestSceneRebuild(true);
-                SetMessage("Wall End 2 native collision added: 6 planes, 10 triangles. Save map as a copy and test in ProTLVK.");
-            } else SetMessage("Collision repair was blocked: matching native geometry may already exist or be shared. Inspect Geometry view before retrying.",true);
+    HoverHelp("Native XML saves positions with three decimals and Z rotation with six decimals.");
+    ImGui::Spacing(); ImGui::SeparatorText("Material");
+    const auto* asset=assets.Find(p.library,p.group,p.name);
+    if(!p.texture.empty()) {
+        ImGui::TextDisabled("Texture: %s",p.texture.c_str());
+        HoverHelp("Named texture variant from the original library; the map stores this variant name.");
+    } else if(asset && !asset->sprite.empty()) {
+        ImGui::TextDisabled("Sprite: %s",asset->sprite.filename().string().c_str());
+        HoverHelp("Source sprite from the original external library.");
+    } else if(asset && !asset->mesh.empty()) {
+        // Material references are embedded in the 3DS, not in this prop's XML.
+        // Cache the selected source file: never re-import the mesh on every frame.
+        static std::filesystem::path inspectedMaterialMesh;
+        static std::string inspectedMaterialName;
+        if(inspectedMaterialMesh!=asset->mesh) {
+            inspectedMaterialMesh=asset->mesh; inspectedMaterialName="3DS material";
+            try {
+                const auto imported=LegacyMeshImport::Load(asset->mesh);
+                for(const auto& part:imported.parts) if(!part.diffuse.empty()) {
+                    inspectedMaterialName=part.diffuse.filename().string(); break;
+                }
+            } catch(const std::exception&) { inspectedMaterialName="3DS material (unverified)"; }
         }
+        ImGui::TextDisabled("Texture: %s",inspectedMaterialName.c_str());
+        HoverHelp("Resolved from the original 3DS material; an empty map texture variant is not a fallback texture.");
     }
-    if(!VerifiedCollisionTemplates::Available(p.library,p.group,p.name)) {
-        ImGui::Spacing();ImGui::SeparatorText("Native 3DS collision");
-        const auto* asset=assets.Find(p.library,p.group,p.name);
-        if(map.HasNativeCollisionForProp(static_cast<size_t>(selected_)))
-            ImGui::TextColored({.30f,.88f,.50f,1.f},"Complete imported helper set bound to object");
-        else if(asset&&!asset->mesh.empty()) {
-            const auto info=NativeCollisionImport::Read(asset->mesh);
-            if(info.Valid()) {
-                ImGui::TextDisabled("Source: %zu planes, %zu triangles",info.planes.size(),info.triangles.size());
-                ImGui::TextWrapped("Native ownership unverified for this saved instance. It is not silently repaired.");
-            } else ImGui::TextWrapped("Source helper status: %s",info.error.c_str());
-        } else ImGui::TextDisabled("Visual-only / missing source mesh");
+    ImGui::Spacing(); ImGui::SeparatorText("Collision");
+    const bool hasAuthoredCollision=map.HasNativeCollisionForProp(static_cast<size_t>(selected_)) ||
+        map.HasVerifiedCollisionForProp(static_cast<size_t>(selected_));
+    const bool intentionalSprite=asset&&!asset->sprite.empty();
+    if(hasAuthoredCollision) {
+        ImGui::TextColored({.30f,.88f,.50f,1.f},"Native geometry: complete");
+        HoverHelp("Original supported collision helper set is bound to this map instance. The precise game interaction depends on its surface geometry; it is not inferred from with_collision alone.");
+    } else if(intentionalSprite) {
+        ImGui::TextDisabled("Decoration: no physical collision");
+        HoverHelp("This source is a sprite and is intentionally visual-only. For example a bush can be driven through. It is not a missing solid-wall collider.");
+    } else if(asset && !asset->mesh.empty()) {
+        const auto info=NativeCollisionImport::Read(asset->mesh);
+        if(info.Valid()) {
+            ImGui::TextColored({1.f,.76f,.35f,1.f},"Native geometry: not bound");
+            HoverHelp("Source helper geometry exists, but this saved instance has not been safely matched to a complete owned collider set. No automatic repair is performed.");
+        } else {
+            ImGui::TextColored({1.f,.67f,.38f,1.f},"Native geometry: unsupported");
+            HoverHelp(info.error.c_str());
+        }
+    } else {
+        ImGui::TextDisabled("Native geometry: unavailable");
+        HoverHelp("No supported source mesh or native collision is available for this object.");
+    }
+    if(p.hasInvalidNativeMetadata) {
+        ImGui::TextColored({1.f,.43f,.36f,1.f},"Native metadata: invalid (copy blocked)");
+        HoverHelp("Malformed original native metadata: duplication is blocked, even when opaque XML copy is approved.");
+    } else if(p.hasUncopyableMetadata) {
+        ImGui::TextColored({1.f,.76f,.35f,1.f},"Unknown XML: copying needs approval");
+        HoverHelp("Unknown original fields may contain per-instance IDs, coordinates or references. They are retained on this instance; duplication needs explicit one-shot approval in Library settings.");
+        ImGui::SameLine();
+        if(ImGui::SmallButton("Approve next copy##opaque_prop")) allowOpaqueMetadataCopy_=true;
+        HoverHelp("Allow one copy of the unknown original XML. This does not validate its meaning in the game.");
+    } else {
+        ImGui::TextDisabled("Original XML: %s",p.originalPropXml?"retained":"new instance");
+        HoverHelp("The original library remains external and unchanged. Original map metadata is preserved when present.");
+    }
+    if(VerifiedCollisionTemplates::Available(p.library,p.group,p.name) &&
+       !map.HasVerifiedCollisionForProp(static_cast<size_t>(selected_))) {
+        if(ImGui::Button("Repair saved wall collision")) {
+            MapDocument before=map;
+            if(map.AddVerifiedCollisionForProp(static_cast<size_t>(selected_))) {
+                history_.PushSnapshot(std::move(before),map); RequestSceneRebuild(true);
+                SetMessage("Original wall collision restored. Save a copy and test in ProTLVK.");
+            } else SetMessage("Collision repair blocked: possible duplicate or shared geometry. Inspect Geometry view.",true);
+        }
+        HoverHelp("Repair uses the original verified 6-plane and 10-triangle template only. Save the map as a copy and test in ProTLVK.");
     }
     ImGui::Spacing(); if (ImGui::Button(ToolbarLabel("Delete object",Action::Delete).c_str())) DeleteSelected(map,scene);
     ImGui::End();
@@ -3478,7 +3485,7 @@ void EditorUi::DrawControlHelp() {
             ImGui::BulletText("In the preview, each LMB click rotates 45 degrees: eight clicks = 360 degrees.");
             ImGui::BulletText("RMB drags the preview freely; wheel zooms; the dropdown selects a texture variant.");
             ImGui::BulletText("Move ghost along grid, X rotates before placing; Space or LMB drops; RMB cancels. Space can stamp repeated copies.");
-            ImGui::BulletText("Placement Z sets height. Tab (Simple mode) temporarily opens AX recent assets; wheel switches asset, Space drops.");
+            ImGui::BulletText("Placement height is in Library > Settings. Tab (Simple mode) opens AX recents; wheel switches asset and Space places.");
             ImGui::SeparatorText("Game modes and editor overlays");
             ImGui::TextWrapped("Gameplay > Add gameplay element opens a persistent palette (X closes it). Create native flags, spawns, DOM points, bonus/drop regions and kill/kick zones on blank or existing maps; place with Space. Normal dragging moves an existing region; Ctrl + dragging an upper corner handle resizes its X/Y extent. Edit min/max Z, bonus type and modes in Properties. Visibility filters do not change game modes or native XML element types.");
             ImGui::SeparatorText("Fullscreen, preferences and safety");

@@ -1,0 +1,21 @@
+ProTanki Editor PRO 0.5.18 — changed/new files only
+
+Base: the original 0.5.17 Lossless Object Snapshots source candidate.
+This patch ALSO includes the previous 0.5.17 Release CTest five-file repair,
+so do not upload that earlier fix separately if you apply this whole patch.
+
+1. Extract this patch ZIP locally.
+2. Upload its CONTENTS into the ROOT of your existing GitHub repository,
+   retaining directory names, including .github/workflows, src and tests.
+3. Overwrite files with matching names, and add all newly named files.
+4. Commit and check GitHub Actions (Windows x64 Release + CTest + installer).
+5. Verify Bridge 1 from above and below in normal and Unlit modes; compare
+   with ProTLVK before claiming rendering parity. Use Save As for game maps.
+
+UI: Explanations are contextual hover tooltips; collision/safety states stay
+briefly visible. The optional advanced placement toggles are in Library >
+Settings...; the control bar under preview is removed. The 3DS atlas renderer
+fix is selective and does not alter the game XML, collision data or textures.
+
+Source preflight/Python audits pass; this Linux environment cannot validate
+MSVC, the D3D runtime, installer or final original-game pixel equivalence.

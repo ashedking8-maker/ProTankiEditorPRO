@@ -94,8 +94,9 @@ class OriginalNativeGeometryAudit(unittest.TestCase):
         self.assertIn('bool allowVisualOnlyPlacement_{};',header)
         self.assertIn('map.AddImportedCollisionForProp(index,imported)',ui)
         self.assertIn('Native helper collision refused',ui)
-        self.assertIn('GLB: edit solid/trigger boxes below.',ui)
-        self.assertIn('No native 3DS or ProTLVK export is available yet.',ui)
+        self.assertIn('GLB: collision draft',ui)
+        self.assertIn('Edit solid/trigger boxes below.',ui)
+        self.assertIn('There is no native 3DS or ProTLVK game export yet.',ui)
         self.assertIn('Unverified nonidentity 3DS visual pivot',importer)
         self.assertIn('3DS box helper conversion is not validated yet',importer)
 
