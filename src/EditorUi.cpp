@@ -902,6 +902,13 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
             }
             const auto* pendingAsset=assets.Find(pending.library,pending.group,pending.name);
             const bool intentionalSprite=pendingAsset && !pendingAsset->sprite.empty();
+            // An original 3DS which has NO native collision nodes is distinct
+            // from an original 3DS with unsupported/invalid collision nodes.
+            // The former is not assigned a fictional collider, and can be
+            // placed as original visual-only content without the emergency
+            // "allow unsupported" override. Explicit <with_collision>1 is
+            // still rejected above; nonempty unsupported helpers still fail.
+            const bool originalWithoutHelpers=info==NativeCollisionImport::NoNativeHelpersError;
             // A copied native with_collision=1 is not safe to claim as a
             // visual-only duplicate: its per-instance game flag would survive
             // while no collision geometry was authored for the new instance.
@@ -909,7 +916,7 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
                 failure=pending.name+": copied original <with_collision>1</with_collision> but no complete new collider set ("+info+")";
                 break;
             }
-            if(!allowVisualOnlyPlacement_ && !intentionalSprite) {
+            if(!allowVisualOnlyPlacement_ && !intentionalSprite && !originalWithoutHelpers) {
                 failure=pending.name+": "+info;break;
             }
             ++visualOnly;
@@ -925,7 +932,7 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     selectedItems_=inserted; selected_=inserted.back(); scene.SetSelection(selectedItems_);
     history_.PushSnapshot(std::move(before),map); RequestSceneRebuild(true);
     if(visualOnly)SetMessage("Placed "+std::to_string(inserted.size())+" props; "+
-        std::to_string(visualOnly)+" explicitly visual-only (tank may pass through them).",true);
+        std::to_string(visualOnly)+" without authored native collision (tank may pass through them).",true);
     else SetMessage("Placed "+std::to_string(nativeCount)+" props with "+
         std::to_string(planes)+" native planes and "+std::to_string(map.CollisionBoxes().size())+" total boxes and "+std::to_string(triangles)+
         " native triangles. Validate new 3DS helper types in ProTLVK.");

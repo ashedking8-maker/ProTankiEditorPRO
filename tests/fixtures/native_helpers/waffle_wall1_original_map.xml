@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<map version="1.0.Light">
+  <static-geometry>
+    <prop library-name="Waffle Fence" group-name="default" name="Wall 1">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name />
+      <position>
+        <x>-2750.000</x>
+        <y>-1750.000</y>
+        <z>0.000</z>
+      </position>
+    </prop>
+  </static-geometry>
+  <collision-geometry>
+    <collision-box id="0">
+      <size>
+        <x>500.000</x>
+        <y>30.300</y>
+        <z>369.471</z>
+      </size>
+      <position>
+        <x>-2750.000</x>
+        <y>-1750.000</y>
+        <z>184.736</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-box>
+  </collision-geometry>
+</map>

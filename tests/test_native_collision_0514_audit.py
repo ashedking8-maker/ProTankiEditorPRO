@@ -85,7 +85,7 @@ class NativeCollision0514Audit(unittest.TestCase):
         self.assertIn('map.AddVerifiedCollisionForProp(index)', ui)
         self.assertIn('AuthorCollisionForPlacement(map,assets,index,info)', ui)
         self.assertIn('map.AddImportedCollisionForProp(index,imported)', ui)
-        self.assertIn('explicitly visual-only (tank may pass through them)', ui)
+        self.assertIn('without authored native collision (tank may pass through them)', ui)
         self.assertIn('Repair saved wall collision', ui)
         self.assertIn('HasVerifiedCollisionForProp', doc)
         self.assertIn('NativeCollisionAuthoringRegression', cmake)

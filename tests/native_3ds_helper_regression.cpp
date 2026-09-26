@@ -18,6 +18,8 @@ int main(int argc,char** argv) {
     const auto broken=NativeCollisionImport::Read(dir/"hs_part6.3ds");
     const auto bridge=NativeCollisionImport::Read(dir/"brid_1.3ds");
     const auto house=NativeCollisionImport::Read(dir/"nubu_3.3ds");
+    const auto waffle=NativeCollisionImport::Read(dir/"waffle_wall_1.3ds");
+    const auto billboard=NativeCollisionImport::Read(dir/"promotion_bilboard.3ds");
     if(!wall.Valid()||wall.planes.size()!=6||wall.triangles.size()!=10)
         return Fail(2,"original Wall End 1 3DS must provide 6 planes + 10 triangles: "+wall.error);
     if(!broken.Valid()||!broken.planes.empty()||broken.triangles.size()!=6)
@@ -29,9 +31,23 @@ int main(int argc,char** argv) {
     if(!Eq(house.boxes[0].size.x,1550.867f,.03f)||
        !Eq(house.boxes[0].size.y,1107.762f,.03f)||
        !Eq(house.boxes[0].size.z,1100.f,.03f))return Fail(28,"original box source bounds");
+    if(!waffle.Valid()||waffle.boxes.size()!=1||
+       !Eq(waffle.boxes[0].offset.x,0.f,.03f)||
+       !Eq(waffle.boxes[0].size.x,500.f,.03f)||
+       !Eq(waffle.boxes[0].size.y,30.300f,.03f)||
+       !Eq(waffle.boxes[0].rotation.z,0.f,.003f))
+        return Fail(33,"nonidentity visual pivot must use local collision basis: "+waffle.error);
+    if(!billboard.Valid()||billboard.boxes.size()!=2||
+       !Eq(billboard.boxes[0].size.x,45.f,.03f)||
+       !Eq(billboard.boxes[0].size.y,100.f,.03f)||
+       !Eq(billboard.boxes[0].rotation.z,-1.57079632679f,.003f))
+        return Fail(34,"rotated box must retain local sizes and yaw: "+billboard.error);
     // Duplicate or invalid asset chunks must never be inferred as a visual collision.
     const auto missing=NativeCollisionImport::Read(dir/"missing.3ds");
     if(missing.Valid())return Fail(5,"missing model must be rejected");
+    const auto scaled=NativeCollisionImport::Read(dir/"invalid_scaled_visual_frame.3ds");
+    if(scaled.Valid()||scaled.error.find("scale/shear/mirror")==std::string::npos)
+        return Fail(39,"non-rigid original 3DS frame must fail closed");
     // Independent GTanks Editor / ProTLVK native XML (not authored by this writer).
     // Equivalent plane orientations and triangle-local vertex orderings must bind
     // via transformed world geometry without ever fabricating new colliders.
@@ -66,6 +82,25 @@ int main(int argc,char** argv) {
         return Fail(31,"original house collision boxes must follow moved prop");
     if(!originalHouse.DeletePropWithCollision(0,error)||!originalHouse.CollisionBoxes().empty())
         return Fail(32,"house deletion leaves invisible boxes");
+    for(const auto* item : {"waffle_wall1_original_map.xml","billboard_original_map.xml"}) {
+        const bool isWaffle=std::string(item)=="waffle_wall1_original_map.xml";
+        const auto& imported=isWaffle?waffle:billboard;
+        const size_t want=isWaffle?1u:2u;
+        MapDocument reference;
+        if(!reference.Load(dir/item,error)||reference.Props().size()!=1||reference.CollisionBoxes().size()!=want)
+            return Fail(35,std::string("load original rotated-box map: ")+item+" "+error);
+        if(!reference.BindImportedCollisionForProp(0,imported))
+            return Fail(36,std::string("bind original rotated helper box: ")+item);
+        auto next=reference.Props()[0].position;
+        const auto rot=reference.Props()[0].rotation;
+        const auto oldBox=reference.CollisionBoxes()[0].position;
+        next.x+=500.f;
+        if(!reference.SetPropTransform(0,next,rot)||
+           !Eq(reference.CollisionBoxes()[0].position.x,oldBox.x+500.f))
+            return Fail(37,std::string("rotated helper did not follow prop: ")+item);
+        if(!reference.DeletePropWithCollision(0,error)||!reference.CollisionBoxes().empty())
+            return Fail(38,std::string("rotated helper left invisible box: ")+item);
+    }
     MapDocument map;map.CreateBlank();
     const NativeCollisionImport::Result* source[]={&wall,&broken,&bridge,&house};
     const char* libs[]={"Concrete Walls","Broken Walls","Industrial Bridge","NuBu 3"};
@@ -106,7 +141,7 @@ int main(int argc,char** argv) {
     if(!rotated.DeletePropWithCollision(1,error))return Fail(19,"delete entire owned wall: "+error);
     if(rotated.CollisionPlanes().size()!=8||rotated.CollisionTriangles().size()!=12||
        rotated.Props().size()!=3)return Fail(20,"deletion left invisible native helper triangles");
-    std::cout<<"PASS original 3DS helpers: Wall End 1 (6+10), Hs_part06 (0+6), Bridge 1 (2+2), NuBu 3 (2 boxes); "
+    std::cout<<"PASS original 3DS helpers: Wall End 1 (6+10), Hs_part06 (0+6), Bridge 1 (2+2), NuBu 3 (2 boxes), Waffle Wall 1 (rotated visual), Billboard (rotated boxes); "
              <<"native XML roundtrip, owner rebind, transform, deletion.\n";
     return 0;
 }

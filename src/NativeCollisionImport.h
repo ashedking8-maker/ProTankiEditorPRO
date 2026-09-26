@@ -19,6 +19,7 @@
 
 namespace NativeCollisionImport {
 using V = DirectX::XMFLOAT3;
+inline constexpr const char* NoNativeHelpersError="No native plane/box/triangle helpers in this model.";
 struct Result {
     std::vector<VerifiedCollisionTemplates::Plane> planes;
     std::vector<VerifiedCollisionTemplates::Triangle> triangles;
@@ -129,24 +130,56 @@ inline Result Read(const std::filesystem::path& file) {
         if(!visual||lower==stem||node.faces.size()>best) {visual=&node;best=node.faces.size();if(lower==stem)break;}
     }
     if(!visual||!visual->hasMatrix) {result.error="3DS visual anchor/pivot is not available.";return result;}
-    // Original meshes examined here store their vertices in authoring/world
-    // coordinates. Only the translation of the visual anchor is subtracted.
-    // Nonidentity 3DS transforms need separate source-format validation.
-    const auto identity=[](const Node& n) {
+    // The native 3DS vertex lists are stored in authoring/world coordinates.
+    // 0x4160 gives an oriented object basis. Both are needed: the visual pivot
+    // defines the map prop's LOCAL frame; each box helper defines the axes in
+    // which the source CollisionBox derives its dimensions. Subtracting only
+    // the pivot translation worked for identity matrices but silently lost
+    // the geometry of rotated original helpers.
+    struct Frame { V x,y,z,origin; };
+    const auto frame=[](const Node& n,Frame& out)->bool {
         if(!n.hasMatrix)return false;
-        for(int i=0;i<9;++i) if(std::fabs(n.matrix[i]-(i%4==0?1.f:0.f))>1.e-4f)return false;
-        return true;
+        out={{n.matrix[0],n.matrix[1],n.matrix[2]},
+             {n.matrix[3],n.matrix[4],n.matrix[5]},
+             {n.matrix[6],n.matrix[7],n.matrix[8]},
+             {n.matrix[9],n.matrix[10],n.matrix[11]}};
+        if(!Finite(out.x)||!Finite(out.y)||!Finite(out.z)||!Finite(out.origin))return false;
+        // Explicitly refuse scale, shear, singular and mirrored matrices.
+        // The corresponding source-game decomposition is not yet validated.
+        constexpr float tolerance=0.003f;
+        return std::fabs(Norm(out.x)-1.f)<tolerance &&
+            std::fabs(Norm(out.y)-1.f)<tolerance &&
+            std::fabs(Norm(out.z)-1.f)<tolerance &&
+            std::fabs(Dot(out.x,out.y))<tolerance &&
+            std::fabs(Dot(out.x,out.z))<tolerance &&
+            std::fabs(Dot(out.y,out.z))<tolerance &&
+            Dot(Cross(out.x,out.y),out.z)>1.f-tolerance;
     };
-    if(!identity(*visual)) {result.error="Unverified nonidentity 3DS visual pivot; collision export refused.";return result;}
+    Frame visualFrame{};
+    if(!frame(*visual,visualFrame)) {
+        result.error="Unverified scale/shear/mirror in 3DS visual pivot; collision export refused.";
+        return result;
+    }
     const V origin{visual->matrix[9],visual->matrix[10],visual->matrix[11]};
     if(!Finite(origin)) {result.error="Non-finite visual pivot.";return result;}
+    const auto toLocal=[&](V world) {
+        const V p=Sub(world,origin);
+        return V{Dot(p,visualFrame.x),Dot(p,visualFrame.y),Dot(p,visualFrame.z)};
+    };
+    const auto dirToLocal=[&](V world) {
+        return V{Dot(world,visualFrame.x),Dot(world,visualFrame.y),Dot(world,visualFrame.z)};
+    };
     result.visualAnchor=visual->name;
     for(const auto& n:nodes) {
         if(&n==visual)continue;
         const bool plane=Prefix(n.name,"plane"),tri=Prefix(n.name,"tri"),box=Prefix(n.name,"box");
         if(Prefix(n.name,"occl")){++result.occlusionHelpers;continue;}
         if(!plane&&!tri&&!box)continue;
-        if(!identity(n)) {result.error="Nonidentity transform on collision helper: "+n.name;return result;}
+        Frame helper{};
+        if(!frame(n,helper)) {
+            result.error="Unverified scale/shear/mirror on 3DS collision helper: "+n.name;
+            return result;
+        }
         for(auto face:n.faces)for(auto id:face)if(id>=n.vertices.size()) {result.error="Invalid helper face indices.";return result;}
         if(box) {
             // Original CollisionBox.parse takes the axis-aligned source
@@ -154,12 +187,18 @@ inline Result Read(const std::filesystem::path& file) {
             // centers them before applying the placed prop's transform.
             // Validated against GTanks-authored NuBu 3 map XML: Box07/Box08.
             if(n.vertices.size()<8||n.faces.size()<12) {result.error="Incomplete 3DS box helper: "+n.name;return result;}
-            V min=n.vertices.front(),max=min;
-            for(const V v:n.vertices) {
-                min={std::min(min.x,v.x),std::min(min.y,v.y),std::min(min.z,v.z)};
-                max={std::max(max.x,v.x),std::max(max.y,v.y),std::max(max.z,v.z)};
+            // The bounding box is axis-aligned in the HELPER frame, not in
+            // 3DS world axes. Billboard Box113: world X=100,Y=45 but its
+            // original XML size is X=45,Y=100 and yaw=-pi/2.
+            const std::array<V,3> axes{helper.x,helper.y,helper.z};
+            std::array<float,3> lo{},hi{};
+            for(int k=0;k<3;++k)lo[static_cast<size_t>(k)]=hi[static_cast<size_t>(k)]=Dot(n.vertices.front(),axes[static_cast<size_t>(k)]);
+            for(const V v:n.vertices)for(int k=0;k<3;++k) {
+                const size_t at=static_cast<size_t>(k);
+                const float projected=Dot(v,axes[at]);
+                lo[at]=std::min(lo[at],projected);hi[at]=std::max(hi[at],projected);
             }
-            const V dimensions=Sub(max,min);
+            const V dimensions{hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2]};
             if(dimensions.x<.01f||dimensions.y<.01f||dimensions.z<.01f) {
                 result.error="Degenerate 3DS box helper: "+n.name;return result;
             }
@@ -168,7 +207,7 @@ inline Result Read(const std::filesystem::path& file) {
             std::array<bool,8> seen{};
             for(const V v:n.vertices) {
                 int code=0;
-                const float a[3]={v.x,v.y,v.z},lo[3]={min.x,min.y,min.z},hi[3]={max.x,max.y,max.z};
+                const float a[3]={Dot(v,helper.x),Dot(v,helper.y),Dot(v,helper.z)};
                 for(int k=0;k<3;++k) {
                     if(std::fabs(a[k]-hi[k])<.1f)code|=1<<k;
                     else if(std::fabs(a[k]-lo[k])>=.1f) {
@@ -181,14 +220,21 @@ inline Result Read(const std::filesystem::path& file) {
                 result.error="Missing box corners: "+n.name;return result;
             }
             Result::Box out;
-            out.offset=Sub(Mul(Add(min,max),.5f),origin);
+            const V center=Add(Add(Mul(helper.x,(lo[0]+hi[0])*.5f),
+                                   Mul(helper.y,(lo[1]+hi[1])*.5f)),
+                                   Mul(helper.z,(lo[2]+hi[2])*.5f));
+            out.offset=toLocal(center);
             out.size=dimensions;
-            if(!Finite(out.offset)||!Finite(out.size)) {result.error="Invalid box geometry: "+n.name;return result;}
+            const V bx=dirToLocal(helper.x),by=dirToLocal(helper.y),bz=dirToLocal(helper.z);
+            out.rotation=Euler(bx,by,bz);
+            if(!Finite(out.offset)||!Finite(out.size)||!Finite(out.rotation)) {
+                result.error="Invalid box geometry/rotation: "+n.name;return result;
+            }
             result.boxes.push_back(out);
         } else if(tri) {
             if(n.vertices.size()!=3||n.faces.size()!=1) {result.error="Unsupported triangle helper: "+n.name;return result;}
             const auto f=n.faces[0];
-            const V a=Sub(n.vertices[f[0]],origin),b=Sub(n.vertices[f[1]],origin),c=Sub(n.vertices[f[2]],origin);
+            const V a=toLocal(n.vertices[f[0]]),b=toLocal(n.vertices[f[1]]),c=toLocal(n.vertices[f[2]]);
             V x=Sub(b,a),cross=Cross(x,Sub(c,a));
             if(Norm(x)<.01f||Norm(cross)<.01f) {result.error="Degenerate triangle helper: "+n.name;return result;}
             x=Unit(x);const V z=Unit(cross),y=Cross(z,x),center=Mul(Add(Add(a,b),c),1.f/3.f);
@@ -199,7 +245,8 @@ inline Result Read(const std::filesystem::path& file) {
             result.triangles.push_back(out);
         } else {
             if(n.vertices.size()!=4||n.faces.size()!=2) {result.error="Unsupported plane helper: "+n.name;return result;}
-            const auto& v=n.vertices;
+            std::array<V,4> v{};
+            for(size_t j=0;j<4;++j)v[j]=toLocal(n.vertices[j]);
             // Four vertices must form a rectangle in 3D. A diagonal is not an edge.
             int i1=-1,i2=-1;
             for(int i=1;i<4&&i1<0;++i)for(int j=i+1;j<4;++j){
@@ -218,14 +265,14 @@ inline Result Read(const std::filesystem::path& file) {
             const V faceN=Cross(Sub(v[f[1]],v[f[0]]),Sub(v[f[2]],v[f[0]]));
             if(Dot(faceN,normal)<0) {x=Mul(x,-1.f);normal=Mul(normal,-1.f);}
             VerifiedCollisionTemplates::Plane out;
-            out.offset=Sub(Mul(Add(Add(v[0],v[1]),Add(v[2],v[3])),.25f),origin);
+            out.offset=Mul(Add(Add(v[0],v[1]),Add(v[2],v[3])),.25f);
             out.rotation=Euler(x,y,normal);out.width=width;out.length=length;
             if(!Finite(out.rotation)||!Finite(out.offset)) {result.error="Plane rotation is invalid.";return result;}
             result.planes.push_back(out);
         }
         if(result.planes.size()+result.triangles.size()+result.boxes.size()>2048){result.error="Excessive 3DS collision helper count.";return result;}
     }
-    if(result.planes.empty()&&result.triangles.empty()&&result.boxes.empty())result.error="No native plane/box/triangle helpers in this model.";
+    if(result.planes.empty()&&result.triangles.empty()&&result.boxes.empty())result.error=NoNativeHelpersError;
     if(!result.error.empty()) {result.planes.clear();result.triangles.clear();result.boxes.clear();}
     return result;
 }

@@ -119,7 +119,7 @@ bool Initialize() {
     if (!g_file) return false;
     g_previousFilter = SetUnhandledExceptionFilter(CrashFilter);
     g_file << "[" << Timestamp() << "] [INFO] [tid=" << GetCurrentThreadId() << "] "
-           << "Session log opened. version=0.5.19-native-box-properties build=" << __DATE__ << " " << __TIME__ << "\r\n";
+           << "Session log opened. version=0.5.20-native-frame-transforms build=" << __DATE__ << " " << __TIME__ << "\r\n";
     g_file.flush();
     return true;
 }

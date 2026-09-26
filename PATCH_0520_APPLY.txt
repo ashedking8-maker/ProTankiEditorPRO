@@ -1,0 +1,17 @@
+ProTanki Editor PRO 0.5.20 — changed files only.
+
+1. Start from the user's repository containing 0.5.19 (ProTankiEditorPRO-main.zip).
+2. Unzip this patch and upload ALL of its contents to the repository root,
+   preserving src/, tests/, assets/, .github/workflows/, tools/, scripts/, installer/.
+3. REPLACE same-path files; do not upload this ZIP itself into GitHub.
+4. GitHub Actions must pass source check, Python audits, MSVC compile, CTest,
+   packaging; only then download the newly built 0.5.20 Setup.exe.
+5. Keep a backup of existing maps; test Waffle Wall 1, Promotion Billboard,
+   NuBu 3, Wall End 1 and unsupported-helper warning in original ProTLVK.
+
+Note: root-level duplicate source files in the original GitHub repository are
+not used by CMake. The real build sources are under src/. Do not overwrite
+new src/ files by copying an obsolete root duplicate into them.
+
+This patch expands original 3DS compatibility; it is not a claim of complete
+export for all legacy models or a native GLB Object Editor exporter.

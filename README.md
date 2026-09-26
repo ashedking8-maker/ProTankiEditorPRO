@@ -1,3 +1,15 @@
+# ProTanki Editor PRO 0.5.20 — Original 3DS frame transforms (source candidate)
+
+Apply the changed-files patch over the user's 0.5.19 repository. This release adds validated
+rotated helper/visual frame handling, retains box dimensions in helper-local axes, and
+lets original meshes with **no** native helper place without the unsupported-geometry
+override. It does not make incomplete/invalid helpers safe and is not a native GLB exporter.
+
+See [RELEASE_NOTES_0520.md](RELEASE_NOTES_0520.md), [BUILD_STATUS_0520.md](BUILD_STATUS_0520.md)
+and [PATCH_0520_APPLY.txt](PATCH_0520_APPLY.txt). Windows build and original game testing pending.
+
+---
+
 # ProTanki Editor PRO 0.5.19 — Native Box Helpers and Source Properties (source candidate)
 
 Patch 0.5.19 follows 0.5.18. It adds source-derived `box*` collision XML authoring and

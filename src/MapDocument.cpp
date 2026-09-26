@@ -624,6 +624,29 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
         }
         return out;
     };
+    const auto boxCorners=[&](DirectX::XMFLOAT3 center,DirectX::XMFLOAT3 rot,
+                              DirectX::XMFLOAT3 size) {
+        std::array<DirectX::XMFLOAT3,8> out{};
+        for(int i=0;i<8;++i) {
+            const DirectX::XMFLOAT3 local{((i&1)?1.f:-1.f)*size.x*.5f,
+                ((i&2)?1.f:-1.f)*size.y*.5f,
+                ((i&4)?1.f:-1.f)*size.z*.5f};
+            out[static_cast<size_t>(i)]=plus(center,rotate(local,rot));
+        }
+        return out;
+    };
+    const auto sameBoxCorners=[&](const std::array<DirectX::XMFLOAT3,8>& expected,
+                                  const std::array<DirectX::XMFLOAT3,8>& actual) {
+        std::array<bool,8> used{};
+        for(const auto& wanted:expected) {
+            bool match=false;
+            for(size_t k=0;k<actual.size();++k)if(!used[k]&&eq(wanted,actual[k])) {
+                used[k]=true;match=true;break;
+            }
+            if(!match)return false;
+        }
+        return true;
+    };
     const auto triangleVerts=[&](DirectX::XMFLOAT3 center,DirectX::XMFLOAT3 rot,
                                  DirectX::XMFLOAT3 a,DirectX::XMFLOAT3 b,DirectX::XMFLOAT3 c) {
         return std::array<DirectX::XMFLOAT3,3>{plus(center,rotate(a,rot)),
@@ -656,14 +679,17 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
     }
     for(const auto& expected:source.boxes) {
         const auto center=place(expected.offset);
-        const float yaw=expected.rotation.z+p.rotation.z;
+        auto orientation=expected.rotation;
+        orientation.z+=p.rotation.z;
+        const auto wanted=boxCorners(center,orientation,expected.size);
         size_t found=collisionBoxes_.size();
         for(size_t j=0;j<collisionBoxes_.size();++j) {
             const auto& c=collisionBoxes_[j];
-            if(c.authoredOwnerIndex>=0||!eq(c.position,center)||!eq(c.size,expected.size)||
-               std::fabs(std::atan2(std::sin(c.rotation.z-yaw),std::cos(c.rotation.z-yaw)))>.002f||
-               std::fabs(c.rotation.x-expected.rotation.x)>.002f||
-               std::fabs(c.rotation.y-expected.rotation.y)>.002f)continue;
+            // Native 3DS box axes can produce equivalent, but different, Euler
+            // angles (including swapped X/Y on quarter turns). Bind by all
+            // eight WORLD corners rather than one Euler decomposition.
+            if(c.authoredOwnerIndex>=0||!eq(c.position,center)||
+               !sameBoxCorners(wanted,boxCorners(c.position,c.rotation,c.size)))continue;
             if(found!=collisionBoxes_.size())return false;
             found=j;
         }
