@@ -1,3 +1,16 @@
+# ProTanki Editor PRO 0.5.19 — Native Box Helpers and Source Properties (source candidate)
+
+Patch 0.5.19 follows 0.5.18. It adds source-derived `box*` collision XML authoring and
+read-only XML property inspectors. Original library snapshots are preserved; Obj.
+Editor draft field selections are recorded separately and are **not** native game
+export. Windows build and original game behavior still require testing.
+
+See [RELEASE_NOTES_0519.md](RELEASE_NOTES_0519.md) and
+[BUILD_STATUS_0519.md](BUILD_STATUS_0519.md). Install with
+[PATCH_0519_APPLY.txt](PATCH_0519_APPLY.txt).
+
+---
+
 # ProTanki Editor PRO 0.5.18 — Compact UI and Bridge 1 rendering source candidate
 
 Windows x64 / Direct3D 11 C++20. This is a source candidate. Windows MSVC compile,

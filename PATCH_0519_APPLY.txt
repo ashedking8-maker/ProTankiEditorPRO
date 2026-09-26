@@ -1,0 +1,13 @@
+ProTanki Editor PRO 0.5.19 — changed/new source files only
+
+BASE: The existing 0.5.18 repository (the prior 0.5.18 patch already applied).
+1. Extract this patch ZIP locally.
+2. Upload the CONTENTS into the ROOT of the same GitHub repository.
+3. Preserve .github/workflows, src, tests, assets, installer, scripts and tools paths.
+4. Overwrite matching files; add new fixture/tests/release notes.
+5. Commit; check source preflight, Windows Release CTest and installer artifact.
+6. Test a *copy* of the map: new NuBu 3, save/reopen, inspect two boxes,
+   move/delete and try tank collision in ProTLVK. Test Bridge 1 from BOTH sides.
+
+No unchanged game assets/full original library included. Do not apply over 0.5.14
+or over an unpatched 0.5.17 repository; first bring that repository to 0.5.18.

@@ -1,0 +1,75 @@
+name: Release ProTanki Editor PRO for Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Verify complete source and packaging workflow
+        shell: powershell
+        run: python tools/check_source_consistency.py
+
+      - name: Read-only native format and map delta audit tests
+        shell: powershell
+        run: python -m unittest discover -s tests -p "test_*audit.py" -v
+
+      - name: Install NSIS installer compiler
+        shell: powershell
+        run: choco install nsis -y --no-progress
+
+      - name: Configure x64 Release
+        shell: powershell
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Compile editor
+        shell: powershell
+        run: cmake --build build --config Release --parallel
+
+      - name: Run regression tests
+        shell: powershell
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package setup EXE and portable ZIP
+        shell: powershell
+        run: .\scripts\package-windows.ps1 -BuildDir build
+
+      - name: Record package SHA-256 digests
+        shell: powershell
+        run: |
+          $files = @("build/ProTankiEditorPRO-0.5.19-Setup.exe", "build/ProTankiEditorPRO-0.5.19-Portable.zip")
+          $files | ForEach-Object {
+            if (!(Test-Path $_)) { throw "Cannot hash missing package: $_" }
+            $hash = (Get-FileHash -Algorithm SHA256 -Path $_).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($_))"
+          } | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.19-SHA256.txt"
+
+      - name: Verify exact release filenames
+        shell: powershell
+        run: |
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.19-Setup.exe")) { throw "Setup EXE was not created" }
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.19-Portable.zip")) { throw "Portable ZIP was not created" }
+
+      - name: Publish GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "build/ProTankiEditorPRO-0.5.19-Setup.exe#ProTankiEditorPRO-0.5.19-Setup.exe" `
+            "build/ProTankiEditorPRO-0.5.19-Portable.zip#ProTankiEditorPRO-0.5.19-Portable.zip" `
+            "build/ProTankiEditorPRO-0.5.19-SHA256.txt#ProTankiEditorPRO-0.5.19-SHA256.txt" `
+            --title "ProTanki Editor PRO ${{ github.ref_name }}" `
+            --notes "Windows x64 build candidate. Native GLB game export remains disabled pending original-editor and ProTLVK validation. Download ProTankiEditorPRO-0.5.19-Setup.exe for the normal installer." `
+            --prerelease
+          if ($LASTEXITCODE -ne 0) { throw "Cannot create tag release" }
