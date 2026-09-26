@@ -46,7 +46,7 @@ jobs:
 
       # IMPORTANT: Use our single-user custom NSIS installer. `cpack -G NSIS`
       # instead creates a different installer and, with the portable CPack name,
-      # calls it ProTankiEditorPRO-0.5.19-Portable.exe.
+      # calls it ProTankiEditorPRO-0.5.20-Portable.exe.
       - name: Package setup EXE and portable ZIP
         shell: powershell
         run: .\scripts\package-windows.ps1 -BuildDir build
@@ -54,31 +54,31 @@ jobs:
       - name: Record package SHA-256 digests
         shell: powershell
         run: |
-          $files = @("build/ProTankiEditorPRO-0.5.19-Setup.exe", "build/ProTankiEditorPRO-0.5.19-Portable.zip")
+          $files = @("build/ProTankiEditorPRO-0.5.20-Setup.exe", "build/ProTankiEditorPRO-0.5.20-Portable.zip")
           $files | ForEach-Object {
             if (!(Test-Path $_)) { throw "Cannot hash missing package: $_" }
             $hash = (Get-FileHash -Algorithm SHA256 -Path $_).Hash.ToLowerInvariant()
             "$hash  $([IO.Path]::GetFileName($_))"
-          } | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.19-SHA256.txt"
+          } | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.20-SHA256.txt"
 
       - name: Verify exact release filenames
         shell: powershell
         run: |
-          if (!(Test-Path "build/ProTankiEditorPRO-0.5.19-Setup.exe")) {
-            throw "ProTankiEditorPRO-0.5.19-Setup.exe was not created"
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.20-Setup.exe")) {
+            throw "ProTankiEditorPRO-0.5.20-Setup.exe was not created"
           }
-          if (!(Test-Path "build/ProTankiEditorPRO-0.5.19-Portable.zip")) {
-            throw "ProTankiEditorPRO-0.5.19-Portable.zip was not created"
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.20-Portable.zip")) {
+            throw "ProTankiEditorPRO-0.5.20-Portable.zip was not created"
           }
 
       - name: Upload Windows packages
         uses: actions/upload-artifact@v6
         with:
-          name: ProTankiEditorPRO-Windows-0.5.19
+          name: ProTankiEditorPRO-Windows-0.5.20
           path: |
-            build/ProTankiEditorPRO-0.5.19-Setup.exe
-            build/ProTankiEditorPRO-0.5.19-Portable.zip
-            build/ProTankiEditorPRO-0.5.19-SHA256.txt
+            build/ProTankiEditorPRO-0.5.20-Setup.exe
+            build/ProTankiEditorPRO-0.5.20-Portable.zip
+            build/ProTankiEditorPRO-0.5.20-SHA256.txt
           if-no-files-found: error
 
       - name: Publish direct download in Releases
@@ -97,13 +97,13 @@ jobs:
             gh release create $tag `
               --target "${{ github.sha }}" `
               --title "ProTanki Editor PRO - Latest Build" `
-              --notes "Automatic Windows x64 development build. Download ProTankiEditorPRO-0.5.19-Setup.exe for the normal installer." `
+              --notes "Automatic Windows x64 development build. Download ProTankiEditorPRO-0.5.20-Setup.exe for the normal installer." `
               --prerelease
             if ($LASTEXITCODE -ne 0) { throw "Cannot create latest-build release" }
           }
           gh release upload $tag `
-            "build/ProTankiEditorPRO-0.5.19-Setup.exe#ProTankiEditorPRO-0.5.19-Setup.exe" `
-            "build/ProTankiEditorPRO-0.5.19-Portable.zip#ProTankiEditorPRO-0.5.19-Portable.zip" `
-            "build/ProTankiEditorPRO-0.5.19-SHA256.txt#ProTankiEditorPRO-0.5.19-SHA256.txt" `
+            "build/ProTankiEditorPRO-0.5.20-Setup.exe#ProTankiEditorPRO-0.5.20-Setup.exe" `
+            "build/ProTankiEditorPRO-0.5.20-Portable.zip#ProTankiEditorPRO-0.5.20-Portable.zip" `
+            "build/ProTankiEditorPRO-0.5.20-SHA256.txt#ProTankiEditorPRO-0.5.20-SHA256.txt" `
             --clobber
           if ($LASTEXITCODE -ne 0) { throw "Cannot upload release assets" }
