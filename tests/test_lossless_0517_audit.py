@@ -47,6 +47,18 @@ class LosslessObject0517Audit(unittest.TestCase):
         self.assertIn('Attach native library reference (read only)',ui)
         self.assertIn('objectDraft_.libraryTemplateXml=a.originalLibraryXml',ui)
 
+    def test_release_regressions_always_evaluate_checks(self):
+        # The Windows workflow uses Release/NDEBUG. Side effects in assert(...)
+        # are compiled away, so the tests must use an always-active check.
+        check=source('tests/ReleaseTestCheck.h')
+        self.assertIn('#define PT_REQUIRE(expression)',check)
+        for file in ('tests/object_draft_regression.cpp',
+                     'tests/volume_picking_regression.cpp'):
+            cpp=source(file)
+            self.assertIn('#include "ReleaseTestCheck.h"',cpp)
+            self.assertIn('PT_REQUIRE(',cpp)
+            self.assertNotIn('assert(',cpp)
+
     def test_windows_native_regression_registered(self):
         cmake=source('CMakeLists.txt')
         self.assertIn('LibraryReloadRegression',cmake)
