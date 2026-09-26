@@ -47,18 +47,18 @@ jobs:
       - name: Record package SHA-256 digests
         shell: powershell
         run: |
-          $files = @("build/ProTankiEditorPRO-0.5.20-Setup.exe", "build/ProTankiEditorPRO-0.5.20-Portable.zip")
+          $files = @("build/ProTankiEditorPRO-0.5.21-Setup.exe", "build/ProTankiEditorPRO-0.5.21-Portable.zip")
           $files | ForEach-Object {
             if (!(Test-Path $_)) { throw "Cannot hash missing package: $_" }
             $hash = (Get-FileHash -Algorithm SHA256 -Path $_).Hash.ToLowerInvariant()
             "$hash  $([IO.Path]::GetFileName($_))"
-          } | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.20-SHA256.txt"
+          } | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.21-SHA256.txt"
 
       - name: Verify exact release filenames
         shell: powershell
         run: |
-          if (!(Test-Path "build/ProTankiEditorPRO-0.5.20-Setup.exe")) { throw "Setup EXE was not created" }
-          if (!(Test-Path "build/ProTankiEditorPRO-0.5.20-Portable.zip")) { throw "Portable ZIP was not created" }
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.21-Setup.exe")) { throw "Setup EXE was not created" }
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.21-Portable.zip")) { throw "Portable ZIP was not created" }
 
       - name: Publish GitHub Release
         shell: powershell
@@ -66,10 +66,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ github.ref_name }}" `
-            "build/ProTankiEditorPRO-0.5.20-Setup.exe#ProTankiEditorPRO-0.5.20-Setup.exe" `
-            "build/ProTankiEditorPRO-0.5.20-Portable.zip#ProTankiEditorPRO-0.5.20-Portable.zip" `
-            "build/ProTankiEditorPRO-0.5.20-SHA256.txt#ProTankiEditorPRO-0.5.20-SHA256.txt" `
+            "build/ProTankiEditorPRO-0.5.21-Setup.exe#ProTankiEditorPRO-0.5.21-Setup.exe" `
+            "build/ProTankiEditorPRO-0.5.21-Portable.zip#ProTankiEditorPRO-0.5.21-Portable.zip" `
+            "build/ProTankiEditorPRO-0.5.21-SHA256.txt#ProTankiEditorPRO-0.5.21-SHA256.txt" `
             --title "ProTanki Editor PRO ${{ github.ref_name }}" `
-            --notes "Windows x64 build candidate. Native GLB game export remains disabled pending original-editor and ProTLVK validation. Download ProTankiEditorPRO-0.5.20-Setup.exe for the normal installer." `
+            --notes "Windows x64 build candidate. Native GLB game export remains disabled pending original-editor and ProTLVK validation. Download ProTankiEditorPRO-0.5.21-Setup.exe for the normal installer." `
             --prerelease
           if ($LASTEXITCODE -ne 0) { throw "Cannot create tag release" }
