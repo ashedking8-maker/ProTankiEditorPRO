@@ -933,10 +933,15 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     }
     allowOpaqueMetadataCopy_=false; // approval is never carried into a later placement
     if(!failure.empty()) {
+        Log::Warning("Placement transaction rolled back: "+failure+
+            " (candidate additions were staged, not committed).");
         map=std::move(before); // all-or-nothing, no ghost wall left in the document
         SetMessage("Placement blocked: "+failure+". Check the advanced opaque-copy and visual-only options before retrying.",true);
         return;
     }
+    Log::Info("Placement committed: "+std::to_string(inserted.size())+
+        " props, native="+std::to_string(nativeCount)+
+        " visualOnly="+std::to_string(visualOnly));
     selectedItems_=inserted; selected_=inserted.back(); scene.SetSelection(selectedItems_);
     history_.PushSnapshot(std::move(before),map); RequestSceneRebuild(true);
     if(visualOnly)SetMessage("Placed "+std::to_string(inserted.size())+" props; "+
@@ -958,6 +963,7 @@ void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& a
         GridStep::QuantizeAroundAnchor(target.x,gridSize_,clipboardAnchor_.x),
         GridStep::QuantizeAroundAnchor(target.y,gridSize_,clipboardAnchor_.y),placementZ_} :
         DirectX::XMFLOAT3{SnapPosition(target.x),SnapPosition(target.y),SnapPosition(placementZ_)};
+    if(surfaceOffsetEnabled_ && !clipboardPlacement_) ghostPivot_.z+=surfaceOffsetZ_;
     ghostProps_=placementItems_;
     const float cs=std::cos(ghostRotation_),sn=std::sin(ghostRotation_);
     for (auto& p:ghostProps_) {
@@ -969,6 +975,14 @@ void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& a
     }
     ghostValid_=true;
     scene.SetGhost(ghostProps_,assets);
+    if(edgeSnapEnabled_ && !clipboardPlacement_ && ghostProps_.size()==1) {
+        float dx=0.f,dy=0.f;
+        if(scene.SuggestEdgeSnap(ghostProps_,edgeSnapTolerance_,edgeSnapClearance_,dx,dy)) {
+            ghostPivot_.x+=dx;ghostPivot_.y+=dy;
+            ghostProps_[0].position.x+=dx;ghostProps_[0].position.y+=dy;
+            scene.SetGhost(ghostProps_,assets);
+        }
+    }
 }
 
 bool EditorUi::Save(MapDocument& map, bool saveAs) {
@@ -1399,6 +1413,10 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Display actual XML collision surfaces, not material colors or passability.");
         ImGui::Separator();
         if (ImGui::MenuItem(selected_>=0?"Frame selection":"Frame map",shortcut(Action::Frame).c_str())) { if(selected_>=0) scene.FrameSelection(); else scene.FrameScene(); }
+        if (ImGui::MenuItem("Reference-side camera direction")) scene.ResetReferenceViewDirection();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Reset only the camera angle, without modifying XML, object rotations or physics.");
+        if (ImGui::MenuItem("View from opposite side (180 degrees)")) scene.ReverseViewDirection();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Compare an imported map from the other side. This is a camera-only operation.");
         if (ImGui::MenuItem("Fullscreen (F11)",shortcut(Action::Fullscreen).c_str(),fullscreen_)) fullscreenToggleRequested_=true;
         ImGui::EndMenu();
     }
@@ -1435,6 +1453,21 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
                         ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoDocking)) {
             ImGui::Checkbox("Absolute grid snap (keyboard movement)",&absoluteGridSnap_);
             HoverHelp("When enabled, final world coordinates snap to Grid Step; Shift uses one tenth step. Existing maps are not modified automatically.");
+            ImGui::Checkbox("Geometric edge snap (new ghost, orthogonal)",&edgeSnapEnabled_);
+            HoverHelp("Uses actual world mesh bounds to align adjacent edges when placing a single 0/90/180/270-degree object. No snapping to rotated diagonal or different-floor meshes.");
+            if(edgeSnapEnabled_) {
+                ImGui::SetNextItemWidth(125.f);ImGui::InputFloat("Edge tolerance (units)",&edgeSnapTolerance_,0,0,"%.2f");
+                ImGui::SetNextItemWidth(125.f);ImGui::InputFloat("Horizontal edge gap",&edgeSnapClearance_,0,0,"%.2f");
+                edgeSnapTolerance_=std::clamp(edgeSnapTolerance_,0.01f,100.f);
+                edgeSnapClearance_=std::clamp(edgeSnapClearance_,0.f,10.f);
+                HoverHelp("0 means exact shared edge, not overlapping coplanar surfaces. This is NOT a vertical material offset.");
+            }
+            ImGui::Checkbox("New-object surface Z offset",&surfaceOffsetEnabled_);
+            HoverHelp("Opt-in height offset for new props, to separate coplanar surfaces. The object's native collision follows its changed Z too; do NOT use for a collision-free decal.");
+            if(surfaceOffsetEnabled_) {
+                ImGui::SetNextItemWidth(125.f);ImGui::InputFloat("Z offset (units)",&surfaceOffsetZ_,0,0,"%.3f");
+                surfaceOffsetZ_=std::clamp(surfaceOffsetZ_,0.f,20.f);
+            }
             ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
             HoverHelp("Only for deliberate visual placement. New unsupported 3DS solids will not receive collision.");
             ImGui::Checkbox("Allow opaque XML copy for NEXT placement (advanced)",&allowOpaqueMetadataCopy_);

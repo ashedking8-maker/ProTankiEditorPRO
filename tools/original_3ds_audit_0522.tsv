@@ -1,0 +1,1432 @@
+kahgelWinter/saye.3ds		0	0	8
+kahgelWinter/stair.3ds		0	0	22
+kahgelWinter/outwd.3ds		0	0	14
+kahgelWinter/end.3ds		0	0	21
+kahgelWinter/in.3ds		0	0	10
+kahgelWinter/badgir.3ds		1	1	0
+kahgelWinter/taghnoorwe.3ds		0	0	14
+kahgelWinter/carpet.3ds		0	0	20
+kahgelWinter/wood.3ds		0	0	6
+kahgelWinter/out.3ds		0	0	14
+kahgelWinter/gonbadmj.3ds		1	0	16
+kahgelWinter/wall.3ds		0	0	6
+kahgelWinter/menare.3ds		1	1	0
+kahgelWinter/window.3ds		0	0	6
+kahgelWinter/mehrab.3ds		0	0	33
+kahgelWinter/taghnoorns.3ds		0	0	14
+kahgelWinter/broken.3ds		0	0	23
+kahgelWinter/door.3ds		0	0	6
+kahgelWinter/flashlight.3ds		0	2	0
+kahgelWinter/corner.3ds		0	0	24
+kahgelWinter/tagh.3ds		0	0	14
+kahgelWinter/darvaze.3ds		0	0	27
+kahgelWinter/gonbad.3ds		1	0	16
+kahgelWinter/balaro.3ds		0	0	18
+OuterWallsLair/tunnel_1.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWallsLair/wtile_2.3ds		1	0	0
+OuterWallsLair/ow_ai.3ds		4	0	0
+OuterWallsLair/ow_ao.3ds		3	0	2
+OuterWallsLair/wtile_1.3ds		1	0	0
+OuterWallsLair/ow_t.3ds		0	1	0
+OuterWallsLair/wtile_3.3ds		1	0	0
+OuterWallsLair/tunnel_2.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWallsLair/ow_1.3ds		2	0	0
+OuterWallsLair/wtile_4.3ds		1	0	0
+OuterWallsLair/ow_2.3ds		2	0	0
+ConcreteTilesWinter/tile3_1.3ds		1	0	0
+ConcreteTilesWinter/fliptile.3ds		1	0	0
+ConcreteTilesWinter/tile2_2.3ds		1	0	0
+ConcreteTilesWinter/tile3_2.3ds		1	0	0
+ConcreteTilesWinter/tile_01.3ds		1	0	0
+ConcreteTilesWinter/tile2_1.3ds		1	0	0
+ConcreteTilesWinter/tile3_3.3ds		1	0	0
+Event_summer/bilboard.3ds		0	2	0
+Event_summer/slope_2.3ds		1	0	0
+Event_summer/slope_1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Event_summer/ow_2.3ds		2	0	0
+IndustrialElements/tower.3ds		1	0	8
+IndustrialElements/watch_to.3ds		0	2	32
+IndustrialElements/contain.3ds	3DS visual anchor/pivot is not available.	0	0	0
+IndustrialElements/tower1.3ds		1	0	8
+FortWinter/tower_str.3ds		1	8	0
+FortWinter/wall_gate.3ds		2	10	18
+FortWinter/wall_cor_in.3ds		5	0	2
+FortWinter/wall_short.3ds		1	4	0
+FortWinter/wall_end_2.3ds		1	3	0
+FortWinter/wall_cor_out.3ds		6	1	0
+FortWinter/wall.3ds		1	5	0
+FortWinter/wall_broken_2.3ds		2	1	1
+FortWinter/wlb_rise.3ds		2	0	0
+FortWinter/wall_broken_1.3ds		2	1	1
+FortWinter/tower_corner.3ds		1	8	0
+FortWinter/wall_end_1.3ds		1	3	0
+FortWinter/tower_end.3ds		1	5	0
+FortWinter/tower_roof.3ds		1	8	0
+GrassTilesWinter/tile3_1.3ds		1	0	0
+GrassTilesWinter/tile2_2.3ds		1	0	0
+GrassTilesWinter/tile3_2.3ds		1	0	0
+GrassTilesWinter/tile_01.3ds		1	0	0
+GrassTilesWinter/tile2_1.3ds		1	0	0
+GrassTilesWinter/tile3_3.3ds		1	0	0
+SpringCave/tile3_1.3ds		1	0	0
+SpringCave/corn3.3ds		0	0	5
+SpringCave/cave_4.3ds		0	0	36
+SpringCave/cave_3.3ds		0	0	32
+SpringCave/wall_cr.3ds		1	2	0
+SpringCave/tile2_2.3ds		1	0	0
+SpringCave/sm_rock2.3ds		2	0	0
+SpringCave/wall_e3.3ds		1	1	0
+SpringCave/wall_3w.3ds		1	2	0
+SpringCave/bg_rock04.3ds		2	0	0
+SpringCave/rise_g4.3ds		1	0	1
+SpringCave/big_rock.3ds		3	0	0
+SpringCave/tile3_2.3ds		1	0	0
+SpringCave/corn_b.3ds		0	0	5
+SpringCave/rise_r1.3ds		1	0	0
+SpringCave/uprock14.3ds		2	0	27
+SpringCave/change02.3ds		0	0	9
+SpringCave/cave_w1.3ds		0	0	14
+SpringCave/vilhou_3.3ds		1	2	0
+SpringCave/cave_w2.3ds		0	0	14
+SpringCave/vilhou_1.3ds		1	1	0
+SpringCave/cave_rise.3ds		0	0	20
+SpringCave/cave_1.3ds		0	0	30
+SpringCave/egg.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+SpringCave/cave_2.3ds		0	0	28
+SpringCave/rise_g5.3ds		4	0	5
+SpringCave/test_prop.3ds	Malformed 3DS mesh/helper chunks.	0	0	0
+SpringCave/up_rock2.3ds		0	0	12
+SpringCave/up_rock1.3ds		0	0	12
+SpringCave/rise_g2.3ds		2	0	1
+SpringCave/tile_01.3ds		1	0	0
+SpringCave/cave_cor_out_top.3ds		1	0	1
+SpringCave/rise_g1.3ds		2	0	1
+SpringCave/cave_wn2.3ds		0	0	7
+SpringCave/tile2_1.3ds		1	0	0
+SpringCave/sm_rock1.3ds		3	0	0
+SpringCave/rise_g3.3ds		1	0	1
+SpringCave/cave_cor_in_bot.3ds		0	0	3
+SpringCave/vilhou_4.3ds		1	1	0
+SpringCave/vilhou_2.3ds		1	2	0
+SpringCave/corn4.3ds		1	0	4
+SpringCave/corn1.3ds		0	0	5
+SpringCave/cave_wn1.3ds		0	0	7
+SpringCave/wall_e1.3ds		6	0	10
+SpringCave/up_rock.3ds		2	0	0
+SpringCave/change01.3ds		0	0	9
+SpringCave/corn2.3ds		0	0	3
+SpringCave/wall_st.3ds		1	1	0
+SpringCave/cave_cor_in_top.3ds		0	0	5
+SpringCave/tile3_3.3ds		1	0	0
+SpringCave/cave_5.3ds		0	0	20
+SpringCave/up_brock.3ds		2	0	0
+SpringCave/wall_e2.3ds		6	0	10
+SpringCave/cave_cor_out_bot.3ds		1	0	3
+SpringCave/rise_g6.3ds		4	0	5
+OuterWallsLegends/tile_2.3ds		1	0	0
+OuterWallsLegends/tile_1.3ds		1	0	0
+OuterWallsLegends/ow_2.3ds		2	0	0
+LandRocks/corn3.3ds		0	0	5
+LandRocks/sm_rock2.3ds		2	0	0
+LandRocks/rise_g4.3ds		1	0	1
+LandRocks/big_rock.3ds		3	0	0
+LandRocks/corn_b.3ds		0	0	5
+LandRocks/rise_r1.3ds		1	0	0
+LandRocks/change02.3ds		0	0	9
+LandRocks/rise_g5.3ds		4	0	5
+LandRocks/up_rock2.3ds		0	0	12
+LandRocks/up_rock1.3ds		0	0	12
+LandRocks/rise_g2.3ds		2	0	1
+LandRocks/rise_g1.3ds		2	0	1
+LandRocks/sm_rock1.3ds		3	0	0
+LandRocks/rise_g3.3ds		1	0	1
+LandRocks/corn4.3ds		1	0	4
+LandRocks/corn1.3ds		0	0	5
+LandRocks/up_rock.3ds		2	0	0
+LandRocks/change01.3ds		0	0	9
+LandRocks/corn2.3ds		0	0	3
+LandRocks/up_brock.3ds		2	0	0
+LandRocks/rise_g6.3ds		4	0	5
+NuBu5Winter/nubu_5.3ds		0	1	0
+NuBu4Winter/nubu_4.3ds		0	1	0
+ComBuild1/comb_a.3ds		3	0	0
+ComBuild1/wtile_2.3ds		1	0	0
+ComBuild1/wtile_1.3ds		1	0	0
+ComBuild1/comb.3ds		1	0	0
+ComBuild1/comb_a2.3ds		3	0	0
+ComBuild1/comb_bot.3ds		0	0	5
+ComBuild1/comb2.3ds		1	0	0
+ComBuild1/comb1.3ds		0	1	0
+ComBuild1/comb_a1.3ds		0	3	0
+ComBuild1/comb_a3.3ds		3	0	3
+DesertHousesWinter/smhouse3.3ds		0	10	0
+DesertHousesWinter/smhouse2.3ds		0	1	0
+NuBu8Winter/nubu_8.3ds		0	1	0
+TreesWinter/tree02.3ds	Non-box-shaped helper: Box62	0	0	0
+TreesWinter/tree01.3ds		0	2	13
+Cosmic/tren_end.3ds		1	2	0
+Cosmic/fliptile.3ds		1	0	0
+Cosmic/spring450.3ds		2	0	2
+Cosmic/winwall2.3ds		0	4	0
+Cosmic/tile_02.3ds		1	0	0
+Cosmic/wall14.3ds		3	0	0
+Cosmic/brid_2.3ds		0	1	0
+Cosmic/wall15.3ds		3	0	0
+Cosmic/win1.3ds		0	4	0
+Cosmic/wall01.3ds		3	0	0
+Cosmic/wall03.3ds		6	0	1
+Cosmic/beam.3ds		8	0	32
+Cosmic/wall11.3ds		3	0	0
+Cosmic/wall04.3ds		6	0	1
+Cosmic/wall02.3ds		3	0	0
+Cosmic/spring225.3ds		2	0	2
+Cosmic/wall06.3ds		6	0	1
+Cosmic/5x5.3ds		1	0	0
+Cosmic/tile_01.3ds		1	0	0
+Cosmic/wall1.3ds		0	1	0
+Cosmic/wall12.3ds		3	0	0
+Cosmic/wall07.3ds		6	0	1
+Cosmic/trench1.3ds		1	2	0
+Cosmic/wall08.3ds		6	0	1
+Cosmic/arch_circle.3ds	Nonrectangular 3DS plane helper: Plane85	4	0	0
+Cosmic/comb1.3ds		0	1	0
+Cosmic/tren1end.3ds		1	2	0
+Cosmic/wall10.3ds	Unsupported plane helper: Plane92	2	0	0
+Cosmic/tren_chn.3ds		1	2	0
+Cosmic/wall05.3ds		6	0	1
+Cosmic/winwall1.3ds		0	4	0
+Cosmic/wall13.3ds		3	0	0
+Cosmic/trench.3ds		1	2	0
+Cosmic/wall09.3ds		6	0	1
+BrokenBottom/hs_brid2.3ds		0	1	0
+BrokenBottom/hs_brid1.3ds		0	1	0
+BrokenBottom/hs_rise1.3ds		1	0	2
+BrokenBottom/hs_brid3.3ds		0	1	0
+BrokenBottom/hs_rise5.3ds		1	0	1
+BrokenBottom/hs_rise2.3ds		1	0	1
+BrokenBottom/hs_rise4.3ds		1	0	1
+BrokenBottom/hs_rise3.3ds		1	0	1
+NuBu5/nubu_5.3ds		0	1	0
+FachwerkHouse1/fahwerk1.3ds		0	1	0
+Terrain1/tile3_1.3ds		1	0	0
+Terrain1/corn3.3ds		0	0	5
+Terrain1/wtile_2.3ds		1	0	0
+Terrain1/tile2_2.3ds		1	0	0
+Terrain1/sm_rock2.3ds		2	0	0
+Terrain1/rise_g4.3ds		1	0	1
+Terrain1/big_rock.3ds		3	0	0
+Terrain1/tile3_2.3ds		1	0	0
+Terrain1/corn_b.3ds		0	0	5
+Terrain1/rise_r1.3ds		1	0	0
+Terrain1/change02.3ds		0	0	9
+Terrain1/wtile_1.3ds		1	0	0
+Terrain1/up_rock2.3ds		0	0	12
+Terrain1/up_rock1.3ds		0	0	12
+Terrain1/rise_g2.3ds		2	0	1
+Terrain1/t_rise21.3ds		1	0	0
+Terrain1/tile_01.3ds		1	0	0
+Terrain1/t_rise33.3ds		1	0	0
+Terrain1/rise_g1.3ds		2	0	1
+Terrain1/tile2_1.3ds		1	0	0
+Terrain1/sm_rock1.3ds		3	0	0
+Terrain1/rise_g3.3ds		1	0	1
+Terrain1/corn4.3ds		1	0	4
+Terrain1/corn1.3ds		0	0	6
+Terrain1/up_rock.3ds		2	0	0
+Terrain1/change01.3ds		0	0	9
+Terrain1/corn2.3ds		1	0	1
+Terrain1/rise_r6.3ds		4	0	5
+Terrain1/tile3_3.3ds		1	0	0
+Terrain1/up_brock.3ds		2	0	0
+Terrain1/tile2sd.3ds		0	1	0
+Terrain1/rise_r5.3ds		4	0	4
+LandHills/land09.3ds		0	0	51
+LandHills/land07.3ds		0	0	76
+LandHills/land06.3ds		0	0	128
+LandHills/land02.3ds		0	0	50
+LandHills/land03.3ds		0	0	51
+LandHills/land08.3ds		0	0	50
+LandHills/land01.3ds		0	0	136
+LandHills/land04.3ds		0	0	122
+Trees/tree02.3ds	Non-box-shaped helper: Box62	0	0	0
+Trees/tree01.3ds		0	2	13
+NuBu3Winter/nubu_3.3ds		0	2	0
+WaffleFenceWinter/wall_3.3ds		5	0	8
+WaffleFenceWinter/wall_1.3ds		0	1	0
+WaffleFenceWinter/wall_2.3ds		3	2	12
+WaffleFenceWinter/wgates.3ds		0	3	0
+WaffleFenceWinter/wallcorn.3ds		0	2	0
+BrokenWalls/hs_part1.3ds		0	0	4
+BrokenWalls/hs_part4.3ds		0	0	4
+BrokenWalls/hs_part2.3ds		0	0	8
+BrokenWalls/h_tube3.3ds		3	2	0
+BrokenWalls/partbig1.3ds		0	1	0
+BrokenWalls/hs_tube2.3ds		0	2	2
+BrokenWalls/hs_corn1.3ds		0	2	0
+BrokenWalls/hs_par20.3ds		2	0	0
+BrokenWalls/hs_part9.3ds		0	0	12
+BrokenWalls/hs_part8.3ds		0	0	10
+BrokenWalls/partbig2.3ds		0	1	0
+BrokenWalls/hs_part6.3ds		0	0	6
+BrokenWalls/hs_part5.3ds		0	1	0
+BrokenWalls/hs_tube1.3ds	Non-box-shaped helper: Box13	0	0	0
+BrokenWalls/hs_part7.3ds		0	0	8
+BrokenWalls/hs_part3.3ds		0	0	4
+BrokenWalls/hs_corn2.3ds		0	2	0
+BrokenWalls/hs_par10.3ds		0	5	0
+BrokenWalls/hs_par12.3ds		0	0	11
+FachwerkHouse2Winter/fahwerk2.3ds		0	2	0
+BrokenBottomWinter/hs_brid2.3ds		0	1	0
+BrokenBottomWinter/hs_brid1.3ds		0	1	0
+BrokenBottomWinter/hs_rise1.3ds		1	0	2
+BrokenBottomWinter/hs_brid3.3ds		0	1	0
+BrokenBottomWinter/hs_rise5.3ds		1	0	1
+BrokenBottomWinter/hs_rise2.3ds		1	0	1
+BrokenBottomWinter/hs_rise4.3ds		1	0	1
+BrokenBottomWinter/hs_rise3.3ds		1	0	1
+NuBu12Winter/nubu_12.3ds		0	1	0
+NuBu8/nubu_8.3ds		0	1	0
+Event/bilboard.3ds		0	2	0
+Event/slope_2.3ds		1	0	0
+Event/nubu_2.3ds		0	4	0
+Event/brok_tank.3ds		0	1	0
+Event/smhouse3.3ds		0	10	0
+Event/tile_01.3ds		1	0	0
+Event/vilhou_2.3ds		0	2	0
+Event/slope_1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Event/wall_st.3ds		1	1	0
+Event/ow_2.3ds		2	0	0
+HangarsWinter/hang_3.3ds		0	3	0
+HangarsWinter/hang_1.3ds		0	6	0
+HangarsWinter/hang_2.3ds		0	4	0
+OuterWallsWinter/tunnel_1.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWallsWinter/wtile_2.3ds		1	0	0
+OuterWallsWinter/ow_ai.3ds		4	0	0
+OuterWallsWinter/ow_ao.3ds		3	0	2
+OuterWallsWinter/wtile_1.3ds		1	0	0
+OuterWallsWinter/ow_t.3ds		0	1	0
+OuterWallsWinter/wtile_3.3ds		1	0	0
+OuterWallsWinter/tunnel_2.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWallsWinter/ow_1.3ds		2	0	0
+OuterWallsWinter/wtile_4.3ds		1	0	0
+OuterWallsWinter/ow_2.3ds		2	0	0
+CliffsWinter/cliff_2.3ds		3	0	0
+CliffsWinter/cliff_ri.3ds		5	0	6
+CliffsWinter/cliff_0.3ds		3	0	0
+CliffsWinter/cliff_r2.3ds		4	0	4
+CliffsWinter/cliff_4.3ds		1	0	11
+CliffsWinter/cliff_cor.3ds		2	0	4
+CliffsWinter/cliff_1.3ds		3	0	0
+CliffsWinter/cliff_c2.3ds		5	0	0
+BridgePartsWinter/bridge_1.3ds		3	0	4
+BridgePartsWinter/bridge_1_1.3ds		2	0	4
+BridgePartsWinter/bridge_4.3ds		0	1	0
+BridgePartsWinter/bridge_3.3ds		0	2	0
+BridgePartsWinter/bridge_8.3ds		0	1	0
+BridgePartsWinter/bridge_5.3ds		0	1	16
+BridgePartsWinter/bridge_2.3ds		0	1	0
+SmallBridgeWinter/smbr_5.3ds		0	1	16
+SmallBridgeWinter/smbr_6.3ds		2	0	4
+SmallBridgeWinter/smbr_3.3ds		0	1	16
+SmallBridgeWinter/smbr_1.3ds		2	0	4
+SmallBridgeWinter/smbr_4.3ds		0	1	0
+SmallBridgeWinter/smbr_2.3ds		0	1	0
+zaminWinter/rabet.3ds		0	1	12
+zaminWinter/half+.3ds		2	0	0
+zaminWinter/half.3ds		1	0	0
+zaminWinter/halfx1.3ds		1	0	0
+zaminWinter/parche.3ds		1	1	0
+zaminWinter/5x5.3ds		1	0	0
+zaminWinter/yonje.3ds		1	5	0
+zaminWinter/taghbala.3ds		1	0	0
+zaminWinter/newnakhl.3ds		0	2	4
+zaminWinter/1x1.3ds		1	0	0
+zaminWinter/2x2.3ds		1	0	0
+zamin/rabet.3ds		0	1	12
+zamin/half+.3ds		2	0	0
+zamin/half.3ds		1	0	0
+zamin/halfx1.3ds		1	0	0
+zamin/parche.3ds		1	1	0
+zamin/5x5.3ds		1	0	0
+zamin/yonje.3ds		1	5	0
+zamin/taghbala.3ds		1	0	0
+zamin/newnakhl.3ds		0	2	4
+zamin/1x1.3ds		1	0	0
+zamin/2x2.3ds		1	0	0
+Defense/resh.3ds		0	4	0
+Defense/border.3ds		0	3	0
+Defense/tunnel_1.3ds		3	3	2
+Defense/angleupb.3ds		0	0	6
+Defense/tren_end.3ds		1	2	0
+Defense/reshcon.3ds		4	0	4
+Defense/crd_ins.3ds		4	0	0
+Defense/monitor.3ds		0	4	0
+Defense/rise.3ds		2	7	3
+Defense/upper.3ds	Unsupported triangle helper: tri112	2	0	18
+Defense/crd_s_st.3ds		5	2	0
+Defense/par_end1.3ds		4	0	4
+Defense/point.3ds		5	0	4
+Defense/camera.3ds		0	3	0
+Defense/crd_b_d1.3ds		9	2	0
+Defense/crd_b_d2.3ds		4	0	0
+Defense/tunnel_2.3ds		3	3	0
+Defense/uppermin.3ds		0	0	2
+Defense/trench1.3ds		1	2	0
+Defense/parapet1.3ds		3	0	0
+Defense/tren1end.3ds		1	2	0
+Defense/crd_str.3ds		7	2	6
+Defense/crd_b_d3.3ds		12	0	0
+Defense/tren_chn.3ds		1	2	0
+Defense/angleup.3ds		0	0	6
+Defense/tun_corn.3ds		13	0	6
+Defense/anglepl.3ds		2	0	0
+Defense/reshtram.3ds		10	8	15
+Defense/reshdest.3ds		10	7	28
+Defense/trench.3ds		1	2	0
+Defense/lighttow.3ds		0	2	0
+Defense/crd_st.3ds		1	2	0
+BattleCity/fliptile.3ds		1	0	0
+BattleCity/tile_02.3ds		1	0	0
+BattleCity/tile_01nc.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+BattleCity/tile_01.3ds		1	0	0
+BattleCity/tile_02nc.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+BattleCity/fliptilenc.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+NuBu9/nubu_9.3ds		0	1	0
+NuBu4/nubu_4.3ds		0	1	0
+LandHillsWinter/land09.3ds		0	0	51
+LandHillsWinter/land07.3ds		0	0	76
+LandHillsWinter/land06.3ds		0	0	128
+LandHillsWinter/land02.3ds		0	0	50
+LandHillsWinter/land03.3ds		0	0	51
+LandHillsWinter/land08.3ds		0	0	50
+LandHillsWinter/land01.3ds		0	0	136
+LandHillsWinter/land04.3ds		0	0	122
+Cliffs/cliff_2.3ds		3	0	0
+Cliffs/cliff_ri.3ds		5	0	6
+Cliffs/cliff_0.3ds		3	0	0
+Cliffs/cliff_r2.3ds		4	0	4
+Cliffs/cliff_4.3ds		1	0	11
+Cliffs/cliff_cor.3ds		2	0	4
+Cliffs/cliff_1.3ds		3	0	0
+Cliffs/cliff_c2.3ds		5	0	0
+NuBu2Winter/nubu_2.3ds		0	4	0
+NuBu12/nubu_12.3ds		0	1	0
+Defense1/resh.3ds		0	4	0
+Defense1/border.3ds		0	3	0
+Defense1/tunnel_1.3ds		3	3	2
+Defense1/angleupb.3ds		0	0	6
+Defense1/tren_end.3ds		1	2	0
+Defense1/reshcon.3ds		4	0	4
+Defense1/crd_ins.3ds		4	0	0
+Defense1/monitor.3ds		0	4	0
+Defense1/rise.3ds		2	7	3
+Defense1/upper.3ds	Unsupported triangle helper: tri112	2	0	18
+Defense1/crd_s_st.3ds		5	2	0
+Defense1/chetup.3ds		0	0	13
+Defense1/beam.3ds		0	2	0
+Defense1/par_end1.3ds		4	0	4
+Defense1/point.3ds		5	0	4
+Defense1/camera.3ds		0	3	0
+Defense1/dot.3ds		6	9	8
+Defense1/crd_b_d1.3ds		9	2	0
+Defense1/crd_b_d2.3ds		4	0	0
+Defense1/dc_wall.3ds		0	1	0
+Defense1/tunnel_2.3ds		3	3	0
+Defense1/uppermin.3ds		0	0	2
+Defense1/trench1.3ds		1	2	0
+Defense1/blk.3ds		0	7	0
+Defense1/snip_tow.3ds	Unsupported plane helper: Plane51	1	5	1
+Defense1/parapet1.3ds		3	0	0
+Defense1/tren1end.3ds		1	2	0
+Defense1/dc_wind.3ds		0	4	0
+Defense1/crd_str.3ds		7	2	6
+Defense1/crd_b_d3.3ds		12	0	0
+Defense1/angleup.3ds		0	0	6
+Defense1/dc_corn.3ds		0	8	0
+Defense1/blkcnrb.3ds		0	7	0
+Defense1/tun_corn.3ds		13	0	6
+Defense1/anglepl.3ds		2	0	0
+Defense1/dot_big.3ds		2	18	2
+Defense1/blkcnr.3ds		0	7	0
+Defense1/reshtram.3ds		10	8	15
+Defense1/dc_short.3ds		0	1	0
+Defense1/reshdest.3ds		10	7	28
+Defense1/trench.3ds		1	2	0
+Defense1/lighttow.3ds		0	2	0
+Defense1/chet.3ds		0	0	13
+Defense1/crd_st.3ds		1	2	0
+ConcreteWalls/wall_cr.3ds		1	2	0
+ConcreteWalls/wall_e3.3ds		1	1	0
+ConcreteWalls/wall_3w.3ds		1	2	0
+ConcreteWalls/wall_e1.3ds		6	0	10
+ConcreteWalls/wall_st.3ds		1	1	0
+ConcreteWalls/wall_e2.3ds		6	0	10
+LandRiseWinter/line.3ds		5	0	0
+LandRiseWinter/land05.3ds		0	0	90
+LandRiseWinter/rise_gr2.3ds		0	0	34
+LandRiseWinter/land22.3ds		3	0	2
+LandRiseWinter/crater.3ds		0	0	74
+LandRiseWinter/land33.3ds		2	0	0
+LandRiseWinter/rise_gr1.3ds		0	0	34
+Roadblock/border.3ds		0	3	0
+Roadblock/wallbs.3ds		3	0	4
+Roadblock/wallbig.3ds		2	0	12
+Roadblock/wallbn.3ds	Nonrectangular 3DS plane helper: plane048	2	0	0
+Roadblock/wallcon.3ds		4	0	11
+Roadblock/wallend.3ds		2	0	8
+Roadblock/walllit.3ds		4	0	16
+Fence/walltr.3ds	Nonrectangular 3DS plane helper: plane029	3	0	8
+Fence/gatehorn.3ds		0	2	0
+Fence/fence_ci.3ds		0	3	0
+Fence/wall_1.3ds		0	1	0
+Fence/gatevik.3ds		0	2	0
+Fence/wallbs.3ds		3	0	4
+Fence/fence_s.3ds		0	1	0
+Fence/gatmamot.3ds		0	2	0
+Fence/wallbig.3ds		2	0	12
+Fence/wallbn.3ds	Nonrectangular 3DS plane helper: plane048	2	0	0
+Fence/wallcon.3ds		4	0	11
+Fence/fence_co.3ds		0	3	0
+Fence/wallend.3ds		2	0	8
+Fence/walllit.3ds		4	0	16
+Fence/fence_l.3ds		0	1	0
+Fence/wallcorn.3ds		0	2	0
+RoadblockWinter/border.3ds		0	3	0
+RoadblockWinter/wallbs.3ds		3	0	4
+RoadblockWinter/wallbig.3ds		2	0	12
+RoadblockWinter/wallbn.3ds	Nonrectangular 3DS plane helper: plane048	2	0	0
+RoadblockWinter/wallcon.3ds		4	0	11
+RoadblockWinter/wallend.3ds		2	0	8
+RoadblockWinter/walllit.3ds		4	0	16
+NuBu6/nubu_6.3ds		0	3	0
+ComBuild/decv1.3ds		0	1	0
+ComBuild/dect1.3ds		0	2	0
+ComBuild/comb_a.3ds		3	0	0
+ComBuild/wtile_2.3ds		1	0	0
+ComBuild/bot1_7.3ds		0	1	0
+ComBuild/porchr1.3ds		4	0	5
+ComBuild/decv4.3ds		0	1	0
+ComBuild/wtile_1.3ds		1	0	0
+ComBuild/comb3.3ds		0	1	0
+ComBuild/comb.3ds		1	0	0
+ComBuild/decv3.3ds		0	1	0
+ComBuild/comb_a2.3ds		3	0	0
+ComBuild/tile_01.3ds		1	0	0
+ComBuild/bot3_3.3ds		0	2	0
+ComBuild/bot1_8.3ds		2	0	6
+ComBuild/pdoor1.3ds		1	0	0
+ComBuild/comb4.3ds		0	1	0
+ComBuild/comb2.3ds		1	0	0
+ComBuild/comb1.3ds		0	1	0
+ComBuild/bot1_6.3ds		0	2	0
+ComBuild/comb_a1.3ds		0	3	0
+ComBuild/bot1_bar.3ds		1	0	0
+ComBuild/porch1.3ds	Malformed 3DS mesh/helper chunks.	0	0	0
+ComBuild/decv2.3ds		0	1	0
+ComBuild/decg1.3ds		0	1	0
+ComBuild/comb_a3.3ds		3	0	3
+ComBuild/porchd1.3ds		0	4	0
+IndustrialBridgeWinter/brid_2.3ds		0	1	0
+IndustrialBridgeWinter/brid_3.3ds		0	2	0
+IndustrialBridgeWinter/st_br02.3ds		0	9	0
+IndustrialBridgeWinter/brid_6.3ds		2	0	4
+IndustrialBridgeWinter/st_br01.3ds		0	9	0
+IndustrialBridgeWinter/brid_1.3ds		2	0	2
+IndustrialBridgeWinter/brid_7.3ds		2	0	4
+IndustrialBridgeWinter/brid_4.3ds		0	2	8
+IndustrialBridgeWinter/brid_5.3ds		0	1	0
+DesertHouses/smhouse3.3ds		0	10	0
+DesertHouses/smhouse2.3ds		0	1	0
+yonjeWinter/outwd.3ds		0	0	12
+yonjeWinter/end.3ds		1	0	9
+yonjeWinter/in.3ds		0	0	10
+yonjeWinter/nardeban.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+yonjeWinter/out.3ds		0	0	12
+yonjeWinter/wall.3ds		0	0	6
+yonjeWinter/window.3ds		0	0	6
+yonjeWinter/door.3ds		0	0	6
+yonjeWinter/corner.3ds		0	0	22
+BrokenRoof/bk_roof1.3ds		0	1	33
+BrokenRoof/roofc2x2.3ds		2	0	0
+BrokenRoof/h_roofc.3ds		2	0	0
+BrokenRoof/hs_roof.3ds		3	0	0
+BrokenRoof/bk_roof2.3ds		1	0	44
+BrokenRoof/brk_roof.3ds		1	1	33
+BrokenRoof/hs_roof1.3ds		5	0	2
+BrokenRoof/hs_roof2.3ds		5	0	2
+Minecraft/fliptile.3ds		1	0	0
+Minecraft/tile_02.3ds		1	0	0
+Minecraft/tile_01.3ds		1	0	0
+Minecraft/stairs.3ds		2	0	2
+Passage/uptwo.3ds		0	3	0
+Passage/sp_down.3ds		0	0	2
+Passage/pillar_d.3ds		0	1	0
+Passage/upcln.3ds		0	1	0
+Passage/cbr_2.3ds		0	1	0
+Passage/sp2_up.3ds		0	0	2
+Passage/cbr_pil.3ds		0	3	0
+Passage/cbr_ang4.3ds		0	0	8
+Passage/brid_2.3ds		0	1	0
+Passage/upclnb1.3ds		0	1	0
+Passage/upclnb.3ds		0	1	0
+Passage/brid_3.3ds		0	2	0
+Passage/cbr_ang3.3ds		0	0	8
+Passage/springb.3ds		2	0	2
+Passage/cutright.3ds		2	1	4
+Passage/brid_6.3ds		2	0	4
+Passage/upcln1.3ds		0	1	0
+Passage/cbr_ang2.3ds		0	0	8
+Passage/cbr_ang5.3ds		0	0	8
+Passage/sp2_down.3ds		0	0	2
+Passage/brid_1.3ds		2	0	2
+Passage/cbr_1.3ds		0	1	0
+Passage/upone.3ds		0	1	0
+Passage/brid_7.3ds		2	0	4
+Passage/upright.3ds		0	3	0
+Passage/brid_4.3ds		0	2	8
+Passage/sp_up.3ds		0	0	2
+Passage/brid_5.3ds		0	1	0
+Passage/springb01.3ds		2	0	2
+Passage/pillar.3ds		0	1	0
+LandTilesWinter/tile2_2.3ds		1	0	0
+LandTilesWinter/tile_01.3ds		1	0	0
+LandTilesWinter/tile2_1.3ds		1	0	0
+LandTilesWinter/tile3_3.3ds	Unsupported plane helper: plane	0	0	0
+SmallBridge/smbr_5.3ds		0	1	16
+SmallBridge/smbr_6.3ds		2	0	4
+SmallBridge/smbr_3.3ds		0	1	16
+SmallBridge/smbr_1.3ds		2	0	4
+SmallBridge/smbr_4.3ds		0	1	0
+SmallBridge/smbr_2.3ds		0	1	0
+CityBuildingsWinter/smhouse4.3ds		0	5	0
+CityBuildingsWinter/gasoline.3ds		0	3	0
+CityBuildingsWinter/smhouse5.3ds		0	4	0
+NuBu6Winter/nubu_6.3ds		0	3	0
+LandRise/line.3ds		5	0	0
+LandRise/land05.3ds		0	0	90
+LandRise/rise_gr2.3ds		0	0	34
+LandRise/land22.3ds		3	0	2
+LandRise/crater.3ds		0	0	74
+LandRise/land33.3ds		2	0	0
+LandRise/rise_gr1.3ds		0	0	34
+OuterWalls/tunnel_1.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWalls/wtile_2.3ds		1	0	0
+OuterWalls/ow_ai.3ds		4	0	0
+OuterWalls/ow_ao.3ds		3	0	2
+OuterWalls/wtile_1.3ds		1	0	0
+OuterWalls/ow_t.3ds		0	1	0
+OuterWalls/wtile_3.3ds		1	0	0
+OuterWalls/tunnel_2.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWalls/ow_1.3ds		2	0	0
+OuterWalls/wtile_4.3ds		1	0	0
+OuterWalls/ow_2.3ds		2	0	0
+SlopesRises/rise_3.3ds		5	2	2
+SlopesRises/rise_5.3ds		4	1	4
+SlopesRises/slope_2.3ds		1	0	0
+SlopesRises/slope_1.3ds		1	0	0
+SlopesRises/rise_2.3ds		5	2	2
+Fort/tower_str.3ds		1	8	0
+Fort/wall_gate.3ds		2	10	18
+Fort/wall_cor_in.3ds		5	0	2
+Fort/wall_short.3ds		1	4	0
+Fort/wall_end_2.3ds		1	3	0
+Fort/wall_cor_out.3ds		6	1	0
+Fort/wall.3ds		1	5	0
+Fort/wall_broken_2.3ds		2	1	1
+Fort/wlb_rise.3ds		2	0	0
+Fort/wall_broken_1.3ds		2	1	1
+Fort/tower_corner.3ds		1	8	0
+Fort/wall_end_1.3ds		1	3	0
+Fort/tower_end.3ds		1	5	0
+Fort/tower_roof.3ds		1	8	0
+NuBu3/nubu_3.3ds		0	2	0
+h25Death/wall_3.3ds		5	0	8
+h25Death/border.3ds		0	3	0
+h25Death/corn3.3ds		0	0	5
+h25Death/chest01.3ds		0	5	0
+h25Death/tunnel_1.3ds	3DS visual anchor/pivot is not available.	0	0	0
+h25Death/bk_roof1.3ds		0	1	33
+h25Death/chest04.3ds		0	4	0
+h25Death/hs_part1.3ds		0	0	4
+h25Death/wtile_2.3ds		1	0	0
+h25Death/smhouse4.3ds		0	5	0
+h25Death/tree02.3ds	Non-box-shaped helper: Box62	0	0	0
+h25Death/gasoline.3ds		0	3	0
+h25Death/chest03.3ds		0	6	0
+h25Death/hs_part4.3ds		0	0	4
+h25Death/tile2_2.3ds		1	0	0
+h25Death/nubu_3.3ds		0	2	0
+h25Death/hs_part2.3ds		0	0	8
+h25Death/tube_3.3ds		0	2	0
+h25Death/ow_ai.3ds		4	0	0
+h25Death/wall_1.3ds		0	1	0
+h25Death/brid_2.3ds		0	1	0
+h25Death/h_tube3.3ds		3	2	0
+h25Death/sm_rock2.3ds		2	0	0
+h25Death/nubu_6.3ds		0	3	0
+h25Death/tube_1.3ds		0	2	0
+h25Death/chest06.3ds		1	0	0
+h25Death/ow_ao.3ds		3	0	2
+h25Death/partbig1.3ds		0	1	0
+h25Death/brid_3.3ds		0	2	0
+h25Death/rise_g4.3ds		1	0	1
+h25Death/hang_3.3ds		0	3	0
+h25Death/hs_tube2.3ds		0	2	2
+h25Death/big_rock.3ds		3	0	0
+h25Death/chest02.3ds		0	4	0
+h25Death/hs_corn1.3ds		0	2	0
+h25Death/st_br02.3ds		0	9	0
+h25Death/hs_par20.3ds		2	0	0
+h25Death/corn_b.3ds		0	0	5
+h25Death/rise_r1.3ds		1	0	0
+h25Death/change02.3ds		0	0	9
+h25Death/tower.3ds		1	0	8
+h25Death/wall_2.3ds		3	2	12
+h25Death/wtile_1.3ds		1	0	0
+h25Death/roofc2x2.3ds		2	0	0
+h25Death/hs_part9.3ds		0	0	12
+h25Death/hang_1.3ds		0	6	0
+h25Death/hs_part8.3ds		0	0	10
+h25Death/h_roofc.3ds		2	0	0
+h25Death/brok_tank.3ds		0	1	0
+h25Death/partbig2.3ds		0	1	0
+h25Death/brid_6.3ds		2	0	4
+h25Death/rise_g5.3ds		4	0	5
+h25Death/smhouse3.3ds		0	10	0
+h25Death/blocks.3ds		0	3	0
+h25Death/hs_part6.3ds		0	0	6
+h25Death/up_rock2.3ds		0	0	12
+h25Death/up_rock1.3ds		0	0	12
+h25Death/rise_g2.3ds		2	0	1
+h25Death/tile_01.3ds		1	0	0
+h25Death/hs_roof.3ds		3	0	0
+h25Death/bk_roof2.3ds		1	0	44
+h25Death/wallbs.3ds		3	0	4
+h25Death/watch_to.3ds		0	2	32
+h25Death/ow_t.3ds		0	1	0
+h25Death/rise_g1.3ds		2	0	1
+h25Death/st_br01.3ds		0	9	0
+h25Death/wtile_3.3ds		1	0	0
+h25Death/tile2_1.3ds		1	0	0
+h25Death/nubu_12.3ds		0	1	0
+h25Death/sm_rock1.3ds		3	0	0
+h25Death/rise_g3.3ds		1	0	1
+h25Death/tube_2.3ds		0	0	48
+h25Death/brk_roof.3ds		1	1	33
+h25Death/hs_part5.3ds		0	1	0
+h25Death/hs_tube1.3ds	Non-box-shaped helper: Box13	0	0	0
+h25Death/tunnel_2.3ds	3DS visual anchor/pivot is not available.	0	0	0
+h25Death/tree01.3ds		0	2	13
+h25Death/smhouse2.3ds		0	1	0
+h25Death/corn4.3ds		1	0	4
+h25Death/hs_roof1.3ds		5	0	2
+h25Death/brid_1.3ds		2	0	2
+h25Death/wallbig.3ds		2	0	12
+h25Death/wgates.3ds		0	3	0
+h25Death/contain.3ds	3DS visual anchor/pivot is not available.	0	0	0
+h25Death/corn1.3ds		0	0	5
+h25Death/post.3ds		0	2	0
+h25Death/hs_part7.3ds		0	0	8
+h25Death/wallbn.3ds	Nonrectangular 3DS plane helper: plane048	2	0	0
+h25Death/hs_part3.3ds		0	0	4
+h25Death/hs_corn2.3ds		0	2	0
+h25Death/smhouse5.3ds		0	4	0
+h25Death/chest05.3ds		0	2	0
+h25Death/tube_4.3ds		6	0	56
+h25Death/wallcon.3ds		4	0	11
+h25Death/tower1.3ds		1	0	8
+h25Death/hs_roof2.3ds		5	0	2
+h25Death/brid_7.3ds		2	0	4
+h25Death/up_rock.3ds		2	0	0
+h25Death/change01.3ds		0	0	9
+h25Death/corn2.3ds		0	0	3
+h25Death/nubu_9.3ds		0	1	0
+h25Death/wallend.3ds		2	0	8
+h25Death/walllit.3ds		4	0	16
+h25Death/tile3_3.3ds		1	0	0
+h25Death/ow_1.3ds		2	0	0
+h25Death/brid_4.3ds		0	2	8
+h25Death/wallcorn.3ds		0	2	0
+h25Death/up_brock.3ds		2	0	0
+h25Death/wtile_4.3ds		1	0	0
+h25Death/ow_2.3ds		2	0	0
+h25Death/hang_2.3ds		0	4	0
+h25Death/hs_par10.3ds		0	5	0
+h25Death/hs_par12.3ds		0	0	11
+h25Death/brid_5.3ds		0	1	0
+h25Death/rise_g6.3ds		4	0	5
+WaffleFence/wall_3.3ds		5	0	8
+WaffleFence/wall_1.3ds		0	1	0
+WaffleFence/wall_2.3ds		3	2	12
+WaffleFence/wgates.3ds		0	3	0
+WaffleFence/wallcorn.3ds		0	2	0
+NuBu1/nubu_1.3ds		0	4	0
+PromotionWinter/bilboard.3ds		0	2	0
+NuBu10Winter/nubu_10.3ds		0	2	0
+Stuffs/chest01.3ds		0	5	0
+Stuffs/chest04.3ds		0	4	0
+Stuffs/chest03.3ds		0	6	0
+Stuffs/tube_3.3ds		0	2	0
+Stuffs/tube_1.3ds		0	2	0
+Stuffs/chest06.3ds		1	0	0
+Stuffs/chest02.3ds		0	4	0
+Stuffs/brok_tank.3ds		0	1	0
+Stuffs/blocks.3ds		0	3	0
+Stuffs/tube_2.3ds		0	0	48
+Stuffs/post.3ds		0	2	0
+Stuffs/chest05.3ds		0	2	0
+Stuffs/tube_4.3ds		6	0	56
+NuBu1Winter/nubu_1.3ds		0	4	0
+IndustrialBridge/brid_2.3ds		0	1	0
+IndustrialBridge/brid_3.3ds		0	2	0
+IndustrialBridge/st_br02.3ds		0	9	0
+IndustrialBridge/brid_6.3ds		2	0	4
+IndustrialBridge/st_br01.3ds		0	9	0
+IndustrialBridge/brid_1.3ds		2	0	2
+IndustrialBridge/brid_7.3ds		2	0	4
+IndustrialBridge/brid_4.3ds		0	2	8
+IndustrialBridge/brid_5.3ds		0	1	0
+NuBu10/nubu_10.3ds		0	2	0
+BrokenRoofWinter/bk_roof1.3ds		0	1	33
+BrokenRoofWinter/roofc2x2.3ds		2	0	0
+BrokenRoofWinter/h_roofc.3ds		2	0	0
+BrokenRoofWinter/hs_roof.3ds		3	0	0
+BrokenRoofWinter/bk_roof2.3ds		1	0	44
+BrokenRoofWinter/brk_roof.3ds		1	1	33
+BrokenRoofWinter/hs_roof1.3ds		5	0	2
+BrokenRoofWinter/hs_roof2.3ds		5	0	2
+CityBuildsWinter/fab_tow2.3ds		6	0	0
+CityBuildsWinter/fab_tow.3ds		6	0	0
+Hangars/hang_3.3ds		0	3	0
+Hangars/hang_1.3ds		0	6	0
+Hangars/hang_2.3ds		0	4	0
+LandRocksWinter/corn3.3ds		0	0	5
+LandRocksWinter/sm_rock2.3ds		2	0	0
+LandRocksWinter/rise_g4.3ds		1	0	1
+LandRocksWinter/big_rock.3ds		3	0	0
+LandRocksWinter/corn_b.3ds		0	0	5
+LandRocksWinter/rise_r1.3ds		1	0	0
+LandRocksWinter/change02.3ds		0	0	9
+LandRocksWinter/rise_g5.3ds		4	0	5
+LandRocksWinter/up_rock2.3ds		0	0	12
+LandRocksWinter/up_rock1.3ds		0	0	12
+LandRocksWinter/rise_g2.3ds		2	0	1
+LandRocksWinter/rise_g1.3ds		2	0	1
+LandRocksWinter/sm_rock1.3ds		3	0	0
+LandRocksWinter/rise_g3.3ds		1	0	1
+LandRocksWinter/corn4.3ds		1	0	4
+LandRocksWinter/corn1.3ds		0	0	5
+LandRocksWinter/up_rock.3ds		2	0	0
+LandRocksWinter/change01.3ds		0	0	9
+LandRocksWinter/corn2.3ds		0	0	3
+LandRocksWinter/up_brock.3ds		2	0	0
+LandRocksWinter/rise_g6.3ds		4	0	5
+OuterWallsLairWinter/tunnel_1.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWallsLairWinter/wtile_2.3ds		1	0	0
+OuterWallsLairWinter/ow_ai.3ds		4	0	0
+OuterWallsLairWinter/ow_ao.3ds		3	0	2
+OuterWallsLairWinter/wtile_1.3ds		1	0	0
+OuterWallsLairWinter/ow_t.3ds		0	1	0
+OuterWallsLairWinter/wtile_3.3ds		1	0	0
+OuterWallsLairWinter/tunnel_2.3ds	3DS visual anchor/pivot is not available.	0	0	0
+OuterWallsLairWinter/ow_1.3ds		2	0	0
+OuterWallsLairWinter/wtile_4.3ds		1	0	0
+OuterWallsLairWinter/ow_2.3ds		2	0	0
+kahgel/saye.3ds		0	0	8
+kahgel/stair.3ds		0	0	22
+kahgel/outwd.3ds		0	0	14
+kahgel/end.3ds		0	0	21
+kahgel/in.3ds		0	0	10
+kahgel/badgir.3ds		1	1	0
+kahgel/taghnoorwe.3ds		0	0	14
+kahgel/carpet.3ds		0	0	20
+kahgel/wood.3ds		0	0	6
+kahgel/out.3ds		0	0	14
+kahgel/gonbadmj.3ds		1	0	16
+kahgel/wall.3ds		0	0	6
+kahgel/menare.3ds		1	1	0
+kahgel/window.3ds		0	0	6
+kahgel/mehrab.3ds		0	0	33
+kahgel/taghnoorns.3ds		0	0	14
+kahgel/broken.3ds		0	0	23
+kahgel/door.3ds		0	0	6
+kahgel/flashlight.3ds		0	2	0
+kahgel/corner.3ds		0	0	24
+kahgel/tagh.3ds		0	0	14
+kahgel/darvaze.3ds		0	0	27
+kahgel/gonbad.3ds		1	0	16
+kahgel/balaro.3ds		0	0	18
+ConcreteTiles/tile3_1.3ds		1	0	0
+ConcreteTiles/fliptile.3ds		1	0	0
+ConcreteTiles/tile2_2.3ds		1	0	0
+ConcreteTiles/tile3_2.3ds		1	0	0
+ConcreteTiles/tile_01.3ds		1	0	0
+ConcreteTiles/tile2_1.3ds		1	0	0
+ConcreteTiles/tile3_3.3ds		1	0	0
+NuBu14Winter/nubu_14.3ds		0	2	0
+StuffsWinter/chest01.3ds		0	5	0
+StuffsWinter/chest04.3ds		0	4	0
+StuffsWinter/chest03.3ds		0	6	0
+StuffsWinter/tube_3.3ds		0	2	0
+StuffsWinter/tube_1.3ds		0	2	0
+StuffsWinter/chest06.3ds		1	0	0
+StuffsWinter/chest02.3ds		0	4	0
+StuffsWinter/brok_tank.3ds		0	1	0
+StuffsWinter/blocks.3ds		0	3	0
+StuffsWinter/tube_2.3ds		0	0	48
+StuffsWinter/post.3ds		0	2	0
+StuffsWinter/chest05.3ds		0	2	0
+StuffsWinter/tube_4.3ds		6	0	56
+FachwerkHouse1Winter/fahwerk1.3ds		0	1	0
+Halloween/pumpkin.3ds		0	2	0
+Halloween/tile3_1.3ds		1	0	0
+Halloween/gravest3.3ds		0	3	0
+Halloween/tree02.3ds	Non-box-shaped helper: Box62	0	0	0
+Halloween/gravest2.3ds		0	4	0
+Halloween/hang_3.3ds		0	3	0
+Halloween/tile3_2.3ds		1	0	0
+Halloween/gravest1.3ds		0	2	0
+Halloween/vilhou_3.3ds		0	2	0
+Halloween/vilhou_1.3ds		0	1	0
+Halloween/tile_01.3ds		1	0	0
+Halloween/vilhou_4.3ds		0	1	0
+Halloween/vilhou_2.3ds		0	2	0
+Halloween/tree01.3ds		0	2	13
+Halloween/smbeware.3ds		0	4	0
+Halloween/tile3_3.3ds		1	0	0
+Halloween/gravest2-3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+VillageBuildsWinter/vilhou_3.3ds		0	2	0
+VillageBuildsWinter/vilhou_1.3ds		0	1	0
+VillageBuildsWinter/vilhou_4.3ds		0	1	0
+VillageBuildsWinter/vilhou_2.3ds		0	2	0
+Exterior/side2.3ds		2	2	5
+Exterior/winwall3.3ds		0	4	0
+Exterior/winwall4.3ds		0	4	0
+Exterior/winwall2.3ds		0	4	0
+Exterior/win1.3ds		0	4	0
+Exterior/spring1.3ds		2	0	2
+Exterior/side4.3ds		3	2	5
+Exterior/wall4.3ds		0	1	0
+Exterior/wall3.3ds		0	1	0
+Exterior/angwall1.3ds		0	2	0
+Exterior/wall1.3ds		0	1	0
+Exterior/wall2.3ds		0	1	0
+Exterior/ant1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Exterior/angwall2.3ds		0	2	0
+Exterior/side1.3ds		0	1	0
+Exterior/wtile2.3ds		1	0	0
+Exterior/wtile1.3ds		1	0	0
+Exterior/win2.3ds		0	4	0
+Exterior/cond1.3ds		0	1	0
+Exterior/winwall1.3ds		0	4	0
+Exterior/side3.3ds		3	2	5
+Exterior/angwin2.3ds		0	7	0
+Fogtown/wall_3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wtbr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/trlight.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/v1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/fliptile.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/barr_1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wt1x3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/bigbox.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/t33d.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/lvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/env7.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/car1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wall_1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/balc.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/comp.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/ammo.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/line01.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/cone.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/v4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/peter.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wfstr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wtwall.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wall_2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wtd2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/build_3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/env1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/grave.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/boat.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/v3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/mlep.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/comb_a2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/out.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/env6.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wtend1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wt1_a.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wts1x2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/font.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/t11.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/lep.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/t33.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/cti.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/robbie.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/env4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/tdesk.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/lamp.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/comb_bot.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/t55.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wtend2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wt1x2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/comb2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/build_4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/brid_1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wgates.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/comb1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/car2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/land02.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/comb_a1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/t22.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wts1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wtd1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/train.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/cabin.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/env5.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/v2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wt1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/t21.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/wallcorn.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/land01.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/t32.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/barr_2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/comb_a3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/env3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/bt.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/line02.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/gener.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/garage.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/stl.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/forest.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/rise_1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Fogtown/fontw.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+yonje/outwd.3ds		0	0	12
+yonje/end.3ds		1	0	9
+yonje/in.3ds		0	0	10
+yonje/nardeban.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+yonje/out.3ds		0	0	12
+yonje/wall.3ds		0	0	6
+yonje/window.3ds		0	0	6
+yonje/door.3ds		0	0	6
+yonje/corner.3ds		0	0	22
+NY/ny_banner.3ds		0	2	0
+NY/fahwerk1.3ds		0	1	0
+NY/vilhou_3.3ds		0	2	0
+NY/fahwerk2.3ds		0	2	0
+NY/vilhou_4.3ds		0	1	0
+NY/tower_end.3ds		1	5	0
+NY/tower_roof.3ds		1	8	0
+NY/elka.3ds		0	0	6
+NuBu14/nubu_14.3ds		0	2	0
+Passage1/uptwo.3ds		0	3	0
+Passage1/br_mh_up.3ds		18	4	32
+Passage1/pillar_d.3ds		0	1	0
+Passage1/upcln.3ds		0	1	0
+Passage1/br_m_st.3ds		0	4	0
+Passage1/br_h_up.3ds		4	0	4
+Passage1/bbr_str.3ds		0	3	0
+Passage1/brid_2.3ds		0	1	0
+Passage1/br_h_st.3ds		0	1	0
+Passage1/upclnb.3ds		0	1	0
+Passage1/br_hm_up.3ds		3	4	4
+Passage1/brid_3.3ds		0	2	0
+Passage1/arch1.3ds		6	0	8
+Passage1/springb.3ds		2	0	2
+Passage1/arch4.3ds		4	0	4
+Passage1/brid_6.3ds		2	0	4
+Passage1/arch3.3ds		6	0	8
+Passage1/arch2.3ds		6	0	8
+Passage1/brid_1.3ds		2	0	2
+Passage1/br_mh_st.3ds		0	3	0
+Passage1/bbr_pil.3ds		0	5	0
+Passage1/truck.3ds	Non-box-shaped helper: Box62	1	8	0
+Passage1/upone.3ds		0	1	0
+Passage1/arch_up.3ds		4	0	4
+Passage1/brid_7.3ds		2	0	4
+Passage1/upright.3ds		2	3	4
+Passage1/brid_4.3ds		0	2	8
+Passage1/br_m_up.3ds		14	0	12
+Passage1/brid_5.3ds		0	1	0
+Passage1/springb01.3ds		2	0	2
+Passage1/pillar.3ds		0	1	0
+Passage1/bbr_ang.3ds		1	5	6
+Passage1/bridg.3ds		4	6	8
+IndustrialElementsWinter/tower.3ds		1	0	8
+IndustrialElementsWinter/watch_to.3ds		0	2	32
+IndustrialElementsWinter/contain.3ds	3DS visual anchor/pivot is not available.	0	0	0
+IndustrialElementsWinter/tower1.3ds		1	0	8
+karizWinter/dar.3ds		5	0	24
+karizWinter/turn.3ds		0	0	18
+karizWinter/cheragh.3ds		0	0	12
+karizWinter/abrah.3ds		0	0	48
+karizWinter/turn3.3ds		0	0	28
+karizWinter/saraziri.3ds		0	0	12
+karizWinter/charchub.3ds		0	0	12
+karizWinter/kariz.3ds		0	0	12
+karizWinter/dargah.3ds		0	0	34
+Promotion/bilboard.3ds		0	2	0
+VillageBuilds/vilhou_3.3ds		0	2	0
+VillageBuilds/vilhou_1.3ds		0	1	0
+VillageBuilds/vilhou_4.3ds		0	1	0
+VillageBuilds/vilhou_2.3ds		0	2	0
+LandTiles/tile2_2.3ds		1	0	0
+LandTiles/tile_01.3ds		1	0	0
+LandTiles/tile2_1.3ds		1	0	0
+LandTiles/tile3_3.3ds		1	0	0
+GrassTiles/tile3_1.3ds		1	0	0
+GrassTiles/tile2_2.3ds		1	0	0
+GrassTiles/tile3_2.3ds		1	0	0
+GrassTiles/tile_01.3ds		1	0	0
+GrassTiles/tile2_1.3ds		1	0	0
+GrassTiles/tile3_3.3ds		1	0	0
+kariz/dar.3ds		5	0	24
+kariz/turn.3ds		0	0	18
+kariz/cheragh.3ds		0	0	12
+kariz/abrah.3ds		0	0	48
+kariz/turn3.3ds		0	0	28
+kariz/saraziri.3ds		0	0	12
+kariz/charchub.3ds		0	0	12
+kariz/kariz.3ds		0	0	12
+kariz/dargah.3ds		0	0	34
+BridgeParts/bridge_1.3ds		3	0	4
+BridgeParts/bridge_1_1.3ds		2	0	4
+BridgeParts/bridge_4.3ds		0	1	0
+BridgeParts/bridge_3.3ds		0	2	0
+BridgeParts/bridge_8.3ds		0	1	0
+BridgeParts/bridge_5.3ds		0	1	16
+BridgeParts/bridge_2.3ds		0	1	0
+dust2/wdcoroutb4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/tsl15x4_750r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rflvf.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltsd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/memory.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/ruv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rock3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/doorw.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rdcorouts3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/boxs.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2/wgraff.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchrt1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchbs1.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2/patchbvs1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchbm1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutb2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/tsl1x4_500l.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltbd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/tsl2x3_500.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wslg2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcorinb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/tsl2x4_750.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/stairs1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcorouts4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/t1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/dooropr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wslk3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/thanks.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/dcor1r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchwt3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchwt2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rdcorouts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltvvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wslvb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/doorcl2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rdcorout3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutm4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/t2x15.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/doorar.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/dcor1l.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/tsl1_125.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutb3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rdcorouts4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/stairs3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/doorar3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rooftvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/stairs6.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltvm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/doorar2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rdcorout.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wslba.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/jar.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rock1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/dooropl.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/boxb.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2/wdcoroutm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/dcor2r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/whole.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/bump.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/t1vv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcorouts3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/lamp.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/stairs4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltmd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rooftvv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltvvb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltn.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/bump2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rooftvvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/t2x15f.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/dcor2l.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcorouts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchst1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchwt1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/error.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rdcorouts2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patcht1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltvvm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/stairs2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutg6.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/bump4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rcorout.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/doorcl.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/woslg2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutg5.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/drclml.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltvb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/tsl1x4_500r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/stairs7.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/doorbw.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rooft.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/tsl2x4_500.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rock2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutm2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/boxm.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2/doorbw2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rcorin.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/drclmr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wallts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rooftd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/t2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/outb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rooftv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcorouts2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/stairs5.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wdcoroutm3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/rooftsd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/wstair.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/banner.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/walltl.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/bump3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/boxvs.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2/roofts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/outr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2/patchbs2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+NuBu9Winter/nubu_9.3ds		0	1	0
+dust2Winter/wdcoroutb4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/tsl15x4_750r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rflvf.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltsd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/memory.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/ruv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rock3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/doorw.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rdcorouts3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/boxs.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2Winter/wgraff.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchrt1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchbs1.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2Winter/patchbvs1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchbm1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutb2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/tsl1x4_500l.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltbd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/tsl2x3_500.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wslg2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcorinb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/tsl2x4_750.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/stairs1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcorouts4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/t1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/dooropr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wslk3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/thanks.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/dcor1r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchwt3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchwt2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rdcorouts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltvvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wslvb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/doorcl2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rdcorout3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutm4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/t2x15.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/doorar.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/dcor1l.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/tsl1_125.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutb3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rdcorouts4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/stairs3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/doorar3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rooftvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/stairs6.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltvm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/doorar2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rdcorout.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wslba.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/jar.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rock1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/dooropl.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/boxb.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2Winter/wdcoroutm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/dcor2r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/whole.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/bump.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/t1vv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcorouts3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/lamp.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/stairs4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltmd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rooftvv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltvvb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltn.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/bump2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rooftvvs.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/t2x15f.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/dcor2l.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcorouts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchst1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchwt1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/error.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rdcorouts2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patcht1.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltvvm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/stairs2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutg6.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/bump4.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rcorout.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/doorcl.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/woslg2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutg5.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/drclml.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltvb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/tsl1x4_500r.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/stairs7.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/doorbw.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rooft.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/tsl2x4_500.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rock2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutm2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/boxm.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2Winter/doorbw2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rcorin.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/drclmr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wallts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rooftd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/t2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/outb.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rooftv.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcorouts2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/stairs5.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wdcoroutm3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/rooftsd.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltm.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/wstair.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/banner.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/walltl.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/bump3.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/boxvs.3ds	3DS visual anchor/pivot is not available.	0	0	0
+dust2Winter/roofts.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/outr.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+dust2Winter/patchbs2.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+CityBuilds/fab_tow2.3ds		6	0	0
+CityBuilds/fab_tow.3ds		6	0	0
+Terrain/tile3_1.3ds		1	0	0
+Terrain/corn3.3ds		0	0	5
+Terrain/tile2_2.3ds		1	0	0
+Terrain/sm_rock2.3ds		2	0	0
+Terrain/big_rock.3ds		3	0	0
+Terrain/tile3_2.3ds		1	0	0
+Terrain/rise_r1.3ds		1	0	0
+Terrain/change02.3ds		0	0	9
+Terrain/tile_01.3ds		1	0	0
+Terrain/tile2_1.3ds		1	0	0
+Terrain/sm_rock1.3ds		3	0	0
+Terrain/corn4.3ds		1	0	4
+Terrain/corn1.3ds		0	0	6
+Terrain/up_small.3ds		2	0	0
+Terrain/change01.3ds		0	0	9
+Terrain/corn2.3ds		1	0	1
+Terrain/rise_r6.3ds		4	0	5
+Terrain/tile3_3.3ds		1	0	0
+Terrain/up_brock.3ds		2	0	0
+Terrain/tile2sd.3ds		0	1	0
+Terrain/rise_r5.3ds		4	0	5
+FachwerkHouse2/fahwerk2.3ds		0	2	0
+SlopesRisesWinter/rise_3.3ds		5	2	2
+SlopesRisesWinter/rise_5.3ds		4	1	4
+SlopesRisesWinter/slope_2.3ds		1	0	0
+SlopesRisesWinter/slope_1.3ds		1	0	0
+SlopesRisesWinter/rise_2.3ds		5	2	2
+NuBu2/nubu_2.3ds		0	4	0
+BrokenWallsWinter/hs_part1.3ds		0	0	4
+BrokenWallsWinter/hs_part4.3ds		0	0	4
+BrokenWallsWinter/hs_part2.3ds		0	0	8
+BrokenWallsWinter/h_tube3.3ds		3	2	0
+BrokenWallsWinter/partbig1.3ds		0	1	0
+BrokenWallsWinter/hs_tube2.3ds		0	2	2
+BrokenWallsWinter/hs_corn1.3ds		0	2	0
+BrokenWallsWinter/hs_par20.3ds		2	0	0
+BrokenWallsWinter/hs_part9.3ds		0	0	12
+BrokenWallsWinter/hs_part8.3ds		0	0	10
+BrokenWallsWinter/partbig2.3ds		0	1	0
+BrokenWallsWinter/hs_part6.3ds		0	0	6
+BrokenWallsWinter/hs_part5.3ds		0	1	0
+BrokenWallsWinter/hs_tube1.3ds	Non-box-shaped helper: Box13	0	0	0
+BrokenWallsWinter/hs_part7.3ds		0	0	8
+BrokenWallsWinter/hs_part3.3ds		0	0	4
+BrokenWallsWinter/hs_corn2.3ds		0	2	0
+BrokenWallsWinter/hs_par10.3ds		0	5	0
+BrokenWallsWinter/hs_par12.3ds		0	0	11
+Beach/land09.3ds		0	0	51
+Beach/tower_str.3ds		1	8	0
+Beach/fliptile.3ds		1	0	0
+Beach/wall_cr.3ds		1	2	0
+Beach/wall_gate.3ds		2	10	18
+Beach/wall_e3.3ds		1	1	0
+Beach/water5x5.3ds	No native plane/box/triangle helpers in this model.	0	0	0
+Beach/wall_cor_in.3ds		5	0	2
+Beach/wall_3w.3ds		1	2	0
+Beach/wall_short.3ds		1	4	0
+Beach/wall_end_2.3ds		1	3	0
+Beach/wtile_1.3ds		1	0	0
+Beach/land07.3ds		0	0	76
+Beach/wall_cor_out.3ds		6	1	0
+Beach/wall.3ds		1	5	0
+Beach/5x5.3ds		1	0	0
+Beach/tile_01.3ds		1	0	0
+Beach/wall_broken_2.3ds		2	1	1
+Beach/land05.3ds		0	0	90
+Beach/wlb_rise.3ds		2	0	0
+Beach/castle.3ds	Incomplete 3DS box helper: Box83	12	0	158
+Beach/newnakhl.3ds		0	2	4
+Beach/wall_broken_1.3ds		2	1	1
+Beach/land06.3ds		0	0	128
+Beach/land02.3ds		0	0	50
+Beach/wall_e1.3ds		6	0	10
+Beach/land03.3ds		0	0	51
+Beach/land08.3ds		0	0	50
+Beach/tower_corner.3ds		1	8	0
+Beach/wall_st.3ds		1	1	0
+Beach/wall_end_1.3ds		1	3	0
+Beach/tower_end.3ds		1	5	0
+Beach/net.3ds		0	2	0
+Beach/land01.3ds		0	0	136
+Beach/tower_roof.3ds		1	8	0
+Beach/land04.3ds		0	0	122
+Beach/wall_e2.3ds		6	0	10
+CityBuildings/smhouse4.3ds		0	5	0
+CityBuildings/gasoline.3ds		0	3	0
+CityBuildings/smhouse5.3ds		0	4	0
+ConcreteWallsWinter/wall_cr.3ds		1	2	0
+ConcreteWallsWinter/wall_e3.3ds		1	1	0
+ConcreteWallsWinter/wall_3w.3ds		1	2	0
+ConcreteWallsWinter/wall_e1.3ds		6	0	10
+ConcreteWallsWinter/wall_st.3ds		1	1	0
+ConcreteWallsWinter/wall_e2.3ds		6	0	10

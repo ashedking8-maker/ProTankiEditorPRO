@@ -265,6 +265,11 @@ private:
     bool showZones_ = false;
     bool snap_ = true;
     bool absoluteGridSnap_ = true;
+    bool edgeSnapEnabled_{}; // opt-in until compared against ProTLVK
+    float edgeSnapTolerance_{5.f};
+    float edgeSnapClearance_{}; // horizontal separation; NOT vertical surface offset
+    bool surfaceOffsetEnabled_{}; // explicit opt-in for new ghost placement only
+    float surfaceOffsetZ_{0.1f};
     float gridSize_ = 500.0f;
     float rotationSnapDeg_ = 90.0f;
     float ghostRotation_{};

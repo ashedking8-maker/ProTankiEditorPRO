@@ -53,7 +53,7 @@ Section "Install" SecMain
   ; Register in Settings > Apps and the legacy Programs and Features list.
   ; Keep user maps/library and per-user editor settings outside $INSTDIR untouched.
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "ProTanki Editor PRO"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "0.5.21"
+  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "0.5.22"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "Niss"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\GTanksNextEditor.exe,0"

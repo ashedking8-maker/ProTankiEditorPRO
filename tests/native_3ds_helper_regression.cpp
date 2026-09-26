@@ -22,6 +22,14 @@ int main(int argc,char** argv) {
     const auto billboard=NativeCollisionImport::Read(dir/"promotion_bilboard.3ds");
     const auto tower=NativeCollisionImport::Read(dir/"fab_tow.3ds");
     const auto brokenTower=NativeCollisionImport::Read(dir/"fab_tow2.3ds");
+    const auto outerWall=NativeCollisionImport::Read(dir/"outer_wall1_ow_1.3ds");
+    const auto scaledBox=NativeCollisionImport::Read(dir/"combuild_comb3.3ds");
+    if(!outerWall.Valid() || outerWall.planes.size()!=2 || !outerWall.boxes.empty() || !outerWall.triangles.empty())
+        return Fail(42,"original Outer Wall 1 has two near-rectangular native plane helpers: "+outerWall.error);
+    if(!scaledBox.Valid() || scaledBox.boxes.size()!=1 || !scaledBox.planes.empty() || !scaledBox.triangles.empty() ||
+       !Eq(scaledBox.boxes[0].size.x,500.f,.05f) || !Eq(scaledBox.boxes[0].size.y,60.f,.05f) ||
+       !Eq(scaledBox.boxes[0].size.z,150.f,.05f))
+        return Fail(43,"original ComBuild box with orthogonal scaled frame: "+scaledBox.error);
     if (!tower.Valid() || tower.planes.size()!=6 || !tower.boxes.empty() || !tower.triangles.empty())
         return Fail(40,"original Fabr Tower non-rigid plane matrices must preserve six real rectangles: "+tower.error);
     if (!brokenTower.Valid() || brokenTower.planes.size()!=6 || !brokenTower.boxes.empty() || !brokenTower.triangles.empty())

@@ -70,6 +70,9 @@ public:
     void Pan(float dxPixels, float dyPixels);
     void Zoom(float wheelDelta, float speed = 1.0f);
     void FrameScene();
+    // Camera-only 180-degree change; does not touch map positions or transforms.
+    void ReverseViewDirection();
+    void ResetReferenceViewDirection();
     void FrameSelection();
     void FocusSelectionKeepDistance(bool smooth = false);
     void AdvanceCameraFocus(float dt);
@@ -93,6 +96,10 @@ public:
     // Transient 3D preview is not added to the map or to picking/serialization.
     void SetGhost(const std::vector<PropInstance>& items, const AssetRegistry& assets);
     void ClearGhost() { ghostItems_.clear(); }
+    // Suggest geometry-edge translation for an already built ghost; never
+    // changes XML or ghost until caller explicitly applies the returned delta.
+    bool SuggestEdgeSnap(const std::vector<PropInstance>& props,float tolerance,
+                         float clearance,float& legacyDx,float& legacyDy) const;
     int Selected() const { return selectedProp_; }
 
 private:
@@ -299,7 +306,7 @@ private:
     DirectX::XMFLOAT3 boundsMax_{};
 
     DirectX::XMFLOAT3 cameraTarget_{0, 0, 0};
-    float cameraYaw_ = -0.75f;
+    float cameraYaw_ = 2.39159265f; // opposite side to 0.5.21; reference-map opening view
     float cameraPitch_ = 0.55f;
     float cameraDistance_ = 15000.0f;
 };

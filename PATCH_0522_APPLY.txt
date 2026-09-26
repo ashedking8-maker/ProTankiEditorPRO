@@ -1,0 +1,1 @@
+Apply this changed-files ZIP to the root of a COMPLETE ProTanki Editor PRO 0.5.21 source repository, preserving folder paths. Overwrite matching files. Do not apply directly to 0.5.20. The ZIP does not contain the full project, original game library, or installer. Read RELEASE_NOTES_0522.md for test status and remaining unsupported models.

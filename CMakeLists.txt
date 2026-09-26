@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(GTanksNextEditor VERSION 0.5.21 LANGUAGES CXX)
+project(GTanksNextEditor VERSION 0.5.22 LANGUAGES CXX)
 
 if(NOT WIN32)
   message(FATAL_ERROR "ProTanki Editor PRO currently targets Windows / Direct3D 11.")
@@ -79,7 +79,7 @@ add_executable(GTanksNextEditor WIN32
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
   src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h
-  src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h
+  src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
 target_include_directories(GTanksNextEditor PRIVATE src)
@@ -119,10 +119,13 @@ install(FILES
   RELEASE_NOTES_0515.md
   RELEASE_NOTES_0520.md
   RELEASE_NOTES_0521.md
+  RELEASE_NOTES_0522.md
   BUILD_STATUS_0514.md
   BUILD_STATUS_0515.md
   BUILD_STATUS_0520.md
   BUILD_STATUS_0521.md
+  BUILD_STATUS_0522.md
+  PATCH_0522_APPLY.txt
   DESTINATION docs
   COMPONENT Documentation)
 
@@ -133,7 +136,7 @@ set(CPACK_PACKAGE_NAME "ProTanki Editor PRO")
 set(CPACK_PACKAGE_VENDOR "ProTanki Editor PRO Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPU-accelerated ProTanki legacy map editor")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.21-Portable")
+set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.22-Portable")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)
@@ -223,6 +226,10 @@ if(BUILD_TESTING)
   add_test(NAME NativeCollisionAuthoring COMMAND NativeCollisionAuthoringRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/beach_wall_end2_reference.xml")
 
+
+  add_executable(GeometryEdgeSnapRegression tests/geometry_snap_regression.cpp src/GeometrySnap.h)
+  target_include_directories(GeometryEdgeSnapRegression PRIVATE src)
+  add_test(NAME GeometryEdgesClearanceAndFloor COMMAND GeometryEdgeSnapRegression)
 
   add_executable(Native3DSHelperRegression
     tests/native_3ds_helper_regression.cpp

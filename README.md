@@ -1,14 +1,11 @@
-# ProTanki Editor PRO 0.5.21 — Original 3DS frame transforms (source candidate)
+# ProTanki Editor PRO 0.5.22 — camera and native helper fidelity (source candidate)
 
-Apply the changed-files patch over the user's 0.5.19 repository. This release adds validated
-rotated helper/visual frame handling, retains box dimensions in helper-local axes, and
-lets original meshes with **no** native helper place without the unsupported-geometry
-override. It does not make incomplete/invalid helpers safe and is not a native GLB exporter.
+Apply the **changed-files** patch over a complete 0.5.21 repository, not over 0.5.20. This update includes camera-only view reversal, geometry-checked original Outer Wall 1 helpers, scaled orthogonal box helpers, explicit placement rollback logging and opt-in edge/height placement tools. The legacy XML coordinate basis remains untouched.
 
-See [RELEASE_NOTES_0520.md](RELEASE_NOTES_0520.md), [BUILD_STATUS_0520.md](BUILD_STATUS_0520.md)
-and [PATCH_0520_APPLY.txt](PATCH_0520_APPLY.txt). Windows build and original game testing pending.
+See [RELEASE_NOTES_0522.md](RELEASE_NOTES_0522.md), [BUILD_STATUS_0522.md](BUILD_STATUS_0522.md) and [PATCH_0522_APPLY.txt](PATCH_0522_APPLY.txt). Windows build and game validation are still required. The 45 remaining unsupported original 3DS files are documented rather than silently authored with guessed collision.
 
 ---
+
 
 # ProTanki Editor PRO 0.5.19 — Native Box Helpers and Source Properties (source candidate)
 

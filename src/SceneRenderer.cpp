@@ -1,6 +1,7 @@
 #include "SceneRenderer.h"
 #include "CollisionPreview.h"
 #include "LegacyTransform.h"
+#include "GeometrySnap.h"
 #include "LegacyMeshImport.h"
 #include "DraftMeshImport.h"
 #include "Logger.h"
@@ -1119,6 +1120,17 @@ void SceneRenderer::FrameScene() {
     cameraDistance_ = radius * 1.75f;
 }
 
+void SceneRenderer::ReverseViewDirection() {
+    cameraFocusAnimating_=false;
+    cameraYaw_=std::remainder(cameraYaw_+DirectX::XM_PI,DirectX::XM_2PI);
+}
+
+void SceneRenderer::ResetReferenceViewDirection() {
+    cameraFocusAnimating_=false;
+    cameraYaw_=2.39159265f;
+    cameraPitch_=0.55f;
+}
+
 void SceneRenderer::Orbit(float dxPixels, float dyPixels) {
     cameraFocusAnimating_=false;
     cameraYaw_ -= dxPixels * 0.006f;
@@ -1565,6 +1577,31 @@ std::vector<int> SceneRenderer::SelectInScreenRect(float x0, float y0, float x1,
         if (visible && sx<=right && ex>=left && sy<=bottom && ey>=top) result.push_back(proxy.propIndex);
     }
     return result;
+}
+
+bool SceneRenderer::SuggestEdgeSnap(const std::vector<PropInstance>& props,float tolerance,
+                                    float clearance,float& legacyDx,float& legacyDy) const {
+    legacyDx=0.f;legacyDy=0.f;
+    if(props.size()!=1 || ghostItems_.size()!=1 || !ghostItems_[0].mesh ||
+       pickProxies_.empty())return false;
+    const auto& prop=props[0];
+    // Horizontal world AABB is exact for grid-aligned rectangles (including
+    // translated pivots). Non-orthogonal objects are not eligible; an AABB is
+    // not a true rotated polygon edge.
+    const float quarterTurn=DirectX::XM_PIDIV2;
+    if(std::fabs(std::remainder(prop.rotation.z,quarterTurn))>0.0001f)return false;
+    DirectX::XMFLOAT3 lo{},hi{};
+    WorldBounds(*ghostItems_[0].mesh,LegacyTransform::World(prop.position,prop.rotation),lo,hi);
+    const GeometrySnap::Rect moving{lo.x,hi.x,lo.z,hi.z,lo.y};
+    std::vector<GeometrySnap::Rect> others;others.reserve(pickProxies_.size());
+    for(const auto& fixed:pickProxies_) {
+        if(fixed.propIndex<0)continue;
+        const auto& a=fixed.boundsMin;const auto& b=fixed.boundsMax;
+        others.push_back({a.x,b.x,a.z,b.z,a.y});
+    }
+    const auto snap=GeometrySnap::Find(moving,others,tolerance,clearance);
+    legacyDx=snap.x; legacyDy=-snap.y; // internal Z = -legacy Y
+    return snap.xMatched||snap.yMatched;
 }
 
 void SceneRenderer::SetGhost(const std::vector<PropInstance>& props, const AssetRegistry& assets) {

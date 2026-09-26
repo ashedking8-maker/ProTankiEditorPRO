@@ -177,6 +177,28 @@ inline Result Read(const std::filesystem::path& file) {
         if(!plane&&!tri&&!box)continue;
         Frame helper{};
         if(!frame(n,helper)) {
+            // Some source-authored box frames contain orthogonal positive
+            // scale even though their 0x4110 vertices already contain the
+            // final world-space dimensions (e.g. ComBuild/comb3 Box21).
+            // Reconstruct unit AXES from that frame and require all eight
+            // actual source vertices to match a box below. Never multiply
+            // the geometry by the matrix a second time.
+            bool scaledBox=false;
+            if(box && n.hasMatrix && Finite(helper.x) && Finite(helper.y) &&
+               Finite(helper.z) && Finite(helper.origin)) {
+                const float nx=Norm(helper.x),ny=Norm(helper.y),nz=Norm(helper.z);
+                if(nx>.001f && ny>.001f && nz>.001f &&
+                   nx<1000.f && ny<1000.f && nz<1000.f) {
+                    helper.x=Mul(helper.x,1.f/nx);
+                    helper.y=Mul(helper.y,1.f/ny);
+                    helper.z=Mul(helper.z,1.f/nz);
+                    constexpr float ortho=.003f;
+                    scaledBox=std::fabs(Dot(helper.x,helper.y))<ortho &&
+                              std::fabs(Dot(helper.x,helper.z))<ortho &&
+                              std::fabs(Dot(helper.y,helper.z))<ortho &&
+                              Dot(Cross(helper.x,helper.y),helper.z)>1.f-ortho;
+                }
+            }
             // Plane and triangle vertices in the 3DS 0x4110 chunk are already
             // stored in authoring/world coordinates. Their native collision
             // surface is reconstructed from those vertices below, not from
@@ -184,7 +206,7 @@ inline Result Read(const std::filesystem::path& file) {
             // 1.64 Z scale in that matrix despite forming valid rectangles.
             // Do NOT relax this for boxes: their matrix defines box axes and
             // dimensions, and a non-rigid decomposition needs its own proof.
-            if(box || !n.hasMatrix || !std::all_of(n.matrix.begin(),n.matrix.end(),
+            if((box && !scaledBox) || !n.hasMatrix || !std::all_of(n.matrix.begin(),n.matrix.end(),
                 [](float v){return std::isfinite(v) && std::fabs(v)<1.e7f;})) {
                 result.error="Unverified scale/shear/mirror on 3DS collision helper: "+n.name;
                 return result;
@@ -264,7 +286,12 @@ inline Result Read(const std::filesystem::path& file) {
                 const float a=Norm(e1),b=Norm(e2);
                 if(a<.01f||b<.01f||std::fabs(Dot(e1,e2))>1.e-3f*a*b)continue;
                 const int other=6-i-j; // indices are 0+1+2+3 = 6
-                if(Norm(Sub(Add(v[0],Add(e1,e2)),v[other]))<.05f) {i1=i;i2=j;break;}
+                // Original Outer Wall 1 plane12 has a 0.0586-unit edge
+                // discrepancy over ~500 units. This is a nearly rectangular
+                // authoring seam, not a trapezoid: bound BOTH absolute and
+                // scale-relative error, keeping real skewed surfaces rejected.
+                const float closure=Norm(Sub(Add(v[0],Add(e1,e2)),v[other]));
+                if(closure<.10f && closure<.0005f*std::min(a,b)) {i1=i;i2=j;break;}
             }
             if(i1<0) {result.error="Nonrectangular 3DS plane helper: "+n.name;return result;}
             V x=Sub(v[i1],v[0]),y=Sub(v[i2],v[0]);
