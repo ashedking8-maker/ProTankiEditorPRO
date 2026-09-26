@@ -1,0 +1,5 @@
+# ProTanki Editor PRO 0.5.11 — Native Lighting
+
+Source candidate for Windows MSVC CI. The supplied original ProTLVK Fogtown and NY map files establish the native `<lights><light type="omni" ...>` schema. Added independent Lighting tab, editable native omni lights (position, packed RGB color, intensity, attenuationBegin/End, rotation), placement on map, manually adding light at selected prop, duplicate/delete/undo, symbolic 3D markers and click/drag editing, and preservation on save. New blank maps contain `<lights/>`. No autonomous light assignment is invented: lamps and lights remain separate native XML records. Unknown XML metadata is retained in existing edited nodes. No runtime lighting or pulse animation is claimed for the editor; original ProTLVK must verify game rendering. Other light types pass through unmodified, and are read-only in Properties.
+
+No in-game GLB/3DS export and no invented glow/pulse parameters. All earlier 0.5.10 authoring changes are retained. Windows MSVC compilation and ProTLVK runtime verification remain required.

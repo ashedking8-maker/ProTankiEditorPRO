@@ -1,0 +1,15 @@
+ProTanki Editor PRO 0.5.17 - LOSSLESS OBJECT SNAPSHOT SOURCE CANDIDATE
+
+This ZIP is SOURCE CODE, not a compiled Windows installer.
+Preserves source 0.5.16 as rollback; upload ZIP CONTENTS, including .github/workflows,
+only when ready to run Windows CTest and manual original ProTLVK validation.
+
+Read RELEASE_NOTES_0517.md and BUILD_STATUS_0517.md.
+
+Read-only library.xml bytes and original map prop subtree snapshots are retained.
+Opaque source-instance data can be duplicated only after an ADVANCED explicit
+opt-in (OFF by default). Original library metadata is never injected wholesale
+into map instances. The Object Editor can save a read-only library reference
+snapshot with a draft; native GLB game export remains disabled.
+
+Do not use an unverified source candidate on your only map copy.
