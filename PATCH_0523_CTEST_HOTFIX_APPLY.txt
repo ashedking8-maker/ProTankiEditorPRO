@@ -1,0 +1,18 @@
+ProTanki Editor PRO 0.5.23 - GitHub CTest expectation hotfix
+=========================================================
+APPLY ON TOP OF THE COMPLETE 0.5.23 REPOSITORY (not 0.5.22).
+Copy both tests/*.cpp files to the matching repo tests/ paths; overwrite.
+No production sources, map XML or project version are changed.
+
+GitHub Actions 2026-09-26 18:08 UTC: MSVC Release linked successfully;
+54 Python audit tests passed; 15/17 native CTest passed. Two failures:
+  LegacyImportRegression / chest02.3ds: stale bounds expected old (x,z,-y)
+  NativeCollisionPreview / first plane: stale internal Z=-150 expected old (x,z,-y)
+
+The new 0.5.23 production basis is (x,z,y). Update regression assertions to:
+  chest02 bounds [-250,0,-250,140,260,140]
+  collision-plane first vertex (x=0,y=300,z=150)
+Other visual/helper and collision assertions remain enforced.
+
+Run GitHub Actions again. This hotfix's source preflight and 54 Python audit
+checks passed locally; native Windows CTest has not been rerun here.

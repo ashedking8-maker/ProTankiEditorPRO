@@ -38,8 +38,12 @@ int main() {
               "count validated primitives and omission"))return 3;
     if(!Check(preview.faces.size()==45 && preview.edges.size()==38,
               "actual faces and outlines: 1 plane, 1 box and 1 triangle"))return 4;
-    if(!Check(Close(preview.faces[0].position.y,300) && Close(preview.faces[0].position.z,-150),
-              "plane uses legacy-local Z-up to internal Y-up conversion"))return 5;
+    // Plane origin (100,200,300), first local corner (-100,-50,0):
+    // legacy (0,150,300) -> internal (0,300,150), without negating legacy Y.
+    if(!Check(Close(preview.faces[0].position.x,0) &&
+              Close(preview.faces[0].position.y,300) &&
+              Close(preview.faces[0].position.z,150),
+              "plane preserves legacy Y sign in the Z-up to Y-up conversion"))return 5;
     if(!Check(Close(preview.faces[42].position.x,25),"triangle legacy-local vertices honor original transform"))return 6;
     if(!Check(preview.faces[0].color.y>preview.faces[0].color.x,
               "horizontal plane colored green by orientation"))return 7;

@@ -35,7 +35,10 @@ int main(int argc,char** argv) {
         const std::filesystem::path root=argc>1?argv[1]:"tests/fixtures";
         Check(root/"LandTiles/tile_01.3ds",{-250,0,-250,250,0,250},2,1);
         Check(root/"IndustrialBridge/brid_7.3ds",{-250,250,-250,250,600,250},8,6);
-        Check(root/"Stuffs/chest02.3ds",{-250,0,-140,140,260,250},43,4);
+        // This deliberately asymmetric mesh catches the old mirrored-Z basis:
+        // (x,z,-y) produced [-140,250] in internal Z; (x,z,y) must produce
+        // [-250,140] while X/Y and the original visual/helper counts stay fixed.
+        Check(root/"Stuffs/chest02.3ds",{-250,0,-250,140,260,140},43,4);
         bool rejected=false;
         try { Load(root/"missing.3ds"); } catch(const std::exception&) {rejected=true;}
         Require(rejected,"Missing mesh must fail");
