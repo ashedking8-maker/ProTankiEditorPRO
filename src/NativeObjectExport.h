@@ -6,6 +6,8 @@
 #include "LegacyMeshImport.h"
 #include "NativeCollisionImport.h"
 #include "Native3DSWriter.h"
+#include "NativeTerrainDelta.h"
+#include "NativeTaraWriter.h"
 #include "ObjectDraft.h"
 #include <pugixml.hpp>
 #include <algorithm>
@@ -82,7 +84,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
         error="Choose a shorter ASCII name for a native 3DS library.";return false;
     }
     const auto final=root/library;
-    if(fs::exists(final,ec)||ec){error="That custom library already exists. Rename the draft; nothing was overwritten.";return false;}
+    if(fs::exists(final,ec)||ec||fs::exists(root/(library+".tara"),ec)){error="Custom library or TARA already exists. Rename the draft; nothing was overwritten.";return false;}
     LegacyMeshImport::Model imported;
     try{imported=LegacyMeshImport::Load(d.model);}
     catch(const std::exception& ex){error=std::string("Source 3DS import failed: ")+ex.what();return false;}
@@ -114,8 +116,27 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
             output.parts.push_back({part.firstIndex,part.indexCount,"ptpro_mat_"+std::to_string(i),""});
         }
     }
+    // A verified, original triangle-only surface is NOT a box. For this
+    // constrained heightfield case use original authored helpers, conform them
+    // to the edited visual surface and split the peak-containing source face.
+    // Unsupported multi-vertex edits fail closed instead of releasing a wall.
+    const auto originalCollision=NativeCollisionImport::Read(source->mesh);
+    // A malformed/unsupported original collision helper must never be silently
+    // replaced by plausible-looking authored boxes. Only a genuinely helperless
+    // source can start with explicitly authored draft boxes.
+    if(!originalCollision.Valid() &&
+       originalCollision.error!=NativeCollisionImport::NoNativeHelpersError){
+        error="Original 3DS collision helper is unsupported: "+originalCollision.error;
+        return false;
+    }
+    const bool terrain=originalCollision.Valid()&&!originalCollision.triangles.empty() &&
+                       originalCollision.planes.empty()&&originalCollision.boxes.empty();
     if(d.purpose!=ObjectDraft::Purpose::Decorative){
-        for(const auto& b:d.boxes)output.boxes.push_back({b.min,b.max});
+        if(terrain){
+            if(!NativeTerrainDelta::Build(source->mesh,output,output.triangles,error))return false;
+        }else{
+            for(const auto& b:d.boxes)output.boxes.push_back({b.min,b.max});
+        }
     }
     // Resolve every native material's diffuse from the original library, not
     // from draft/source.3ds where the source texture sidecars are absent.
@@ -181,6 +202,12 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     // Validate with the SAME native reader used when placing an object; a
     // malformed box is never released just because its file was written.
     const auto native=NativeCollisionImport::Read(modelFile);
+    if(!output.triangles.empty()){
+        if(!native.Valid()||native.triangles.size()!=output.triangles.size()||
+           !native.boxes.empty()||!native.planes.empty()){
+            cleanup();error="Native terrain helper round-trip failed: "+native.error;return false;
+        }
+    }
     if(!output.boxes.empty()){
         if(!native.Valid()||native.boxes.size()!=output.boxes.size()||!native.planes.empty()||!native.triangles.empty()){
             cleanup();error="Native collision helper round-trip failed: "+native.error;return false;
@@ -206,8 +233,17 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     }catch(const std::exception& ex){
         cleanup();error=std::string("Native visual 3DS reimport failed: ")+ex.what();return false;
     }
+    // Publish the FOLDER and the game-consumable TARA together; if either
+    // staging/rename fails no partially working new library is left behind.
+    const auto taraFinal=root/(library+".tara");
+    const auto taraStaging=root/(temp.filename().string()+".tara");
+    if(fs::exists(taraStaging,ec)||ec){cleanup();error="TARA staging destination exists.";return false;}
+    if(!NativeTaraWriter::PackDirectory(temp,taraStaging,error)){cleanup();return false;}
     ec.clear();fs::rename(temp,final,ec);
-    if(ec){cleanup();error="Cannot finalize new library: "+ec.message();return false;}
+    if(ec){fs::remove(taraStaging);cleanup();error="Cannot finalize new library: "+ec.message();return false;}
+    ec.clear();fs::rename(taraStaging,taraFinal,ec);
+    if(ec){std::error_code ignored;fs::remove_all(final,ignored);fs::remove(taraStaging,ignored);
+        error="Cannot finalize TARA alongside native Library folder: "+ec.message();return false;}
     saved=final;error.clear();return true;
 }
 } // namespace NativeObjectExport

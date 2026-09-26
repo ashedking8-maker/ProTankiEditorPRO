@@ -1,0 +1,10 @@
+ProTanki Editor PRO 0.5.25 -- CHANGED/NEW FILES PATCH
+
+1. Begin with the COMPLETE 0.5.24 source (including all earlier patches and 0.5.23 GitHub CTest hotfix).
+2. Unzip this patch at the repository root, preserving paths and overwriting changed source, workflow and documentation files. This is NOT a full source tree or an installer.
+3. Run the Windows GitHub Actions build and ALL CTest tests; do not publish a failed build.
+4. With the original game AXC/library selected, load the Land01_AX saved draft and its original Beach/default/Land01 template. If an old PTPRO_Land01_AX exists, rename the draft to Land01_AX_V2 to avoid overwrite; click Export NEW 3DS library and confirm the directory plus sibling .tara exist.
+5. Ensure PTPRO_Land01_AX_V2.tara is available through the actual ProTLVK library resource path; save a NEW test map containing the newly exported object and test visual + collision in the game. Old XML does not automatically gain the new helpers.
+6. Report a Bug: deploy report_gateway/ to your own Cloudflare Workers account and configure server-side secrets REPORT_TO_EMAIL (the private recipient), REPORT_FROM_EMAIL (verified sender), RESEND_API_KEY and REPORT_HASH_KEY. Set the GitHub Actions repository variable PTPRO_BUG_REPORT_ENDPOINT to the PUBLIC HTTPS Worker URL ending /api/report, then build a new installer. The maintainer inbox is never included in the app. No real mail delivery is possible before deployment.
+
+Limitations: verified original triangle-only collision with zero/one visual vertex edit only, other 3DS models retain authoring boxes. No native GLB/trigger export or universal collision generation. Independent game validation is essential. There is no guarantee that an unsigned app will never trigger a false-positive antivirus warning.

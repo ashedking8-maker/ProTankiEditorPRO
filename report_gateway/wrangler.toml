@@ -1,0 +1,11 @@
+name = "ptpro-bug-reports"
+main = "worker.mjs"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "REPORT_GATE"
+class_name = "ReportGate"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ReportGate"]

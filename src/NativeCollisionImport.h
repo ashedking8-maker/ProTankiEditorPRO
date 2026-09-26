@@ -58,19 +58,18 @@ struct Node {
     std::array<float,12> matrix{};
     bool hasMatrix{};
 };
-inline Result Read(const std::filesystem::path& file) {
-    Result result;
+inline std::vector<Node> ReadNodes(const std::filesystem::path& file,std::string& error){
     std::error_code ec;
     const auto fileSize=std::filesystem::file_size(file,ec);
-    if(ec||fileSize<6||fileSize>64ull*1024*1024) {result.error="3DS helper source is missing or exceeds 64 MB.";return result;}
+    if(ec||fileSize<6||fileSize>64ull*1024*1024) {error="3DS helper source is missing or exceeds 64 MB.";return {};}
     std::ifstream in(file,std::ios::binary);
-    if(!in) {result.error="3DS helper source cannot be opened.";return result;}
+    if(!in) {error="3DS helper source cannot be opened.";return {};}
     std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)),{});
-    if(bytes.size()!=fileSize) {result.error="Short 3DS read.";return result;}
+    if(bytes.size()!=fileSize) {error="Short 3DS read.";return {};}
     auto u16=[&](size_t p)->std::uint16_t {return std::uint16_t(bytes[p])|(std::uint16_t(bytes[p+1])<<8);};
     auto u32=[&](size_t p)->std::uint32_t {return std::uint32_t(u16(p))|(std::uint32_t(u16(p+2))<<16);};
     auto f32=[&](size_t p)->float {const auto bits=u32(p);float v{};std::memcpy(&v,&bits,sizeof v);return v;};
-    if(u16(0)!=0x4d4d||u32(2)!=bytes.size()) {result.error="Invalid 3DS root chunk.";return result;}
+    if(u16(0)!=0x4d4d||u32(2)!=bytes.size()) {error="Invalid 3DS root chunk.";return {};}
     std::vector<Node> nodes;
     bool failed=false;
     // The 3DS mesh and object chunks are nested; vertex/face/matrix chunks
@@ -118,7 +117,14 @@ inline Result Read(const std::filesystem::path& file) {
         }
     };
     walk(walk,0,bytes.size(),-1,0);
-    if(failed||nodes.empty()) {result.error="Malformed 3DS mesh/helper chunks.";return result;}
+    if(failed||nodes.empty()) {error="Malformed 3DS mesh/helper chunks.";return {}; }
+    error.clear();return nodes;
+}
+inline Result Read(const std::filesystem::path& file) {
+    Result result;
+    std::string parseError;
+    const auto nodes=ReadNodes(file,parseError);
+    if(!parseError.empty()){result.error=parseError;return result;}
     std::string stem=file.stem().string();
     std::transform(stem.begin(),stem.end(),stem.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
     const Node* visual=nullptr;

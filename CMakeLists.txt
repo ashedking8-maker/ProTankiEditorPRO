@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(GTanksNextEditor VERSION 0.5.24 LANGUAGES CXX)
+project(GTanksNextEditor VERSION 0.5.25 LANGUAGES CXX)
 
 if(NOT WIN32)
   message(FATAL_ERROR "ProTanki Editor PRO currently targets Windows / Direct3D 11.")
@@ -67,10 +67,15 @@ target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/
 target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
 target_link_libraries(imgui PUBLIC d3d11 dxgi)
 
+# Public gateway URL; inbox address/API key must be server-side secrets only.
+set(PTPRO_BUG_REPORT_ENDPOINT "" CACHE STRING "Public HTTPS bug-report gateway URL (no secrets)")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated")
+configure_file(src/BugReportConfig.h.in "${CMAKE_CURRENT_BINARY_DIR}/generated/BugReportConfig.h" @ONLY)
+
 add_executable(GTanksNextEditor WIN32
   src/main.cpp
   src/SplashScreen.cpp src/SplashScreen.h
-  src/Logger.cpp src/Logger.h
+  src/Logger.cpp src/Logger.h src/BugReport.cpp src/BugReport.h
   src/App.cpp src/App.h
   src/Theme.cpp src/Theme.h
   src/MapDocument.cpp src/MapDocument.h
@@ -78,14 +83,14 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/NativeObjectExport.h
+  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/NativeTerrainDelta.h src/NativeTaraWriter.h src/NativeObjectExport.h
   src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
-target_include_directories(GTanksNextEditor PRIVATE src)
+target_include_directories(GTanksNextEditor PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(GTanksNextEditor PRIVATE
   imgui pugixml::pugixml assimp::assimp
-  d3d11 dxgi d3dcompiler shlwapi windowscodecs ole32 shell32 comdlg32 gdiplus dbghelp)
+  d3d11 dxgi d3dcompiler shlwapi windowscodecs ole32 shell32 comdlg32 gdiplus dbghelp winhttp bcrypt)
 target_compile_definitions(GTanksNextEditor PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
 
 if(MSVC)
@@ -122,6 +127,7 @@ install(FILES
   RELEASE_NOTES_0522.md
   RELEASE_NOTES_0523.md
   RELEASE_NOTES_0524.md
+  RELEASE_NOTES_0525.md
   BUILD_STATUS_0514.md
   BUILD_STATUS_0515.md
   BUILD_STATUS_0520.md
@@ -129,9 +135,11 @@ install(FILES
   BUILD_STATUS_0522.md
   BUILD_STATUS_0523.md
   BUILD_STATUS_0524.md
+  BUILD_STATUS_0525.md
   PATCH_0522_APPLY.txt
   PATCH_0523_APPLY.txt
   PATCH_0524_APPLY.txt
+  PATCH_0525_APPLY.txt
   DESTINATION docs
   COMPONENT Documentation)
 
@@ -142,7 +150,7 @@ set(CPACK_PACKAGE_NAME "ProTanki Editor PRO")
 set(CPACK_PACKAGE_VENDOR "ProTanki Editor PRO Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPU-accelerated ProTanki legacy map editor")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.24-Portable")
+set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.25-Portable")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)
@@ -161,6 +169,11 @@ if(BUILD_TESTING)
   add_executable(Native3DSWriterRegression tests/native_3ds_writer_regression.cpp src/Native3DSWriter.h src/NativeCollisionImport.h)
   target_include_directories(Native3DSWriterRegression PRIVATE src)
   add_test(NAME NativeEditedObject3DSWriter COMMAND Native3DSWriterRegression)
+  add_executable(NativeTerrainDeltaRegression tests/native_terrain_delta_regression.cpp
+    src/NativeTerrainDelta.h src/Native3DSWriter.h src/NativeTaraWriter.h src/NativeCollisionImport.h)
+  target_include_directories(NativeTerrainDeltaRegression PRIVATE src)
+  add_test(NAME NativeTerrainDelta136GameVerified COMMAND NativeTerrainDeltaRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/native_helpers")
   add_executable(ObjectDraftRegression tests/object_draft_regression.cpp src/ObjectDraft.h)
   target_include_directories(ObjectDraftRegression PRIVATE src)
   add_test(NAME IsolatedObjectDraftRoundTrip COMMAND ObjectDraftRegression)

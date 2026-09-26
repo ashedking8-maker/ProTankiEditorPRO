@@ -5,6 +5,8 @@
 #include "EditHistory.h"
 #include "GuidanceState.h"
 #include "ObjectDraft.h"
+#include "BugReport.h"
+#include <future>
 #include <filesystem>
 #include <array>
 #include <cstdint>
@@ -65,6 +67,13 @@ private:
     bool allowOpaqueMetadataCopy_{}; // next-placement approval; auto-resets, never a gameplay property
     bool collisionBindingsPending_{true};
     bool showBackgroundPopup_{};
+    bool bugReportOpen_{};
+    bool bugReportAttachLogs_{}; // privacy: opt-in, not checked by default
+    char bugReportSubject_[161]{};
+    char bugReportDetails_[4001]{};
+    std::future<BugReport::Result> bugReportPending_;
+    std::string bugReportFeedback_;
+    bool bugReportFeedbackError_{};
     bool smoothCameraFocus_{true};
     bool previewNativeLighting_{true};
     float previewLightReach_{100.0f};
@@ -108,6 +117,7 @@ private:
     static const char* EffectName(int mode);
     void DrawControlHelp();
     void DrawSupportPopup();
+    void DrawBugReport();
     void DrawFirstRunGuidance();
     void RequestGuidedOpen(int kind);
     void CompleteGuidedOpen(int kind);

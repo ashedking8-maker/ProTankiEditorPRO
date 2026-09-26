@@ -1,5 +1,8 @@
 #include "EditorUi.h"
 #include "NativeObjectExport.h"
+#include "BugReport.h"
+#include <future>
+#include <chrono>
 #include "VerifiedCollisionTemplates.h"
 #include "NativeCollisionImport.h"
 #include "Theme.h"
@@ -1350,7 +1353,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
         ImGui::SameLine();if(ImGui::Button("Close##background"))ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
-    if (showToastOverlay_ && !browseLibraryOpen_) DrawToast(); DrawControlHelp(); DrawSupportPopup(); DrawFirstRunGuidance();
+    if (showToastOverlay_ && !browseLibraryOpen_) DrawToast(); DrawControlHelp(); DrawSupportPopup(); DrawBugReport(); DrawFirstRunGuidance();
     // Last, full-workspace opaque window: masks Scene, Viewport, Library, Properties and Gameplay.
     if (browseLibraryOpen_) DrawBrowseLibrary(map, assets, scene, previewScene);
 }
@@ -2258,7 +2261,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     if(ImGui::Button("Save isolated object draft",{-1,34})) objectSaveRequested_=true;
     ImGui::EndDisabled();
     ImGui::SeparatorText("Experimental native 3DS library export");
-    ImGui::TextWrapped("Original 3DS templates only. Writes a NEW PTPRO_* folder in the selected game Library, preserving the original files. Solid boxes replace old collision helpers; trigger boxes and GLB are not supported.");
+    ImGui::TextWrapped("Original 3DS templates only. Writes a NEW PTPRO_* folder AND a sibling .tara, without replacing the original library. Verified triangle-only terrain preserves and conforms source helpers for a single edited peak. Other assets use draft solid boxes; GLB and triggers are not supported.");
     const bool nativeValid=ObjectDraft::Validate(objectDraft_,validation) && objectSceneHasModel_ &&
         !assets.Root().empty() && !ObjectDraft::IsGlb(objectDraft_.model) &&
         static_cast<bool>(objectDraft_.libraryTemplateXml);
@@ -2283,6 +2286,13 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         objectScene_.ReleasePreviewResources();
         if(!objectDraft_.model.empty()) {
             AssetDefinition preview;preview.name=objectDraft_.name;preview.mesh=objectDraft_.model;
+            // Draft/source.3ds is intentionally isolated and has no JPGs next
+            // to it. Use VERIFIED texture sidecars from its selected Library
+            // template for PREVIEW only; do not mutate/copy original assets.
+            if(const auto* original=assets.Find(objectDraft_.templateLibrary,
+                                                 objectDraft_.templateGroup,objectDraft_.templateName)){
+                if(!original->mesh.empty() && !original->textures.empty())preview.textures=original->textures;
+            }
             std::string err;
             objectSceneHasModel_=objectScene_.BuildAssetPreview(preview,{},err);
             if(objectSceneHasModel_) {
@@ -2482,11 +2492,12 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         ImGui::EndPopup();
     }
     if(objectNativeExportRequested_){ImGui::OpenPopup("Confirm native object export");objectNativeExportRequested_=false;}
+    ImGui::SetNextWindowSizeConstraints({440.f,0.f},{570.f,420.f});
     ImGui::SetNextWindowPos({draftViewport->WorkPos.x+draftViewport->WorkSize.x*.5f,
         draftViewport->WorkPos.y+draftViewport->WorkSize.y*.5f},ImGuiCond_Appearing,{.5f,.5f});
     if(ImGui::BeginPopupModal("Confirm native object export",nullptr,ImGuiWindowFlags_AlwaysAutoResize)){
-        ImGui::TextWrapped("Create a NEW independent PTPRO_* library folder under the currently selected Library root?");
-        ImGui::TextWrapped("The original libraries are not modified. This exports the currently edited mesh, original texture variants, and SOLID draft boxes. Original collision triangles/planes are NOT retained; GLB and triggers are not supported. Test collision in ProTLVK.");
+        ImGui::TextWrapped("Create a NEW PTPRO_* library folder and game .tara beside it under the selected Library root?");
+        ImGui::TextWrapped("The original libraries are not modified. This exports the currently edited mesh, original texture variants, and SOLID draft boxes. For verified original triangle terrain, edits are conformed to original collision helpers. Other models export authored SOLID boxes. Unsupported collision changes fail closed. GLB and triggers are not supported. Test in ProTLVK.");
         if(ImGui::Button("Export native 3DS")){
             ObjectDraft::Document toExport=objectDraft_;
             if(objectMeshEditable_&&!objectVisualVertices_.empty()){
@@ -3617,6 +3628,18 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     const ImU32 helpColor=ImGui::IsItemHovered()?IM_COL32(30,40,51,248):IM_COL32(15,20,27,227);
     dl->AddRectFilled(helpPos,{helpPos.x+std::min(helpWidth,size.x),helpPos.y+helpHeight},helpColor);
     dl->AddText({helpPos.x+7,helpPos.y+3},IM_COL32(198,213,228,246),"Seek Help | ProTanki Discord");
+    // Matching raised viewport tab, aligned to the SAME right edge, one row
+    // above Discord. No footer/dock resizing and no hidden network request.
+    constexpr float bugHeight=21.f;
+    const ImVec2 bugPos{helpPos.x,helpPos.y-bugHeight-3.f};
+    if(bugPos.y>=origin.y){
+        ImGui::SetCursorScreenPos(bugPos);
+        if(ImGui::InvisibleButton("##report_bug_corner_tab",{std::min(helpWidth,size.x),bugHeight}))
+            bugReportOpen_=true;
+        const ImU32 color=ImGui::IsItemHovered()?IM_COL32(30,40,51,248):IM_COL32(15,20,27,227);
+        dl->AddRectFilled(bugPos,{bugPos.x+std::min(helpWidth,size.x),bugPos.y+bugHeight},color);
+        dl->AddText({bugPos.x+7,bugPos.y+3},IM_COL32(198,213,228,246),"Report a Bug");
+    }
     ImGui::End(); ImGui::PopStyleVar();
 }
 
@@ -3765,6 +3788,62 @@ void EditorUi::DrawFirstRunGuidance() {
         ImGui::SameLine();if(ImGui::Button("Cancel##guide")){guideRequest_=0;ImGui::CloseCurrentPopup();}
         ImGui::EndPopup();
     }
+}
+
+void EditorUi::DrawBugReport(){
+    if(bugReportOpen_){
+        ImGui::OpenPopup("Report a Bug##ptpro_report");
+        bugReportOpen_=false;
+        bugReportFeedback_.clear();bugReportFeedbackError_=false;
+    }
+    const ImGuiViewport* vp=ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->GetCenter(),ImGuiCond_Appearing,{.5f,.5f});
+    ImGui::SetNextWindowSizeConstraints({475.f,0.f},{650.f,620.f});
+    if(!ImGui::BeginPopupModal("Report a Bug##ptpro_report",nullptr,ImGuiWindowFlags_AlwaysAutoResize))return;
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX()+495.f);
+    ImGui::TextUnformatted("Subject");
+    ImGui::SetNextItemWidth(475.f);
+    ImGui::InputTextWithHint("##ptpro_report_subject","Short description of the issue",bugReportSubject_,sizeof(bugReportSubject_));
+    ImGui::Spacing();ImGui::TextUnformatted("Describe the bug and steps to reproduce");
+    ImGui::InputTextMultiline("##ptpro_report_details",bugReportDetails_,sizeof(bugReportDetails_),{475.f,145.f});
+    ImGui::Checkbox("Attach recent session logs (optional)",&bugReportAttachLogs_);
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("At most two recent .log excerpts. Paths/email and credential-like lines are redacted. No maps, crash dumps or models.");
+    ImGui::TextDisabled("Nothing is sent before you press Send. Log excerpts may contain diagnostic data.");
+    ImGui::TextDisabled("Repeated submissions may be consolidated by the report service.");
+    if(!BugReport::Configured()){
+        ImGui::TextColored({.98f,.68f,.37f,1.f},"Reporting service is not configured in this build.");
+        ImGui::TextWrapped("The maintainer must deploy the HTTPS gateway and provide its public URL when building the app.");
+    }
+    if(bugReportPending_.valid() &&
+        bugReportPending_.wait_for(std::chrono::seconds(0))==std::future_status::ready){
+        try {
+            const auto response=bugReportPending_.get();
+            bugReportFeedback_=response.message;bugReportFeedbackError_=!response.accepted;
+            if(response.accepted)Log::Info("Bug report accepted by configured HTTPS gateway.");
+            else Log::Warning("Bug report HTTPS delivery unavailable; user can retry.");
+        }catch(const std::exception&){
+            bugReportFeedback_="Unexpected reporting error; no delivery confirmed.";
+            bugReportFeedbackError_=true;
+            Log::Warning("Bug report transport failed.");
+        }
+    }
+    if(!bugReportFeedback_.empty())ImGui::TextColored(bugReportFeedbackError_?ImVec4{1.f,.56f,.46f,1.f}:ImVec4{.47f,.88f,.55f,1.f},
+        "%s",bugReportFeedback_.c_str());
+    const bool waiting=bugReportPending_.valid();
+    const bool filled=bugReportSubject_[0]!='\0'&&bugReportDetails_[0]!='\0';
+    ImGui::BeginDisabled(waiting||!filled||!BugReport::Configured());
+    if(ImGui::Button(waiting?"Sending...":"Send report",{145.f,0.f})){
+        const std::string subject=bugReportSubject_,details=bugReportDetails_;
+        const bool logs=bugReportAttachLogs_;
+        bugReportFeedback_.clear();
+        bugReportPending_=std::async(std::launch::async,[subject,details,logs]{
+            return BugReport::Submit(subject,details,logs);
+        });
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if(ImGui::Button("Close##bugreport"))ImGui::CloseCurrentPopup();
+    ImGui::PopTextWrapPos();ImGui::EndPopup();
 }
 
 void EditorUi::DrawSupportPopup() {

@@ -17,12 +17,14 @@ using Bytes=std::vector<std::uint8_t>;
 struct Vertex { float x{},y{},z{},u{},v{}; };
 struct Part { size_t firstIndex{},indexCount{};std::string material,texture; };
 struct Box { std::array<float,3> min{},max{}; };
+using Triangle=std::array<std::array<float,3>,3>;
 struct Model {
     std::string visualName;
     std::vector<Vertex> vertices;
     std::vector<std::uint32_t> indices;
     std::vector<Part> parts;
     std::vector<Box> boxes;
+    std::vector<Triangle> triangles;
 };
 inline void U16(Bytes& b,std::uint16_t v){b.push_back(static_cast<std::uint8_t>(v));b.push_back(static_cast<std::uint8_t>(v>>8));}
 inline void U32(Bytes& b,std::uint32_t v){for(int i=0;i<4;++i)b.push_back(static_cast<std::uint8_t>(v>>(i*8)));}
@@ -89,7 +91,7 @@ inline Bytes KeyNode(const std::string& name,std::uint16_t index){
 inline bool Write(const Model& m,Bytes& result,std::string& error){
     if(!SafeAscii(m.visualName,50)||m.vertices.empty()||m.vertices.size()>65535||
        m.indices.empty()||m.indices.size()%3||m.indices.size()/3>65535||m.parts.empty()||
-       m.boxes.size()>128){error="3DS mesh exceeds format limits or has no material/geometry.";return false;}
+       m.boxes.size()>128||m.triangles.size()>2048||m.boxes.size()+m.triangles.size()>2048){error="3DS mesh exceeds format limits or has no material/geometry.";return false;}
     for(const auto& v:m.vertices) {
         const float f[]={v.x,v.y,v.z,v.u,v.v};
         for(float x:f)if(!std::isfinite(x)||std::abs(x)>1.e7f){error="Non-finite/out-of-range visual vertex or UV.";return false;}
@@ -105,6 +107,12 @@ inline bool Write(const Model& m,Bytes& result,std::string& error){
     for(const auto& box:m.boxes)for(int axis=0;axis<3;++axis)if(!std::isfinite(box.min[axis])||
         !std::isfinite(box.max[axis])||box.max[axis]-box.min[axis]<.01f||
         std::abs(box.min[axis])>1.e6f||std::abs(box.max[axis])>1.e6f){error="Invalid native collision box.";return false;}
+    for(const auto& t:m.triangles){
+        for(const auto& v:t)for(float c:v)if(!std::isfinite(c)||std::abs(c)>1.e6f){error="Invalid terrain collision triangle.";return false;}
+        const auto sub=[](const auto& a,const auto& b){return std::array<float,3>{a[0]-b[0],a[1]-b[1],a[2]-b[2]};};
+        const auto a=sub(t[1],t[0]),b=sub(t[2],t[0]);
+        const float nz=a[0]*b[1]-a[1]*b[0];if(nz<.001f){error="Inverted/degenerate native terrain triangle.";return false;}
+    }
     Bytes edit,keys;
     for(const auto& p:m.parts)Add(edit,Material(p));
     std::vector<std::array<float,3>> vertices;std::vector<std::array<float,2>> uv;
@@ -128,6 +136,12 @@ inline bool Write(const Model& m,Bytes& result,std::string& error){
         const auto name="BoxPT"+std::to_string(i+1);
         Add(edit,Object(name,corners,std::vector<std::array<std::uint16_t,3>>(cubeFaces.begin(),cubeFaces.end())));
         Add(keys,KeyNode(name,static_cast<std::uint16_t>(i+1)));
+    }
+    for(size_t i=0;i<m.triangles.size();++i){
+        const auto name="tri_PT"+std::to_string(i+1);
+        const auto& t=m.triangles[i];
+        Add(edit,Object(name,{t[0],t[1],t[2]},{{{0,1,2}}}));
+        Add(keys,KeyNode(name,static_cast<std::uint16_t>(m.boxes.size()+i+1)));
     }
     Bytes header;U16(header,5);CStr(header,"ANIM");U32(header,100);Bytes kf;
     Add(kf,Chunk(0xB00A,header));Add(kf,keys);

@@ -1,9 +1,19 @@
-# ProTanki Editor PRO 0.5.24 — experimental native 3DS object export
+# ProTanki Editor PRO 0.5.25 — native 3DS/TARA export and optional bug reporting
 
-Changed-files patch over the COMPLETE 0.5.23 repository **including its GitHub CTest hotfix**. The 0.5.23 map/viewport handedness correction and XML export remain unchanged.
+Apply this **changed-files patch** over the complete **0.5.24 source**, which already includes the 0.5.23 GitHub CTest hotfix. The verified 0.5.23 map orientation/legacy XML transformations remain unchanged.
 
-The Object Editor now has a separate **Export NEW 3DS library...** command. It accepts an original, byte-matching 3DS library template and a validated edited visual mesh with solid draft boxes. It creates a new self-contained `PTPRO_*` library directory with `ptpro_mesh.3ds`, copied named texture variants and `library.xml`; original game libraries and original model are not overwritten. It checks the generated 3DS by reimporting its visible geometry and collision boxes before publishing it.
+## Obj. Editor export
 
-**Experimental limitations:** the original template's plane and triangle helpers are replaced by explicitly authored solid boxes; their original gameplay collision is not preserved. A single box is not a driveable slope. GLB native export, trigger volumes, and arbitrary extended game properties remain unavailable. A saved isolated draft is still a draft, not an exported game object. Color tint is preview-only. Validate exported objects in ProTLVK before production use.
+Open an existing saved 3DS draft and select its **original, byte-matching source library template**. With the original `AXC/library` root loaded, choose **Export NEW 3DS library...**. The editor creates a separate `PTPRO_<draft name>/` folder containing edited `ptpro_mesh.3ds`, `library.xml`, and copied original texture variants, plus a matching **`PTPRO_<draft name>.tara` beside that folder** in the library root. It does not overwrite an existing library or TARA. To repeat the Land01_AX test where `PTPRO_Land01_AX` already exists, rename the draft to a unique name (for example `Land01_AX_V2`) before exporting. The game must be able to access the TARA through its actual resource delivery path, `library/PTPRO_<draft name>.tara`; a local library copy alone does not publish a server-hosted game resource.
 
-See `RELEASE_NOTES_0524.md`, `BUILD_STATUS_0524.md`, `PATCH_0524_APPLY.txt`.
+For original **triangle-only terrain helper meshes**, an unchanged draft retains the original helper triangles; exactly one changed visual vertex is supported with a checked height-delta + face split. The single-peak `Land01_AX` fixture is checked against the **138-triangle object that the user tested successfully in ProTLVK**. Unsupported multiple vertex edits and incompatible original frames fail closed instead of generating fake physical surfaces. Other supported original 3DS props use explicitly authored solid boxes; the exporter does **not** claim automatic full collider preservation for every object. GLB native game export, trigger volumes, nontrivial gameplay properties and arbitrary mesh retopology are not supported. A visual-only draft is not a game-ready export.
+
+The previous confirmation dialog is wider; the saved draft preview resolves the selected original library texture variants when that library is loaded. An isolated draft folder itself does not contain copied texture JPEGs. Validate every exported object and its gameplay collision in ProTLVK.
+
+## Report a Bug
+
+An unobtrusive **Report a Bug** tab is right-aligned directly above `Seek Help | ProTanki Discord`. Clicking opens a modal with subject, description, and an **unchecked by default** `Attach recent session logs` option. Nothing is submitted before the user presses Send. It sends only subject, description, version, random persistent installation ID, and optionally two sanitized, bounded log excerpts via **HTTPS**. No maps, models, crash dumps, screenshots or email passwords are automatically uploaded. The maintainer's email address and mail API key are **server-only**, never baked into the editor.
+
+**The Send button is disabled until an HTTPS gateway is deployed and the PUBLIC URL is set at build time**. See [`report_gateway/README.md`](report_gateway/README.md) for Cloudflare Worker/Durable Object + Resend deployment and the build variable `PTPRO_BUG_REPORT_ENDPOINT`. The backend persists a 30-minute limit by installation ID and public IP; repeated accepted requests are grouped rather than falsely claiming each produced an email. A shared IP can group distinct users. No antivirus product can be guaranteed never to flag an unsigned executable; no hidden process, background telemetry, embedded SMTP password or covert file collection is used.
+
+See `RELEASE_NOTES_0525.md`, `BUILD_STATUS_0525.md`, and `PATCH_0525_APPLY.txt` for limits, verification and apply steps.
