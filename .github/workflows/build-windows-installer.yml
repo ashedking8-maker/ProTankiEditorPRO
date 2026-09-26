@@ -1,0 +1,109 @@
+name: Build ProTanki Editor PRO for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Show checked-out commit
+        shell: powershell
+        run: git log -1 --format="%h %s"
+
+      - name: Verify complete source and packaging workflow
+        shell: powershell
+        run: python tools/check_source_consistency.py
+
+      - name: Read-only native format and map delta audit tests
+        shell: powershell
+        run: python -m unittest discover -s tests -p "test_*audit.py" -v
+
+      - name: Install NSIS installer compiler
+        shell: powershell
+        run: choco install nsis -y --no-progress
+
+      - name: Configure x64 Release
+        shell: powershell
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Compile editor
+        shell: powershell
+        run: cmake --build build --config Release --parallel
+
+      - name: Run regression tests
+        shell: powershell
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # IMPORTANT: Use our single-user custom NSIS installer. `cpack -G NSIS`
+      # instead creates a different installer and, with the portable CPack name,
+      # calls it ProTankiEditorPRO-0.5.17-Portable.exe.
+      - name: Package setup EXE and portable ZIP
+        shell: powershell
+        run: .\scripts\package-windows.ps1 -BuildDir build
+
+      - name: Record package SHA-256 digests
+        shell: powershell
+        run: |
+          $files = @("build/ProTankiEditorPRO-0.5.17-Setup.exe", "build/ProTankiEditorPRO-0.5.17-Portable.zip")
+          $files | ForEach-Object {
+            if (!(Test-Path $_)) { throw "Cannot hash missing package: $_" }
+            $hash = (Get-FileHash -Algorithm SHA256 -Path $_).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($_))"
+          } | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.17-SHA256.txt"
+
+      - name: Verify exact release filenames
+        shell: powershell
+        run: |
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.17-Setup.exe")) {
+            throw "ProTankiEditorPRO-0.5.17-Setup.exe was not created"
+          }
+          if (!(Test-Path "build/ProTankiEditorPRO-0.5.17-Portable.zip")) {
+            throw "ProTankiEditorPRO-0.5.17-Portable.zip was not created"
+          }
+
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: ProTankiEditorPRO-Windows-0.5.17
+          path: |
+            build/ProTankiEditorPRO-0.5.17-Setup.exe
+            build/ProTankiEditorPRO-0.5.17-Portable.zip
+            build/ProTankiEditorPRO-0.5.17-SHA256.txt
+          if-no-files-found: error
+
+      - name: Publish direct download in Releases
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "latest-build"
+          # Listing releases succeeds when latest-build does not exist yet.
+          # Do not run `gh release view` on a missing tag: Windows PowerShell 5.1
+          # turns its stderr into a NativeCommandError even when nonzero is expected.
+          $releases = @(gh release list --json tagName --limit 1000 | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0) { throw "Cannot list GitHub Releases" }
+          $releaseExists = $null -ne ($releases | Where-Object { $_.tagName -eq $tag } | Select-Object -First 1)
+          if (-not $releaseExists) {
+            gh release create $tag `
+              --target "${{ github.sha }}" `
+              --title "ProTanki Editor PRO - Latest Build" `
+              --notes "Automatic Windows x64 development build. Download ProTankiEditorPRO-0.5.17-Setup.exe for the normal installer." `
+              --prerelease
+            if ($LASTEXITCODE -ne 0) { throw "Cannot create latest-build release" }
+          }
+          gh release upload $tag `
+            "build/ProTankiEditorPRO-0.5.17-Setup.exe#ProTankiEditorPRO-0.5.17-Setup.exe" `
+            "build/ProTankiEditorPRO-0.5.17-Portable.zip#ProTankiEditorPRO-0.5.17-Portable.zip" `
+            "build/ProTankiEditorPRO-0.5.17-SHA256.txt#ProTankiEditorPRO-0.5.17-SHA256.txt" `
+            --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Cannot upload release assets" }
