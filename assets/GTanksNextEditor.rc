@@ -22,11 +22,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "ProTanki Editor PRO Project\0"
             VALUE "FileDescription", "ProTanki Editor PRO\0"
-            VALUE "FileVersion", "0.5.22\0"
+            VALUE "FileVersion", "0.5.23\0"
             VALUE "InternalName", "GTanksNextEditor\0"
             VALUE "OriginalFilename", "GTanksNextEditor.exe\0"
             VALUE "ProductName", "ProTanki Editor PRO\0"
-            VALUE "ProductVersion", "0.5.22\0"
+            VALUE "ProductVersion", "0.5.23\0"
         END
     END
     BLOCK "VarFileInfo"

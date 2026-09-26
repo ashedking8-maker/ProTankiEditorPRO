@@ -997,7 +997,7 @@ void SceneRenderer::BuildDebugGeometry(const MapDocument& map) {
         const XMFLOAT4 c = red ? XMFLOAT4{1.0f,0.38f,0.36f,0.74f} : blue ? XMFLOAT4{0.35f,0.67f,1.0f,0.74f} : XMFLOAT4{0.42f,0.9f,0.65f,0.68f};
         addBox({p.x-90,p.y+15,p.z-120},{p.x+90,p.y+95,p.z+120},c);
         const float angle = spawn.rotationZ;
-        addLine({p.x,p.y+100,p.z},{p.x+std::cos(angle)*180,p.y+100,p.z-std::sin(angle)*180},c);
+        addLine({p.x,p.y+100,p.z},{p.x+std::cos(angle)*180,p.y+100,p.z+std::sin(angle)*180},c);
         finishRange(start,1u,modeOf(spawn.type));
     }
     for (const auto& flag : map.CtfFlags()) {
@@ -1127,7 +1127,7 @@ void SceneRenderer::ReverseViewDirection() {
 
 void SceneRenderer::ResetReferenceViewDirection() {
     cameraFocusAnimating_=false;
-    cameraYaw_=2.39159265f;
+    cameraYaw_=-0.75f;
     cameraPitch_=0.55f;
 }
 
@@ -1600,7 +1600,7 @@ bool SceneRenderer::SuggestEdgeSnap(const std::vector<PropInstance>& props,float
         others.push_back({a.x,b.x,a.z,b.z,a.y});
     }
     const auto snap=GeometrySnap::Find(moving,others,tolerance,clearance);
-    legacyDx=snap.x; legacyDy=-snap.y; // internal Z = -legacy Y
+    legacyDx=snap.x; legacyDy=snap.y; // internal Z = legacy Y in the GTanks left-handed basis
     return snap.xMatched||snap.yMatched;
 }
 

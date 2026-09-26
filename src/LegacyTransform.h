@@ -4,15 +4,17 @@
 namespace LegacyTransform {
 
 // Mesh import removes the authoring placement relative to a shared anchor,
-// then converts the local assembly to Y-up (x,z,-y). Do not swap mesh axes
+// then converts the local assembly from legacy left-handed Z-up to D3D left-handed Y-up (x,z,y). Do not swap mesh axes
 // again here. XML map positions and rotations remain legacy Z-up values.
 inline DirectX::XMMATRIX LegacyToInternalBasis() {
     using namespace DirectX;
-    // Row-vector matrix: (x, y, z) -> (x, z, -y)
+    // Row-vector matrix: (x, y, z) -> (x, z, y).
+    // Legacy GTanks/Alternativa map space and the D3D viewport are both left-handed;
+    // negating legacy Y mirrors the complete map and reverses the visible yaw.
     return XMMATRIX(
-        1, 0,  0, 0,
-        0, 0, -1, 0,
-        0, 1,  0, 0,
+        1, 0, 0, 0,
+        0, 0, 1, 0,
+        0, 1, 0, 0,
         0, 0,  0, 1);
 }
 
@@ -22,11 +24,11 @@ inline DirectX::XMMATRIX InternalToLegacyBasis() {
 }
 
 inline DirectX::XMFLOAT3 Position(const DirectX::XMFLOAT3& legacy) {
-    return {legacy.x, legacy.z, -legacy.y};
+    return {legacy.x, legacy.z, legacy.y};
 }
 
 inline DirectX::XMFLOAT3 ToLegacyPosition(const DirectX::XMFLOAT3& internal) {
-    return {internal.x, -internal.z, internal.y};
+    return {internal.x, internal.z, internal.y};
 }
 
 // Use this when geometry vertices are authored in the original XML Z-up basis

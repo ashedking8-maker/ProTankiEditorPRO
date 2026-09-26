@@ -168,8 +168,11 @@ inline Model Load(const std::filesystem::path& file) {
     // Assimp's 3DS importer has already expressed the selected mesh in node-local
     // coordinates. The visible anchor is the prop origin; helper mesh nodes are
     // collision/occlusion metadata and are intentionally omitted from rendering.
-    // Convert Z-up legacy local coordinates to our render basis (x,z,-y) once.
-    const aiMatrix4x4 basis(1,0,0,0, 0,0,1,0, 0,-1,0,0, 0,0,0,1);
+    // Convert the original GTanks left-handed Z-up local coordinates to the
+    // Direct3D left-handed Y-up viewport basis (x,z,y) once.  The former
+    // (x,z,-y) conversion mirrored every imported map and made object yaw
+    // appear reversed relative to the original editor / ProTLVK.
+    const aiMatrix4x4 basis(1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,0,1);
     const auto transform = basis;
     aiMatrix3x3 normals(transform);
     if (std::abs(normals.Determinant()) < 1e-12f) throw std::runtime_error("Singular visual transform");

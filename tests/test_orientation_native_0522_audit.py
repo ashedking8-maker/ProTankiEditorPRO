@@ -1,4 +1,4 @@
-"""0.5.22 guardrails for source-coordinate safety, original fixtures and UI wiring."""
+"""0.5.23 guardrails for GTanks left-handed coordinate fidelity and 0.5.22 features."""
 from pathlib import Path
 import unittest
 from test_native_helper_0515_audit import read_nodes
@@ -23,14 +23,17 @@ class OrientationNative0522(unittest.TestCase):
         self.assertAlmostEqual(max(p[1] for p in box['v'])-min(p[1] for p in box['v']),60.,delta=.01)
     def test_view_direction_never_modifies_legacy_coordinate_convention(self):
         transform=(ROOT/'src/LegacyTransform.h').read_text()
-        self.assertIn('return {legacy.x, legacy.z, -legacy.y};',transform)
-        self.assertIn('return {internal.x, -internal.z, internal.y};',transform)
+        self.assertIn('return {legacy.x, legacy.z, legacy.y};',transform)
+        self.assertIn('return {internal.x, internal.z, internal.y};',transform)
         scene=(ROOT/'src/SceneRenderer.cpp').read_text()
         app=(ROOT/'src/App.cpp').read_text()
         self.assertIn('void SceneRenderer::ReverseViewDirection()',scene)
         self.assertIn('void SceneRenderer::ResetReferenceViewDirection()',scene)
-        self.assertIn('scene_.ResetReferenceViewDirection(); // imported XML itself is NOT mirrored or rotated',app)
+        self.assertIn('renderer converts legacy handedness only for display',app)
         self.assertIn('scene_.ResetReferenceViewDirection();',app)
+        mesh=(ROOT/'src/LegacyMeshImport.h').read_text()
+        self.assertIn('const aiMatrix4x4 basis(1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,0,1);',mesh)
+        self.assertNotIn('0,-1,0,0',mesh)
     def test_opt_in_edge_and_surface_controls_do_not_mutate_existing_maps(self):
         ui=(ROOT/'src/EditorUi.cpp').read_text()
         header=(ROOT/'src/EditorUi.h').read_text()

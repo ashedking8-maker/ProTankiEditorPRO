@@ -34,7 +34,7 @@ bool App::Initialize(HINSTANCE instance, int show) {
     wc.hIconSm = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(101), IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED));
     RegisterClassExW(&wc);
-    hwnd_ = CreateWindowExW(0,wc.lpszClassName,L"ProTanki Editor PRO 0.5.22",WS_OVERLAPPEDWINDOW,100,80,1500,900,nullptr,nullptr,instance,nullptr);
+    hwnd_ = CreateWindowExW(0,wc.lpszClassName,L"ProTanki Editor PRO 0.5.23",WS_OVERLAPPEDWINDOW,100,80,1500,900,nullptr,nullptr,instance,nullptr);
     if (!hwnd_) { Log::Error("CreateWindowExW failed."); return false; }
     RECT r{}; GetClientRect(hwnd_, &r);
     if (!renderer_.Initialize(hwnd_, r.right-r.left, r.bottom-r.top)) { Log::Error("D3D renderer initialization failed."); return false; }
@@ -155,7 +155,7 @@ void App::CompleteTransition() {
         if(candidate.Load(requestedPath,err)) {
                 map_=std::move(candidate);
             ui_.OnMapLoaded(map_.Path());
-            scene_.ResetReferenceViewDirection(); // imported XML itself is NOT mirrored or rotated
+            scene_.ResetReferenceViewDirection(); // XML stays untouched; renderer converts legacy handedness only for display
             TryAutoLibraryForMap();
             if(assets_.AssetCount()) RebuildScene();
             else {scene_.ClearScene();ui_.SetMessage("Map loaded. Select the original 'library' folder to render assets.");}
@@ -241,7 +241,7 @@ void App::RefreshTitle() {
     const bool dirty=map_.Dirty();
     if (dirty==lastDirty_) return;
     lastDirty_=dirty;
-    const std::wstring title=L"ProTanki Editor PRO 0.5.22";
+    const std::wstring title=L"ProTanki Editor PRO 0.5.23";
     SetWindowTextW(hwnd_,title.c_str());
 }
 

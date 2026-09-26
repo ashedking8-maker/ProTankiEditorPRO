@@ -1,0 +1,12 @@
+ProTanki Editor PRO 0.5.23 changed-files patch
+
+Base required: complete 0.5.22 repository.
+Copy the contents of this archive into the repository root and overwrite matching files.
+Preserve all directories, including .github/.
+Do not apply directly to 0.5.21 or older source trees.
+
+Primary runtime check after build:
+1. Open original map_silence.xml without editing it.
+2. Compare asymmetric landmarks and object facing with the original GTanks Editor.
+3. Save As to a new XML and verify the map was not bulk-mirrored or bulk-rotated.
+4. Re-test an asymmetric object at Z rotations 0 / 90 / 180 / 270 degrees.

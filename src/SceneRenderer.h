@@ -306,7 +306,7 @@ private:
     DirectX::XMFLOAT3 boundsMax_{};
 
     DirectX::XMFLOAT3 cameraTarget_{0, 0, 0};
-    float cameraYaw_ = 2.39159265f; // opposite side to 0.5.21; reference-map opening view
+    float cameraYaw_ = -0.75f; // original editor reference-side opening view
     float cameraPitch_ = 0.55f;
     float cameraDistance_ = 15000.0f;
 };
