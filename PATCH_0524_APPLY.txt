@@ -1,0 +1,7 @@
+ProTanki Editor PRO 0.5.24 – CHANGED FILES ONLY
+
+Apply onto your COMPLETE 0.5.23 source tree after the 0.5.23 GitHub CTest hotfix. Extract into repository root and replace matching paths, including src/, tests/, .github/, assets/, installer/, scripts/. Do not apply to 0.5.22. Commit and run the Windows GitHub Actions workflow. The build should create ProTankiEditorPRO-0.5.24-Setup.exe and -Portable.zip.
+
+Feature usage: select your original full Beach library root; open Obj. Editor and load test_AX/Land01_AX/object-draft.txt; click "Export NEW 3DS library..."; confirm; if successful reindexed library is available next frame as PTPRO_Land01_AX. This creates an independent directory in selected game library; back up the library first. The source Beach folder will never be overwritten. For name collisions, rename draft before retrying.
+
+Experimental: original 3DS templates with visible editable mesh and named diffuse variants, authored SOLID boxes only. The single-box Land01_AX is NOT equivalent to original terrain's 135 triangle colliders. GLB, triggers and original custom gameplay fields are not exported. Windows/MSVC and ProTLVK must validate.

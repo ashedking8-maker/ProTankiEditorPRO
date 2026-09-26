@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(GTanksNextEditor VERSION 0.5.23 LANGUAGES CXX)
+project(GTanksNextEditor VERSION 0.5.24 LANGUAGES CXX)
 
 if(NOT WIN32)
   message(FATAL_ERROR "ProTanki Editor PRO currently targets Windows / Direct3D 11.")
@@ -78,7 +78,7 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h
+  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/NativeObjectExport.h
   src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -120,12 +120,18 @@ install(FILES
   RELEASE_NOTES_0520.md
   RELEASE_NOTES_0521.md
   RELEASE_NOTES_0522.md
+  RELEASE_NOTES_0523.md
+  RELEASE_NOTES_0524.md
   BUILD_STATUS_0514.md
   BUILD_STATUS_0515.md
   BUILD_STATUS_0520.md
   BUILD_STATUS_0521.md
   BUILD_STATUS_0522.md
+  BUILD_STATUS_0523.md
+  BUILD_STATUS_0524.md
   PATCH_0522_APPLY.txt
+  PATCH_0523_APPLY.txt
+  PATCH_0524_APPLY.txt
   DESTINATION docs
   COMPONENT Documentation)
 
@@ -136,7 +142,7 @@ set(CPACK_PACKAGE_NAME "ProTanki Editor PRO")
 set(CPACK_PACKAGE_VENDOR "ProTanki Editor PRO Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPU-accelerated ProTanki legacy map editor")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.23-Portable")
+set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.24-Portable")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)
@@ -152,6 +158,9 @@ if(BUILD_TESTING)
     target_compile_options(LibraryReloadRegression PRIVATE /W4 /permissive- /utf-8)
   endif()
   add_test(NAME TransactionalLibraryReload COMMAND LibraryReloadRegression)
+  add_executable(Native3DSWriterRegression tests/native_3ds_writer_regression.cpp src/Native3DSWriter.h src/NativeCollisionImport.h)
+  target_include_directories(Native3DSWriterRegression PRIVATE src)
+  add_test(NAME NativeEditedObject3DSWriter COMMAND Native3DSWriterRegression)
   add_executable(ObjectDraftRegression tests/object_draft_regression.cpp src/ObjectDraft.h)
   target_include_directories(ObjectDraftRegression PRIVATE src)
   add_test(NAME IsolatedObjectDraftRoundTrip COMMAND ObjectDraftRegression)

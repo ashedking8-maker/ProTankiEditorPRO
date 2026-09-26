@@ -1,4 +1,5 @@
 #include "EditorUi.h"
+#include "NativeObjectExport.h"
 #include "VerifiedCollisionTemplates.h"
 #include "NativeCollisionImport.h"
 #include "Theme.h"
@@ -2053,10 +2054,10 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         }
     } else { ImGui::TextDisabled("Template: none"); HoverHelp("A new draft does not inherit native gameplay properties unless a library template is attached."); }
     if(objectDraft_.libraryTemplateXml && ImGui::CollapsingHeader("Imported library properties (read only)")) {
-        HoverHelp("Displays every original XML field of the selected template, including unrecognized fields. All fields are retained in the source sidecars; the draft does not export a game object.");
+        HoverHelp("Displays every original XML field of the selected template, including unrecognized fields. All fields remain in source sidecars; draft save alone does not export a game object.");
         DrawRawPropertyTree("Selected template <prop>",objectDraft_.templatePropXml);
         if(ImGui::TreeNode("Choose draft-inherited fields")) {
-            HoverHelp("Unchecked fields are recorded in the isolated draft's selection manifest. Full original XML remains unchanged; native game export is not implemented.");
+            HoverHelp("Unchecked fields are recorded in the isolated draft's selection manifest. Full original XML remains unchanged; experimental native export requires all template fields included.");
             pugi::xml_document source;
             if(source.load_buffer(objectDraft_.templatePropXml.data(),objectDraft_.templatePropXml.size())) {
                 auto selected=objectDraft_.excludedTemplateFields;
@@ -2091,7 +2092,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
                 inspectedHelpers.planes.size(),inspectedHelpers.boxes.size(),inspectedHelpers.triangles.size());
         else ImGui::TextWrapped("Native helper import blocked: %s",inspectedHelpers.error.c_str());
         HoverHelp("Custom collision boxes below are separate editable drafts, not a native game export.");
-    } else { ImGui::TextDisabled("GLB: collision draft"); HoverHelp("Edit solid/trigger boxes below. There is no native 3DS or ProTLVK game export yet."); }
+    } else { ImGui::TextDisabled("GLB: collision draft"); HoverHelp("Edit solid/trigger boxes below. GLB native conversion is not implemented; experimental native export requires an original 3DS template."); }
     char draftName[128]{};
     std::memcpy(draftName,objectDraft_.name.data(),std::min(objectDraft_.name.size(),sizeof(draftName)-1));
     if(ImGui::InputText("Object name",draftName,sizeof(draftName))) {objectDraft_.name=draftName;objectDirty_=true;}
@@ -2255,6 +2256,14 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     else if(!objectSceneHasModel_)ImGui::TextDisabled("Save requires a successfully imported 3D model.");
     ImGui::BeginDisabled(!valid);
     if(ImGui::Button("Save isolated object draft",{-1,34})) objectSaveRequested_=true;
+    ImGui::EndDisabled();
+    ImGui::SeparatorText("Experimental native 3DS library export");
+    ImGui::TextWrapped("Original 3DS templates only. Writes a NEW PTPRO_* folder in the selected game Library, preserving the original files. Solid boxes replace old collision helpers; trigger boxes and GLB are not supported.");
+    const bool nativeValid=ObjectDraft::Validate(objectDraft_,validation) && objectSceneHasModel_ &&
+        !assets.Root().empty() && !ObjectDraft::IsGlb(objectDraft_.model) &&
+        static_cast<bool>(objectDraft_.libraryTemplateXml);
+    ImGui::BeginDisabled(!nativeValid);
+    if(ImGui::Button("Export NEW 3DS library...",{-1,34}))objectNativeExportRequested_=true;
     ImGui::EndDisabled();
     ImGui::Spacing();
     ImGui::EndChild();
@@ -2464,12 +2473,40 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     ImGui::SetNextWindowSizeConstraints({340.f,0.f},{490.f,280.f});
     if(ImGui::BeginPopupModal("Confirm object draft save",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::TextUnformatted("Save a new isolated object draft?");
-        HoverHelp("Creates a new draft folder; original library assets are not overwritten. Native 3DS/library.xml game export is not available.");
+        HoverHelp("Creates a new draft folder; original library assets are not overwritten. The draft folder is NOT a native game asset. Use the separate experimental 3DS library export for original 3DS templates.");
         if(ImGui::Button("Save draft")) {
             SaveObjectDraft(assets);
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();if(ImGui::Button("Cancel##save_draft"))ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    if(objectNativeExportRequested_){ImGui::OpenPopup("Confirm native object export");objectNativeExportRequested_=false;}
+    ImGui::SetNextWindowPos({draftViewport->WorkPos.x+draftViewport->WorkSize.x*.5f,
+        draftViewport->WorkPos.y+draftViewport->WorkSize.y*.5f},ImGuiCond_Appearing,{.5f,.5f});
+    if(ImGui::BeginPopupModal("Confirm native object export",nullptr,ImGuiWindowFlags_AlwaysAutoResize)){
+        ImGui::TextWrapped("Create a NEW independent PTPRO_* library folder under the currently selected Library root?");
+        ImGui::TextWrapped("The original libraries are not modified. This exports the currently edited mesh, original texture variants, and SOLID draft boxes. Original collision triangles/planes are NOT retained; GLB and triggers are not supported. Test collision in ProTLVK.");
+        if(ImGui::Button("Export native 3DS")){
+            ObjectDraft::Document toExport=objectDraft_;
+            if(objectMeshEditable_&&!objectVisualVertices_.empty()){
+                toExport.meshVertices.clear();
+                for(const auto& v:objectVisualVertices_)toExport.meshVertices.push_back({v.x,v.y,v.z});
+                toExport.meshIndices=objectVisualIndices_;
+            }
+            std::filesystem::path exported;std::string error;
+            if(NativeObjectExport::Export(toExport,assets,exported,error)){
+                Log::Info("Native object library exported: "+Log::PathUtf8(exported));
+                SetMessage("New native library created: "+Log::PathUtf8(exported));
+                pendingLibrary_=assets.Root(); // Rescan on next frame, never while drawing.
+                objectDirty_=false;
+            }else{
+                Log::Error("Native object library export rejected: "+error);
+                SetMessage("Native object export rejected: "+error,true);
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();if(ImGui::Button("Cancel##nativeexport"))ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
     if(objectCloseRequested_) {ImGui::OpenPopup("Save object changes?##objclose");objectCloseRequested_=false;}

@@ -1,6 +1,7 @@
 #pragma once
 // An isolated, versioned authoring document. It deliberately does NOT write
-// library.xml, 3DS collision helper nodes, or legacy map XML.
+// library.xml, 3DS collision helper nodes, or legacy map XML. An explicit,
+// separate native 3DS exporter may consume a validated draft.
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -23,7 +24,7 @@ namespace ObjectDraft {
 namespace fs = std::filesystem;
 enum class BoxRole { Solid, Trigger }; // preview annotations, NOT native game flags
 // Authoring intention only; none of these values is a native ProTLVK material,
-// physics or particle identifier. Native game export remains disabled.
+// physics or particle identifier. Draft save is not native game export; an explicit experimental 3DS path is separate.
 enum class Purpose { Decorative, SolidDraft, DriveableDraft, TriggerDraft };
 inline const char* PurposeToken(Purpose purpose) {
     switch(purpose) {
@@ -57,7 +58,7 @@ struct Document {
     std::vector<std::uint32_t> meshIndices; // editable triangles of the authoring mesh
     // Optional read-only source library template. Keeps every original XML field,
     // including unknown extensions; NOT an instruction to reuse those fields in
-    // a newly exported ProTLVK object (native export remains disabled).
+    // a newly exported ProTLVK object (the experimental exporter checks support explicitly).
     std::string templateLibrary, templateGroup, templateName, templatePropXml;
     std::shared_ptr<const std::string> libraryTemplateXml;
     // Draft-only inclusion choices. The original XML sidecars remain complete;

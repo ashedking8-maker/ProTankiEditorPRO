@@ -208,6 +208,7 @@ private:
     unsigned long long objectEditorOpenAt_{};
     bool objectHelpRequested_{};
     bool objectSaveRequested_{};
+    bool objectNativeExportRequested_{};
     bool objectCloseRequested_{};
     bool objectDirty_{};
     bool objectVertexDragHistoryCaptured_{};
