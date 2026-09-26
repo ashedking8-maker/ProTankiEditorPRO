@@ -90,8 +90,8 @@ def main() -> int:
         require('map_.CreateBlank("1.0.Light", false);' in text('src/App.cpp') and
                 'ImGui::BeginPopupModal("Confirm object draft save",nullptr,ImGuiWindowFlags_AlwaysAutoResize)' in ui,
                 'Clean startup map or centered draft confirmation missing')
-        require('VERSION 0.5.18' in cmake and '0.5.18' in text('src/App.cpp')
-                and '0.5.18-ux-bridge-fidelity' in text('src/Logger.cpp'),'Version drift')
+        require('VERSION 0.5.19' in cmake and '0.5.19' in text('src/App.cpp')
+                and '0.5.19-native-box-properties' in text('src/Logger.cpp'),'Version drift')
         asset_header=text('src/AssetRegistry.h')
         draft=text('src/ObjectDraft.h')
         require('originalLibraryXml' in asset_header and 'originalPropXml' in asset_header and
@@ -114,7 +114,7 @@ def main() -> int:
                 'AuthorCollisionForPlacement(map,assets,index,info)' in ui and
                 'Allow visual-only props' in ui and
                 'inspectedHelpers=NativeCollisionImport::Read(inspectedSource)' in ui and
-                'Placement settings##library' in ui and 'HoverHelp(' in ui,
+                'Placement settings##tools' in ui and 'HoverHelp(' in ui,
                 'Shared 3DS helper/Obj. Editor authoring and native roundtrip tests incomplete')
         require('float3 linearAlbedo = pow(max(albedo.rgb, 0.0), 2.2)' in scene and
                 'clip(albedo.a - 0.5)' in scene and
@@ -123,7 +123,7 @@ def main() -> int:
                 'mode > 6 ? 6 : mode' in text('src/SceneRenderer.h'),
                 'Bridge 1 sRGB/cutout diagnostic rendering path missing')
         require('oneSidedPairedAtlas' in text('src/LegacyMeshImport.h') and
-                'rasterizerPairedAtlas_' in scene and 'D3D11_CULL_BACK' in scene and
+                'rasterizerPairedAtlas_' in scene and 'D3D11_CULL_FRONT' in scene and
                 'oppositeFaceAtlas' in text('src/SceneRenderer.h'),
                 'Bridge 1 paired-front/back texture draw fix absent')
         require('src/SplashScreen.cpp src/SplashScreen.h' in cmake
@@ -216,17 +216,17 @@ def main() -> int:
                     f'{workflow_path}: custom NSIS packaging invocation missing')
             require('cpack -C Release -G NSIS' not in workflow and 'GTanksNextEditor-Setup' not in workflow,
                     f'{workflow_path}: stale installer packaging route')
-            require('ProTankiEditorPRO-0.5.18-Setup.exe' in workflow and
-                    'ProTankiEditorPRO-0.5.18-Portable.zip' in workflow and
+            require('ProTankiEditorPRO-0.5.19-Setup.exe' in workflow and
+                    'ProTankiEditorPRO-0.5.19-Portable.zip' in workflow and
                     'ProTankiEditorPRO-0.5.6-' not in workflow,
-                    f'{workflow_path}: release filename mismatch; replace this file with the 0.5.18 workflow')
+                    f'{workflow_path}: release filename mismatch; replace this file with the 0.5.19 workflow')
         require('SimpleInstaller.nsi' in packaging and
-                'ProTankiEditorPRO-0.5.18-Setup.exe' in packaging and
-                'ProTankiEditorPRO-0.5.18-Portable.zip' in packaging and
+                'ProTankiEditorPRO-0.5.19-Setup.exe' in packaging and
+                'ProTankiEditorPRO-0.5.19-Portable.zip' in packaging and
                 'ProTankiEditorPRO-0.5.6-' not in packaging,
                 'scripts/package-windows.ps1: output filename mismatch; replace with 0.5.18 packaging script')
-        require('0.5.18' in text('assets/GTanksNextEditor.rc') and
-                'FILEVERSION 0,5,18,0' in text('assets/GTanksNextEditor.rc'), 'Resource version drift')
+        require('0.5.19' in text('assets/GTanksNextEditor.rc') and
+                'FILEVERSION 0,5,19,0' in text('assets/GTanksNextEditor.rc'), 'Resource version drift')
         require('GridStep::Quantize(v,gridSize_)' in ui and 'GridStep::KeyboardStep(gridSize_,io.KeyShift)' in ui
                 and 'GridStepAlwaysOn' in cmake, 'Movement grid regression: grid must snap by default')
         require('objectUndo_.push_back(CaptureObjectSnapshot())' in ui and 'if (objectEditorOpen_)' in ui,
@@ -376,7 +376,7 @@ def main() -> int:
                 'test_map_delta_audit.py' in '\n'.join(p.name for p in (ROOT/'tests').iterdir()) and
                 all('test_*audit.py' in text(path) for path in workflow_paths),
                 'Read-only native map delta audit and workflow tests missing')
-        print('PASS: 0.5.18 source preflight: external launcher, GLB draft editor, collision XML/undo tests, packaging and source structure.')
+        print('PASS: 0.5.19 source preflight: external launcher, GLB draft editor, collision XML/undo tests, packaging and source structure.')
         return 0
     except (ValueError,OSError) as e:
         print(f'FAIL: {e}',file=sys.stderr)

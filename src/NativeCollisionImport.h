@@ -22,10 +22,12 @@ using V = DirectX::XMFLOAT3;
 struct Result {
     std::vector<VerifiedCollisionTemplates::Plane> planes;
     std::vector<VerifiedCollisionTemplates::Triangle> triangles;
+    struct Box { V offset{}, rotation{}, size{}; };
+    std::vector<Box> boxes;
     size_t occlusionHelpers{};
     std::string visualAnchor;
     std::string error;
-    bool Valid() const { return error.empty() && (!planes.empty() || !triangles.empty()); }
+    bool Valid() const { return error.empty() && (!planes.empty() || !triangles.empty() || !boxes.empty()); }
 };
 inline V Add(V a,V b) {return {a.x+b.x,a.y+b.y,a.z+b.z};}
 inline V Sub(V a,V b) {return {a.x-b.x,a.y-b.y,a.z-b.z};}
@@ -141,13 +143,49 @@ inline Result Read(const std::filesystem::path& file) {
     result.visualAnchor=visual->name;
     for(const auto& n:nodes) {
         if(&n==visual)continue;
-        const bool plane=Prefix(n.name,"plane"),tri=Prefix(n.name,"tri");
+        const bool plane=Prefix(n.name,"plane"),tri=Prefix(n.name,"tri"),box=Prefix(n.name,"box");
         if(Prefix(n.name,"occl")){++result.occlusionHelpers;continue;}
-        if(Prefix(n.name,"box")) {result.error="3DS box helper conversion is not validated yet; export refused.";return result;}
-        if(!plane&&!tri)continue;
+        if(!plane&&!tri&&!box)continue;
         if(!identity(n)) {result.error="Nonidentity transform on collision helper: "+n.name;return result;}
         for(auto face:n.faces)for(auto id:face)if(id>=n.vertices.size()) {result.error="Invalid helper face indices.";return result;}
-        if(tri) {
+        if(box) {
+            // Original CollisionBox.parse takes the axis-aligned source
+            // vertex bounds (including duplicated corner vertices), then
+            // centers them before applying the placed prop's transform.
+            // Validated against GTanks-authored NuBu 3 map XML: Box07/Box08.
+            if(n.vertices.size()<8||n.faces.size()<12) {result.error="Incomplete 3DS box helper: "+n.name;return result;}
+            V min=n.vertices.front(),max=min;
+            for(const V v:n.vertices) {
+                min={std::min(min.x,v.x),std::min(min.y,v.y),std::min(min.z,v.z)};
+                max={std::max(max.x,v.x),std::max(max.y,v.y),std::max(max.z,v.z)};
+            }
+            const V dimensions=Sub(max,min);
+            if(dimensions.x<.01f||dimensions.y<.01f||dimensions.z<.01f) {
+                result.error="Degenerate 3DS box helper: "+n.name;return result;
+            }
+            // A box helper must actually represent all eight corners of an
+            // axis-aligned box; otherwise AABB conversion changes gameplay.
+            std::array<bool,8> seen{};
+            for(const V v:n.vertices) {
+                int code=0;
+                const float a[3]={v.x,v.y,v.z},lo[3]={min.x,min.y,min.z},hi[3]={max.x,max.y,max.z};
+                for(int k=0;k<3;++k) {
+                    if(std::fabs(a[k]-hi[k])<.1f)code|=1<<k;
+                    else if(std::fabs(a[k]-lo[k])>=.1f) {
+                        result.error="Non-box-shaped helper: "+n.name;return result;
+                    }
+                }
+                seen[static_cast<size_t>(code)]=true;
+            }
+            if(std::find(seen.begin(),seen.end(),false)!=seen.end()) {
+                result.error="Missing box corners: "+n.name;return result;
+            }
+            Result::Box out;
+            out.offset=Sub(Mul(Add(min,max),.5f),origin);
+            out.size=dimensions;
+            if(!Finite(out.offset)||!Finite(out.size)) {result.error="Invalid box geometry: "+n.name;return result;}
+            result.boxes.push_back(out);
+        } else if(tri) {
             if(n.vertices.size()!=3||n.faces.size()!=1) {result.error="Unsupported triangle helper: "+n.name;return result;}
             const auto f=n.faces[0];
             const V a=Sub(n.vertices[f[0]],origin),b=Sub(n.vertices[f[1]],origin),c=Sub(n.vertices[f[2]],origin);
@@ -185,10 +223,10 @@ inline Result Read(const std::filesystem::path& file) {
             if(!Finite(out.rotation)||!Finite(out.offset)) {result.error="Plane rotation is invalid.";return result;}
             result.planes.push_back(out);
         }
-        if(result.planes.size()+result.triangles.size()>2048){result.error="Excessive 3DS collision helper count.";return result;}
+        if(result.planes.size()+result.triangles.size()+result.boxes.size()>2048){result.error="Excessive 3DS collision helper count.";return result;}
     }
-    if(result.planes.empty()&&result.triangles.empty())result.error="No supported native plane/triangle helpers in this model.";
-    if(!result.error.empty()) {result.planes.clear();result.triangles.clear();}
+    if(result.planes.empty()&&result.triangles.empty()&&result.boxes.empty())result.error="No native plane/box/triangle helpers in this model.";
+    if(!result.error.empty()) {result.planes.clear();result.triangles.clear();result.boxes.clear();}
     return result;
 }
 } // namespace NativeCollisionImport

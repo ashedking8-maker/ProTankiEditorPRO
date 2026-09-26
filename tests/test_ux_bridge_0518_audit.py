@@ -61,7 +61,7 @@ class UxBridge0518Audit(unittest.TestCase):
         self.assertIn('HasOppositeFaceAtlas(',imp)
         self.assertIn('groups.size()*6 != indexCount',imp)
         self.assertIn('rd.CullMode = D3D11_CULL_NONE',r)
-        self.assertIn('rd.CullMode = D3D11_CULL_BACK',r)
+        self.assertIn('rd.CullMode = D3D11_CULL_FRONT',r)
         self.assertIn('rd.FrontCounterClockwise = TRUE',r)
         self.assertIn('rasterizerPairedAtlas_',r)
         self.assertIn('context_->RSSetState(rasterizer_.Get())',r)
@@ -69,7 +69,8 @@ class UxBridge0518Audit(unittest.TestCase):
     def test_explanations_hover_and_placement_uncluttered(self):
         ui=source('src/EditorUi.cpp')
         lib=ui.split('void EditorUi::DrawLibrary(')[1].split('void EditorUi::CaptureBrowseThumbnail(')[0]
-        self.assertIn('Placement settings##library',lib)
+        self.assertIn('Placement settings##tools',ui)
+        self.assertNotIn('Settings...##library_placement_settings',lib)
         self.assertIn('HoverHelp(',lib)
         self.assertNotIn('ImGui::DragFloat("Placement Z"',lib)
         self.assertNotIn('ImGui::DragFloat("Placement height (Z)"',lib)
@@ -77,6 +78,8 @@ class UxBridge0518Audit(unittest.TestCase):
         self.assertNotIn('Default embedded material / sprite',ui)
         self.assertNotIn('Complete imported helper set bound to object',ui)
         self.assertIn('Decoration: no physical collision',ui)
+        self.assertIn('All imported object properties',ui)
+        self.assertNotIn('Native geometry: unsupported',ui)
         self.assertIn('Save object changes?##objclose",nullptr,ImGuiWindowFlags_AlwaysAutoResize',ui)
         self.assertIn('"Add Light"',ui)
 

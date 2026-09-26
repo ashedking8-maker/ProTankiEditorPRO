@@ -419,9 +419,11 @@ bool SceneRenderer::CreateStates(std::string& error) {
     if (FAILED(device_->CreateRasterizerState(&rd, &rasterizer_))) { error = "Could not create rasterizer state."; return false; }
     // Only meshes with fully paired opposite-winding UV atlas faces need culling.
     // This avoids painting the underside over the upper face at identical depth.
-    rd.CullMode = D3D11_CULL_BACK;
-    // The source 3DS exterior winding (positive legacy Z on Bridge 1 top)
-    // becomes CCW under the Y-up render basis; preserve that front face.
+    // A 0.5.18 Windows comparison showed this state selected the DARK atlas
+    // side above the Bridge 1 ramp, and the BRIGHT atlas side underneath.
+    // Cull the opposite source winding for this detected paired-face case.
+    // Other legacy models keep their original double-sided rasterizer.
+    rd.CullMode = D3D11_CULL_FRONT;
     rd.FrontCounterClockwise = TRUE;
     if (FAILED(device_->CreateRasterizerState(&rd, &rasterizerPairedAtlas_))) {
         error = "Could not create paired-atlas rasterizer state."; return false;

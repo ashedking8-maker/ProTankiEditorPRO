@@ -98,6 +98,7 @@ class OriginalNativeGeometryAudit(unittest.TestCase):
         self.assertIn('Edit solid/trigger boxes below.',ui)
         self.assertIn('There is no native 3DS or ProTLVK game export yet.',ui)
         self.assertIn('Unverified nonidentity 3DS visual pivot',importer)
-        self.assertIn('3DS box helper conversion is not validated yet',importer)
+        self.assertIn('Missing box corners:',importer)
+        self.assertIn('result.boxes.push_back(out)',importer)
 
 if __name__=='__main__':unittest.main()

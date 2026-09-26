@@ -10,6 +10,7 @@
 #include "VolumePicking.h"
 #include "GameplayAuthoring.h"
 #include "GridStep.h"
+#include <pugixml.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <windows.h>
@@ -107,6 +108,100 @@ void ToolbarToggle(const char* label, bool& value) {
 void HoverHelp(const char* explanation) {
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
         ImGui::SetTooltip("%s", explanation);
+}
+
+// This inspector displays the complete original XML subtree, including unknown
+// attributes and nodes. It is deliberately read-only; no schema inference and
+// no implicit change to the source library or native game export.
+void DrawXmlPropertyNode(pugi::xml_node node, int depth, size_t& shown) {
+    if(!node || depth>24 || shown>=512)return;
+    ++shown;
+    ImGui::PushID(node.internal_object());
+    const auto first=node.first_child();
+    const bool expandable=static_cast<bool>(first) || static_cast<bool>(node.first_attribute());
+    if(expandable) {
+        const bool expanded=ImGui::TreeNodeEx(node.name(), ImGuiTreeNodeFlags_SpanAvailWidth);
+        if(expanded) {
+            for(const auto attribute:node.attributes()) {
+                ImGui::TextWrapped("@%s = %s", attribute.name(),attribute.value());
+                HoverHelp("Original XML attribute; kept unchanged unless explicitly edited by a supported operation.");
+            }
+            for(auto child=node.first_child();child;child=child.next_sibling()) {
+                if(child.type()==pugi::node_element)DrawXmlPropertyNode(child,depth+1,shown);
+                else if(child.type()==pugi::node_pcdata || child.type()==pugi::node_cdata) {
+                    const std::string value=child.value();
+                    if(value.find_first_not_of(" \t\r\n")!=std::string::npos)
+                        ImGui::TextWrapped("%s",value.c_str());
+                }
+            }
+            ImGui::TreePop();
+        }
+    } else {
+        ImGui::TextWrapped("%s",node.name());
+    }
+    ImGui::PopID();
+}
+// A stable preorder path is saved as a draft-only inclusion plan. This does
+// not modify the full original source XML or pretend to be a game exporter.
+void DrawSelectableXmlNode(pugi::xml_node node, const std::string& path,
+                           std::vector<std::string>& excluded,int depth) {
+    if(!node || depth>20 || path.size()>220)return;
+    ImGui::PushID(path.c_str());
+    const bool isRoot=depth==0;
+    const bool protectedNode=isRoot || (std::string(node.name())=="mesh" && depth==1) ||
+        (std::string(node.name())=="sprite" && depth==1);
+    bool enabled=std::find(excluded.begin(),excluded.end(),path)==excluded.end();
+    if(protectedNode)ImGui::BeginDisabled();
+    if(ImGui::Checkbox((std::string("##include_")+node.name()).c_str(),&enabled)) {
+        if(enabled)excluded.erase(std::remove(excluded.begin(),excluded.end(),path),excluded.end());
+        else if(excluded.size()<256)excluded.push_back(path);
+    }
+    if(protectedNode)ImGui::EndDisabled();
+    ImGui::SameLine();
+    const bool open=ImGui::TreeNodeEx(node.name(),ImGuiTreeNodeFlags_SpanAvailWidth);
+    if(open) {
+        for(auto attr:node.attributes()) {
+            const std::string attrPath=path+"/@"+attr.name();
+            const bool protectedAttr=isRoot && std::string(attr.name())=="name" ||
+                (std::string(attr.name())=="file" &&
+                 (std::string(node.name())=="mesh"||std::string(node.name())=="sprite"));
+            bool keep=std::find(excluded.begin(),excluded.end(),attrPath)==excluded.end();
+            ImGui::PushID(attrPath.c_str());
+            if(protectedAttr)ImGui::BeginDisabled();
+            if(ImGui::Checkbox((std::string("@")+attr.name()).c_str(),&keep)) {
+                if(keep)excluded.erase(std::remove(excluded.begin(),excluded.end(),attrPath),excluded.end());
+                else if(excluded.size()<256)excluded.push_back(attrPath);
+            }
+            if(protectedAttr)ImGui::EndDisabled();
+            ImGui::SameLine();ImGui::TextWrapped("= %s",attr.value());
+            ImGui::PopID();
+        }
+        int elementIndex=0;
+        for(auto child=node.first_child();child;child=child.next_sibling()) {
+            if(child.type()==pugi::node_element) {
+                DrawSelectableXmlNode(child,path+"/"+std::to_string(elementIndex++)+":"+child.name(),excluded,depth+1);
+            } else if(child.type()==pugi::node_pcdata || child.type()==pugi::node_cdata) {
+                const std::string value=child.value();
+                if(value.find_first_not_of(" \t\r\n")!=std::string::npos)
+                    ImGui::TextWrapped("Value: %s",value.c_str());
+            }
+        }
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+void DrawRawPropertyTree(const char* label, const std::string& source) {
+    if(!ImGui::TreeNode(label))return;
+    pugi::xml_document doc;
+    if(source.size()>8u*1024u*1024u || !doc.load_buffer(source.data(),source.size(),pugi::parse_default,pugi::encoding_auto)) {
+        ImGui::TextDisabled("Original XML cannot be displayed.");
+    } else {
+        size_t shown=0;
+        for(auto node=doc.first_child();node;node=node.next_sibling())
+            if(node.type()==pugi::node_element)DrawXmlPropertyNode(node,0,shown);
+        if(shown>=512)ImGui::TextDisabled("Display limited to 512 nodes; original source data is retained in full.");
+    }
+    ImGui::TreePop();
 }
 
 bool ToolButton(const char* label, bool active) {
@@ -832,7 +927,7 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     if(visualOnly)SetMessage("Placed "+std::to_string(inserted.size())+" props; "+
         std::to_string(visualOnly)+" explicitly visual-only (tank may pass through them).",true);
     else SetMessage("Placed "+std::to_string(nativeCount)+" props with "+
-        std::to_string(planes)+" native planes and "+std::to_string(triangles)+
+        std::to_string(planes)+" native planes and "+std::to_string(map.CollisionBoxes().size())+" total boxes and "+std::to_string(triangles)+
         " native triangles. Validate new 3DS helper types in ProTLVK.");
 }
 
@@ -1295,6 +1390,8 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Tools")) {
+        if(ImGui::MenuItem("Placement settings...")) showPlacementSettings_=true;
+        ImGui::Separator();
         ImGui::BeginDisabled(); ImGui::MenuItem("Map validator (not implemented)"); ImGui::MenuItem("Profiler (not implemented)"); ImGui::EndDisabled(); ImGui::Separator();
         if (ImGui::MenuItem("Open logs folder")) { Log::Flush(); launchWindowsPath(Log::LogDirectory(),false); }
         if (ImGui::MenuItem("Open current session log")) { Log::Flush(); launchWindowsPath(Log::SessionFile(),true); }
@@ -1307,6 +1404,17 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         ImGui::EndMenu();
     }
     ImGui::EndMenuBar();
+    if(showPlacementSettings_) {
+        ImGui::SetNextWindowSize({445.f,0.f},ImGuiCond_FirstUseEver);
+        if(ImGui::Begin("Placement settings##tools",&showPlacementSettings_,
+                        ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoDocking)) {
+            ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
+            HoverHelp("Only for deliberate visual placement. New unsupported 3DS solids will not receive collision.");
+            ImGui::Checkbox("Allow opaque XML copy for NEXT placement (advanced)",&allowOpaqueMetadataCopy_);
+            HoverHelp("One-shot approval for copying original per-instance XML whose semantics are unknown; never automatically proves gameplay equivalence.");
+        }
+        ImGui::End();
+    }
 }
 
 void EditorUi::DrawToolbar(MapDocument& map, SceneRenderer& scene) {
@@ -1465,19 +1573,6 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
     if (ImGui::Button("Browse Library")) { browseLibraryOpen_=true; axPinned_=false; axTabHeld_=false; }
     ImGui::SameLine();
     if (ImGui::Button("AX")) { axPinned_=!axPinned_; axPinnedOpenedAt_=ImGui::GetTime(); }
-    ImGui::SameLine();
-    if (ImGui::SmallButton("Settings...##library_placement_settings"))
-        ImGui::OpenPopup("Placement settings##library");
-    HoverHelp("Advanced placement options. Normal native collision authoring is automatic and remains enabled by default.");
-    if (ImGui::BeginPopup("Placement settings##library")) {
-        ImGui::TextUnformatted("Advanced placement settings");
-        ImGui::Separator();
-        ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
-        HoverHelp("Opt in only when a solid 3DS asset has unsupported native helpers. The new prop will have no authored tank collision. Normal supported props still receive full collision.");
-        ImGui::Checkbox("Allow opaque XML copy for NEXT placement (advanced)",&allowOpaqueMetadataCopy_);
-        HoverHelp("One-shot approval for copying an existing map instance with unknown original XML fields. Those fields may contain instance-specific IDs or coordinates. This does not validate their meaning in ProTLVK.");
-        ImGui::EndPopup();
-    }
     ImGui::Separator();
     static char search[128]{}; ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##asset_filter", "Search props...", search, sizeof(search)); ImGui::Spacing();
     if (!assets.AssetCount()) {
@@ -1525,6 +1620,7 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
     if (selectedAsset_ >= 0 && static_cast<size_t>(selectedAsset_) < all.size()) {
         const auto& a=all[static_cast<size_t>(selectedAsset_)];
         ImGui::SeparatorText("Preview"); ImGui::Text("%s", a.name.c_str()); ImGui::SameLine(); ImGui::TextDisabled("%s / %s", a.library.c_str(), a.group.c_str());
+        ImGui::Spacing();
         if (!a.textures.empty()) {
             const char* current=a.textures[static_cast<size_t>(std::clamp(selectedTextureVariant_,0,static_cast<int>(a.textures.size())-1))].name.c_str();
             ImGui::SetNextItemWidth(-1);
@@ -1549,6 +1645,10 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Click to rotate");
         CaptureRecentThumbnail(previewScene);
+        if(placementActive_ && !clipboardPlacement_) {
+            ImGui::TextDisabled("Left click: Place object  |  Right click: Cancel");
+            HoverHelp("In the map viewport: left click places this asset; right click cancels. Click the preview itself to rotate it.");
+        }
         // Choosing an asset already starts its cursor-following placement.
         // The preview is a clean, interactive image without duplicate placement controls.
     } else {
@@ -1799,8 +1899,9 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     if (!objectEditorOpen_) return;
     const ImGuiViewport* vp=ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->GetCenter(),ImGuiCond_FirstUseEver,{0.5f,0.5f});
-    ImGui::SetNextWindowSize({std::min(1320.f,vp->WorkSize.x*0.90f),
-        std::min(830.f,vp->WorkSize.y*0.90f)},ImGuiCond_FirstUseEver);
+    // Size follows the current available editor workspace on each opening.
+    // The user can still resize the window after it appears.
+    ImGui::SetNextWindowSize({vp->WorkSize.x*0.94f,vp->WorkSize.y*0.94f},ImGuiCond_Appearing);
     bool windowOpen=true;
     const bool shown=ImGui::Begin("Object Editor##object_editor_0513",&windowOpen,
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoDocking);
@@ -1829,6 +1930,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
                 objectDraft_.templateGroup=asset.group;
                 objectDraft_.templateName=asset.name;
                 objectDraft_.templatePropXml=asset.originalPropXml;
+                objectDraft_.excludedTemplateFields.clear();
                 objectDraft_.libraryTemplateXml=asset.originalLibraryXml;
                 objectDraft_.meshVertices.clear();objectDraft_.meshIndices.clear();objectDraft_.scale=1.f;
                 ResetObjectHistory();objectDirty_=true;objectSelectedVertex_=-1;objectFacePointCount_=0;
@@ -1853,6 +1955,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
                 PushObjectUndo();
                 objectDraft_.templateLibrary=a.library;objectDraft_.templateGroup=a.group;objectDraft_.templateName=a.name;
                 objectDraft_.templatePropXml=a.originalPropXml;objectDraft_.libraryTemplateXml=a.originalLibraryXml;
+                objectDraft_.excludedTemplateFields.clear();
                 objectDirty_=true;
             }
             ImGui::PopID();
@@ -1865,9 +1968,33 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         if(ImGui::SmallButton("Clear source XML template")) {
             PushObjectUndo();objectDraft_.libraryTemplateXml.reset();objectDraft_.templatePropXml.clear();
             objectDraft_.templateLibrary.clear();objectDraft_.templateGroup.clear();objectDraft_.templateName.clear();
+            objectDraft_.excludedTemplateFields.clear();
             objectDirty_=true;
         }
     } else { ImGui::TextDisabled("Template: none"); HoverHelp("A new draft does not inherit native gameplay properties unless a library template is attached."); }
+    if(objectDraft_.libraryTemplateXml && ImGui::CollapsingHeader("Imported library properties (read only)")) {
+        HoverHelp("Displays every original XML field of the selected template, including unrecognized fields. All fields are retained in the source sidecars; the draft does not export a game object.");
+        DrawRawPropertyTree("Selected template <prop>",objectDraft_.templatePropXml);
+        if(ImGui::TreeNode("Choose draft-inherited fields")) {
+            HoverHelp("Unchecked fields are recorded in the isolated draft's selection manifest. Full original XML remains unchanged; native game export is not implemented.");
+            pugi::xml_document source;
+            if(source.load_buffer(objectDraft_.templatePropXml.data(),objectDraft_.templatePropXml.size())) {
+                auto selected=objectDraft_.excludedTemplateFields;
+                DrawSelectableXmlNode(source.child("prop"),"/prop",selected,0);
+                if(selected!=objectDraft_.excludedTemplateFields) {
+                    PushObjectUndo();objectDraft_.excludedTemplateFields=std::move(selected);
+                }
+            } else ImGui::TextDisabled("Template XML could not be parsed for selection.");
+            ImGui::TreePop();
+        }
+        if(ImGui::TreeNode("Original library root attributes")) {
+            pugi::xml_document full;
+            if(full.load_buffer(objectDraft_.libraryTemplateXml->data(),objectDraft_.libraryTemplateXml->size())) {
+                for(auto attr:full.child("library").attributes())ImGui::TextWrapped("@%s = %s",attr.name(),attr.value());
+            }
+            ImGui::TreePop();
+        }
+    }
     // Shared native helper inspector. Draft boxes remain independently editable;
     // GLB-to-game 3DS export is intentionally NOT claimed or silently performed.
     static std::filesystem::path inspectedSource;
@@ -1880,8 +2007,8 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     }
     if(LegacyMeshImport::Lower(objectDraft_.model.extension().string())==".3ds") {
         if(inspectedHelpers.Valid())
-            ImGui::TextColored({.30f,.88f,.50f,1.f},"Native 3DS helpers: %zu planes + %zu triangles (source read-only)",
-                inspectedHelpers.planes.size(),inspectedHelpers.triangles.size());
+            ImGui::TextColored({.30f,.88f,.50f,1.f},"Native 3DS helpers: %zu planes / %zu boxes / %zu triangles",
+                inspectedHelpers.planes.size(),inspectedHelpers.boxes.size(),inspectedHelpers.triangles.size());
         else ImGui::TextWrapped("Native helper import blocked: %s",inspectedHelpers.error.c_str());
         HoverHelp("Custom collision boxes below are separate editable drafts, not a native game export.");
     } else { ImGui::TextDisabled("GLB: collision draft"); HoverHelp("Edit solid/trigger boxes below. There is no native 3DS or ProTLVK game export yet."); }
@@ -2734,6 +2861,20 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
     HoverHelp("Native XML saves positions with three decimals and Z rotation with six decimals.");
     ImGui::Spacing(); ImGui::SeparatorText("Material");
     const auto* asset=assets.Find(p.library,p.group,p.name);
+    // Collision source inspection is file I/O. Cache per selected mesh and
+    // re-check modification time instead of re-parsing a 3DS every UI frame.
+    static std::filesystem::path inspectedCollisionMesh;
+    static std::filesystem::file_time_type inspectedCollisionTimestamp{};
+    static NativeCollisionImport::Result inspectedCollisionInfo;
+    if(asset && !asset->mesh.empty()) {
+        std::error_code ec;
+        const auto timestamp=std::filesystem::last_write_time(asset->mesh,ec);
+        if(asset->mesh!=inspectedCollisionMesh || (ec ? false : timestamp!=inspectedCollisionTimestamp)) {
+            inspectedCollisionMesh=asset->mesh;
+            if(!ec)inspectedCollisionTimestamp=timestamp;
+            inspectedCollisionInfo=NativeCollisionImport::Read(asset->mesh);
+        }
+    }
     if(!p.texture.empty()) {
         ImGui::TextDisabled("Texture: %s",p.texture.c_str());
         HoverHelp("Named texture variant from the original library; the map stores this variant name.");
@@ -2762,22 +2903,22 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
         map.HasVerifiedCollisionForProp(static_cast<size_t>(selected_));
     const bool intentionalSprite=asset&&!asset->sprite.empty();
     if(hasAuthoredCollision) {
-        ImGui::TextColored({.30f,.88f,.50f,1.f},"Native geometry: complete");
+        ImGui::TextUnformatted("Collision: linked");
         HoverHelp("Original supported collision helper set is bound to this map instance. The precise game interaction depends on its surface geometry; it is not inferred from with_collision alone.");
     } else if(intentionalSprite) {
         ImGui::TextDisabled("Decoration: no physical collision");
         HoverHelp("This source is a sprite and is intentionally visual-only. For example a bush can be driven through. It is not a missing solid-wall collider.");
     } else if(asset && !asset->mesh.empty()) {
-        const auto info=NativeCollisionImport::Read(asset->mesh);
+        const auto& info=inspectedCollisionInfo;
         if(info.Valid()) {
-            ImGui::TextColored({1.f,.76f,.35f,1.f},"Native geometry: not bound");
+            ImGui::TextUnformatted("Collision: source helpers found (not linked)");
             HoverHelp("Source helper geometry exists, but this saved instance has not been safely matched to a complete owned collider set. No automatic repair is performed.");
         } else {
-            ImGui::TextColored({1.f,.67f,.38f,1.f},"Native geometry: unsupported");
+            ImGui::TextUnformatted("Collision: needs verification");
             HoverHelp(info.error.c_str());
         }
     } else {
-        ImGui::TextDisabled("Native geometry: unavailable");
+        ImGui::TextUnformatted("Collision: no source geometry available");
         HoverHelp("No supported source mesh or native collision is available for this object.");
     }
     if(p.hasInvalidNativeMetadata) {
@@ -2785,13 +2926,75 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
         HoverHelp("Malformed original native metadata: duplication is blocked, even when opaque XML copy is approved.");
     } else if(p.hasUncopyableMetadata) {
         ImGui::TextColored({1.f,.76f,.35f,1.f},"Unknown XML: copying needs approval");
-        HoverHelp("Unknown original fields may contain per-instance IDs, coordinates or references. They are retained on this instance; duplication needs explicit one-shot approval in Library settings.");
+        HoverHelp("Unknown instance-specific fields are retained. Approve one copy via Tools > Placement settings, or use the contextual button.");
         ImGui::SameLine();
         if(ImGui::SmallButton("Approve next copy##opaque_prop")) allowOpaqueMetadataCopy_=true;
         HoverHelp("Allow one copy of the unknown original XML. This does not validate its meaning in the game.");
     } else {
         ImGui::TextDisabled("Original XML: %s",p.originalPropXml?"retained":"new instance");
         HoverHelp("The original library remains external and unchanged. Original map metadata is preserved when present.");
+    }
+    if(ImGui::CollapsingHeader("All imported object properties")) {
+        HoverHelp("Original library definition and original map instance, including unknown XML attributes and child nodes. Read-only: no game behavior is inferred.");
+        ImGui::Text("Library: %s",p.library.c_str());
+        ImGui::Text("Group: %s",p.group.c_str());
+        ImGui::Text("Object: %s",p.name.c_str());
+        ImGui::Text("Texture variant: %s",p.texture.empty()?"(3DS material / none)":p.texture.c_str());
+        ImGui::Text("Position: %.3f, %.3f, %.3f",p.position.x,p.position.y,p.position.z);
+        ImGui::Text("Rotation: %.6f, %.6f, %.6f",p.rotation.x,p.rotation.y,p.rotation.z);
+        if(asset) {
+            if(!asset->mesh.empty())ImGui::TextWrapped("3DS source: %s",asset->mesh.filename().string().c_str());
+            if(!asset->sprite.empty())ImGui::TextWrapped("Sprite source: %s",asset->sprite.filename().string().c_str());
+            if(!asset->originalPropXml.empty())DrawRawPropertyTree("Original library <prop> (all fields)",asset->originalPropXml);
+        } else ImGui::TextDisabled("Source library definition not found; original map data remains intact.");
+        if(p.originalPropXml)DrawRawPropertyTree("Original map <prop> (all fields)",*p.originalPropXml);
+        else ImGui::TextDisabled("New instance: no original map XML subtree; fields above are the authored values.");
+        if(ImGui::TreeNode("Bound map collision XML values")) {
+            size_t linked=0;
+            for(const auto& c:map.CollisionBoxes())if(c.authoredOwnerIndex==selected_) {
+                ImGui::Text("Box: pos (%.3f, %.3f, %.3f), size (%.3f, %.3f, %.3f)",
+                    c.position.x,c.position.y,c.position.z,c.size.x,c.size.y,c.size.z);++linked;
+            }
+            for(const auto& c:map.CollisionPlanes())if(c.authoredOwnerIndex==selected_) {
+                ImGui::Text("Plane: pos (%.3f, %.3f, %.3f), width %.3f, length %.3f",
+                    c.position.x,c.position.y,c.position.z,c.width,c.length);++linked;
+            }
+            for(const auto& c:map.CollisionTriangles())if(c.authoredOwnerIndex==selected_) {
+                ImGui::Text("Triangle: pos (%.3f, %.3f, %.3f)",c.position.x,c.position.y,c.position.z);++linked;
+            }
+            if(!linked)ImGui::TextDisabled("No safely linked native collision. Original unbound XML is still preserved.");
+            HoverHelp("Collision nodes live outside the object record in original map XML. Unbound primitives cannot safely be attributed to an individual prop.");
+            ImGui::TreePop();
+        }
+        if(asset && !asset->mesh.empty()) {
+            const auto& helpers=inspectedCollisionInfo;
+            if(helpers.Valid()) {
+                ImGui::Text("Source collision helpers: %zu planes, %zu boxes, %zu triangles; %zu occlusion nodes",
+                    helpers.planes.size(),helpers.boxes.size(),helpers.triangles.size(),helpers.occlusionHelpers);
+                HoverHelp("Values come from the original 3DS file. The map XML stores collision separately for each placement.");
+                if(ImGui::TreeNode("Original 3DS helper values")) {
+                    for(size_t i=0;i<helpers.boxes.size();++i) {
+                        const auto& b=helpers.boxes[i];
+                        ImGui::Text("Box %zu: center (%.3f, %.3f, %.3f), size (%.3f, %.3f, %.3f)",i+1,
+                            b.offset.x,b.offset.y,b.offset.z,b.size.x,b.size.y,b.size.z);
+                    }
+                    for(size_t i=0;i<helpers.planes.size();++i) {
+                        const auto& c=helpers.planes[i];
+                        ImGui::Text("Plane %zu: center (%.3f, %.3f, %.3f), width %.3f, length %.3f",i+1,
+                            c.offset.x,c.offset.y,c.offset.z,c.width,c.length);
+                    }
+                    for(size_t i=0;i<helpers.triangles.size();++i) {
+                        const auto& t=helpers.triangles[i];
+                        ImGui::Text("Triangle %zu: center (%.3f, %.3f, %.3f)",i+1,
+                            t.offset.x,t.offset.y,t.offset.z);
+                    }
+                    ImGui::TreePop();
+                }
+            } else {
+                ImGui::TextUnformatted("Source helper inspection incomplete");HoverHelp(helpers.error.c_str());
+            }
+        }
+        ImGui::TextDisabled("Original map and library fields are not silently removed.");
     }
     if(VerifiedCollisionTemplates::Available(p.library,p.group,p.name) &&
        !map.HasVerifiedCollisionForProp(static_cast<size_t>(selected_))) {

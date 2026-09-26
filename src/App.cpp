@@ -34,7 +34,7 @@ bool App::Initialize(HINSTANCE instance, int show) {
     wc.hIconSm = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(101), IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED));
     RegisterClassExW(&wc);
-    hwnd_ = CreateWindowExW(0,wc.lpszClassName,L"ProTanki Editor PRO 0.5.18",WS_OVERLAPPEDWINDOW,100,80,1500,900,nullptr,nullptr,instance,nullptr);
+    hwnd_ = CreateWindowExW(0,wc.lpszClassName,L"ProTanki Editor PRO 0.5.19",WS_OVERLAPPEDWINDOW,100,80,1500,900,nullptr,nullptr,instance,nullptr);
     if (!hwnd_) { Log::Error("CreateWindowExW failed."); return false; }
     RECT r{}; GetClientRect(hwnd_, &r);
     if (!renderer_.Initialize(hwnd_, r.right-r.left, r.bottom-r.top)) { Log::Error("D3D renderer initialization failed."); return false; }
@@ -239,7 +239,7 @@ void App::RefreshTitle() {
     const bool dirty=map_.Dirty();
     if (dirty==lastDirty_) return;
     lastDirty_=dirty;
-    const std::wstring title=L"ProTanki Editor PRO 0.5.18";
+    const std::wstring title=L"ProTanki Editor PRO 0.5.19";
     SetWindowTextW(hwnd_,title.c_str());
 }
 

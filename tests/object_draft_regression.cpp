@@ -39,6 +39,7 @@ int main() {
         "<prop-group name=\"default\"><prop name=\"Wall End 1\" custom=\"unknown\"/>"
         "</prop-group><unknown-game-data/></library>";
     templated.libraryTemplateXml=std::make_shared<const std::string>(libraryBytes);
+    templated.excludedTemplateFields={"/prop/@custom"};
     fs::path templateSaved;
     PT_REQUIRE(ObjectDraft::SaveNew(templated,root,templateSaved,error,originalLibrary));
     PT_REQUIRE(fs::exists(templateSaved/"library-source.xml") &&
@@ -48,7 +49,12 @@ int main() {
     PT_REQUIRE(ObjectDraft::Load(templateSaved,templateReloaded,error));
     PT_REQUIRE(templateReloaded.libraryTemplateXml && *templateReloaded.libraryTemplateXml==libraryBytes);
     PT_REQUIRE(templateReloaded.templatePropXml==templated.templatePropXml);
+    PT_REQUIRE(fs::exists(templateSaved/"library-prop-selection.txt"));
+    PT_REQUIRE(templateReloaded.excludedTemplateFields==templated.excludedTemplateFields);
     PT_REQUIRE(templateReloaded.templateLibrary=="Concrete Walls" && templateReloaded.templateName=="Wall End 1");
+    // Per-field draft selection never strips the raw source snapshots.
+    PT_REQUIRE(templateReloaded.templatePropXml.find("custom=\"unknown\"")!=std::string::npos);
+    PT_REQUIRE(templateReloaded.libraryTemplateXml->find("<unknown-game-data/>")!=std::string::npos);
     PT_REQUIRE(fs::exists(templateSaved/"source.3ds"));
     // Incomplete reference files fail without changing a currently loaded draft.
     fs::remove(templateSaved/"library-prop-template.xml");

@@ -547,15 +547,22 @@ bool MapDocument::AddImportedCollisionForProp(size_t index,const NativeCollision
         c.position=place(shape.offset);c.rotation=shape.rotation;c.rotation.z+=p.rotation.z;
         c.width=shape.width;c.length=shape.length;collisionPlanes_.push_back(c);
     }
+    for(const auto& shape:source.boxes) {
+        CollisionBox c;c.authoredOwnerIndex=static_cast<int>(index);c.transformDirty=true;
+        c.position=place(shape.offset);c.rotation=shape.rotation;c.rotation.z+=p.rotation.z;
+        c.size=shape.size;collisionBoxes_.push_back(c);
+    }
     for(const auto& shape:source.triangles) {
         CollisionTriangle c;c.authoredOwnerIndex=static_cast<int>(index);c.transformDirty=true;
         c.position=place(shape.offset);c.rotation=shape.rotation;c.rotation.z+=p.rotation.z;
         c.v0=shape.v0;c.v1=shape.v1;c.v2=shape.v2;collisionTriangles_.push_back(c);
     }
-    stats_.collisionPlanes=collisionPlanes_.size();stats_.collisionTriangles=collisionTriangles_.size();
+    stats_.collisionPlanes=collisionPlanes_.size();stats_.collisionBoxes=collisionBoxes_.size();
+    stats_.collisionTriangles=collisionTriangles_.size();
     collisionDirty_=dirty_=true;
     Log::Info("3DS native helper collision authored: "+p.library+"/"+p.group+"/"+p.name+
         " planes="+std::to_string(source.planes.size())+
+        " boxes="+std::to_string(source.boxes.size())+
         " triangles="+std::to_string(source.triangles.size())+
         " owner="+std::to_string(index)+" (native game validation still required)");
     return true;
@@ -629,7 +636,7 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
             std::fabs(std::atan2(std::sin(q.rotation.z-p.rotation.z),
                                  std::cos(q.rotation.z-p.rotation.z)))<.002f)return false;
     }
-    std::vector<size_t> planes,triangles;
+    std::vector<size_t> planes,boxes,triangles;
     for(const auto& expected:source.planes) {
         const auto center=place(expected.offset);
         auto rotation=expected.rotation;rotation.z+=p.rotation.z;
@@ -646,6 +653,22 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
         }
         if(found==collisionPlanes_.size()||std::find(planes.begin(),planes.end(),found)!=planes.end())return false;
         planes.push_back(found);
+    }
+    for(const auto& expected:source.boxes) {
+        const auto center=place(expected.offset);
+        const float yaw=expected.rotation.z+p.rotation.z;
+        size_t found=collisionBoxes_.size();
+        for(size_t j=0;j<collisionBoxes_.size();++j) {
+            const auto& c=collisionBoxes_[j];
+            if(c.authoredOwnerIndex>=0||!eq(c.position,center)||!eq(c.size,expected.size)||
+               std::fabs(std::atan2(std::sin(c.rotation.z-yaw),std::cos(c.rotation.z-yaw)))>.002f||
+               std::fabs(c.rotation.x-expected.rotation.x)>.002f||
+               std::fabs(c.rotation.y-expected.rotation.y)>.002f)continue;
+            if(found!=collisionBoxes_.size())return false;
+            found=j;
+        }
+        if(found==collisionBoxes_.size()||std::find(boxes.begin(),boxes.end(),found)!=boxes.end())return false;
+        boxes.push_back(found);
     }
     for(const auto& expected:source.triangles) {
         const auto center=place(expected.offset);
@@ -664,6 +687,7 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
         triangles.push_back(found);
     }
     for(const auto i:planes)collisionPlanes_[i].authoredOwnerIndex=owner;
+    for(const auto i:boxes)collisionBoxes_[i].authoredOwnerIndex=owner;
     for(const auto i:triangles)collisionTriangles_[i].authoredOwnerIndex=owner;
     return true;
 }

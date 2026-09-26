@@ -60,6 +60,9 @@ struct Document {
     // a newly exported ProTLVK object (native export remains disabled).
     std::string templateLibrary, templateGroup, templateName, templatePropXml;
     std::shared_ptr<const std::string> libraryTemplateXml;
+    // Draft-only inclusion choices. The original XML sidecars remain complete;
+    // no game-native export is implied by these selections.
+    std::vector<std::string> excludedTemplateFields;
 };
 inline bool ValidBox(const Box& b) {
     for (int i=0;i<3;++i)
@@ -111,6 +114,13 @@ inline bool Validate(const Document& d, std::string& error) {
         d.templatePropXml.empty() || d.templatePropXml.size()>2u*1024u*1024u ||
         d.templateLibrary.empty() || d.templateName.empty())) {
         error="Incomplete or oversized original library template.";return false;
+    }
+    if(d.excludedTemplateFields.size()>256 || (!hasTemplate && !d.excludedTemplateFields.empty())) {
+        error="Invalid draft template selection.";return false;
+    }
+    for(const auto& field:d.excludedTemplateFields) if(field.empty()||field.size()>256||
+        field.find('\n')!=std::string::npos||field.find('\r')!=std::string::npos) {
+        error="Invalid draft template field path.";return false;
     }
     if(!hasTemplate && (!d.templatePropXml.empty() || !d.templateLibrary.empty() ||
         !d.templateGroup.empty() || !d.templateName.empty())) {
@@ -204,6 +214,13 @@ inline bool SaveNew(const Document& d,const fs::path& root,fs::path& saved,std::
                << std::quoted(d.templateName) << '\n';
         raw.flush();prop.flush();origin.flush();
         if(!raw || !prop || !origin) {cleanup();error="Could not store complete library template sidecars.";return false;}
+        if(!d.excludedTemplateFields.empty()) {
+            std::ofstream selection(temp/"library-prop-selection.txt",std::ios::binary|std::ios::trunc);
+            selection << "PROTANKI_TEMPLATE_SELECTION 1 " << d.excludedTemplateFields.size() << '\n';
+            for(const auto& field:d.excludedTemplateFields) selection << std::quoted(field) << '\n';
+            selection.flush();
+            if(!selection) {cleanup();error="Could not store draft template selection.";return false;}
+        }
     }
     ec.clear();fs::rename(temp,final,ec);
     if(ec) {cleanup();error="Could not finalize draft: "+ec.message();return false;}
@@ -294,6 +311,25 @@ inline bool Load(const fs::path& folder, Document& result,std::string& error) {
         }
         doc.libraryTemplateXml=std::make_shared<const std::string>(sourceBuffer.str());
         doc.templatePropXml=propBuffer.str();
+        const auto selectionSidecar=folder/"library-prop-selection.txt";
+        ec.clear();
+        if(fs::exists(selectionSidecar,ec)) {
+            if(ec || !fs::is_regular_file(selectionSidecar,ec) ||
+                fs::file_size(selectionSidecar,ec)>70000u || ec) {
+                error="Invalid template selection sidecar.";return false;
+            }
+            std::ifstream selection(selectionSidecar,std::ios::binary);
+            std::string marker;int format{};size_t fields{};
+            if(!(selection>>marker>>format>>fields) || marker!="PROTANKI_TEMPLATE_SELECTION" ||
+                format!=1 || fields>256) {error="Invalid template selection manifest.";return false;}
+            for(size_t i=0;i<fields;++i) {
+                std::string field;
+                if(!(selection>>std::quoted(field))) {error="Truncated template selection manifest.";return false;}
+                doc.excludedTemplateFields.push_back(std::move(field));
+            }
+            std::string trailing;
+            if(selection>>trailing) {error="Extra template selection data.";return false;}
+        } else if(ec) {error="Cannot inspect template selection sidecar.";return false;}
     }
     if(!Validate(doc,error))return false;
     result=std::move(doc);error.clear();return true;

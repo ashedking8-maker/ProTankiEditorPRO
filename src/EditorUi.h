@@ -59,6 +59,7 @@ private:
     float viewportBackground_[3]{0.055f,0.073f,0.10f};
     float viewportGridColor_[3]{0.52f,0.56f,0.60f};
     bool showCustomThemePopup_{};
+    bool showPlacementSettings_{}; // Tools > Placement settings
     bool allowVisualOnlyPlacement_{}; // explicit opt-in; no silent pass-through walls
     bool allowOpaqueMetadataCopy_{}; // next-placement approval; auto-resets, never a gameplay property
     bool collisionBindingsPending_{true};
