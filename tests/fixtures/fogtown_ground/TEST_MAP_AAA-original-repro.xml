@@ -1,0 +1,455 @@
+<map version="1.0.Light">
+  <static-geometry>
+    <prop library-name="Fogtown" group-name="l" name="t22">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>g22 2</texture-name>
+      <position>
+        <x>0.000</x>
+        <y>0.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t22">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>g22 2</texture-name>
+      <position>
+        <x>0.000</x>
+        <y>1000.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t22">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>g22 2</texture-name>
+      <position>
+        <x>1000.000</x>
+        <y>0.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t22">
+      <rotation>
+        <z>1.570796</z>
+      </rotation>
+      <texture-name>g22 2</texture-name>
+      <position>
+        <x>1000.000</x>
+        <y>-1000.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t22">
+      <rotation>
+        <z>1.570796</z>
+      </rotation>
+      <texture-name>g22 2</texture-name>
+      <position>
+        <x>0.000</x>
+        <y>-1000.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Defense" group-name="trench" name="tren1">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name/>
+      <position>
+        <x>-750.000</x>
+        <y>1000.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Defense" group-name="trench" name="tren1">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name/>
+      <position>
+        <x>-750.000</x>
+        <y>400.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Defense" group-name="trench" name="tren1">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name/>
+      <position>
+        <x>-750.000</x>
+        <y>-200.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="NuBu 2 Winter" group-name="default" name="NuBu 2">
+      <rotation>
+        <z>3.141593</z>
+      </rotation>
+      <texture-name/>
+      <position>
+        <x>2300.000</x>
+        <y>500.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t11">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>as11 1</texture-name>
+      <position>
+        <x>-200.000</x>
+        <y>-1200.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t11">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>as11 1</texture-name>
+      <position>
+        <x>-200.000</x>
+        <y>-700.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t11">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>as11 1</texture-name>
+      <position>
+        <x>0.000</x>
+        <y>900.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t11">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>as11 1</texture-name>
+      <position>
+        <x>300.000</x>
+        <y>900.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t11">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>as11 1</texture-name>
+      <position>
+        <x>300.000</x>
+        <y>1200.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t11">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <texture-name>as11 1</texture-name>
+      <position>
+        <x>0.000</x>
+        <y>1100.000</y>
+        <z>0.500</z>
+      </position>
+    </prop>
+  </static-geometry>
+  <collision-geometry>
+    <collision-plane id="0">
+      <width>518.809</width>
+      <length>420.000</length>
+      <position>
+        <x>-750.000</x>
+        <y>1000.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>-0.270094</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="0">
+      <width>518.809</width>
+      <length>420.000</length>
+      <position>
+        <x>-750.000</x>
+        <y>400.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>-0.270094</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="0">
+      <width>518.809</width>
+      <length>420.000</length>
+      <position>
+        <x>-750.000</x>
+        <y>-200.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>-0.270094</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-plane>
+    <collision-box id="0">
+      <size>
+        <x>500.000</x>
+        <y>40.000</y>
+        <z>138.430</z>
+      </size>
+      <position>
+        <x>-750.000</x>
+        <y>770.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>500.000</x>
+        <y>40.000</y>
+        <z>138.430</z>
+      </size>
+      <position>
+        <x>-750.000</x>
+        <y>1230.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>500.000</x>
+        <y>40.000</y>
+        <z>138.430</z>
+      </size>
+      <position>
+        <x>-750.000</x>
+        <y>170.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>500.000</x>
+        <y>40.000</y>
+        <z>138.430</z>
+      </size>
+      <position>
+        <x>-750.000</x>
+        <y>630.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>500.000</x>
+        <y>40.000</y>
+        <z>138.430</z>
+      </size>
+      <position>
+        <x>-750.000</x>
+        <y>-430.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>500.000</x>
+        <y>40.000</y>
+        <z>138.430</z>
+      </size>
+      <position>
+        <x>-750.000</x>
+        <y>30.000</y>
+        <z>-68.715</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>0.000000</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>400.000</x>
+        <y>800.000</y>
+        <z>1150.000</z>
+      </size>
+      <position>
+        <x>1700.000</x>
+        <y>-900.000</y>
+        <z>575.500</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>3.141593</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>550.000</x>
+        <y>700.000</y>
+        <z>800.000</z>
+      </size>
+      <position>
+        <x>2875.000</x>
+        <y>250.000</y>
+        <z>400.500</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>3.141593</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>400.000</x>
+        <y>800.000</y>
+        <z>1150.000</z>
+      </size>
+      <position>
+        <x>1700.000</x>
+        <y>1400.000</y>
+        <z>575.500</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>3.141593</z>
+      </rotation>
+    </collision-box>
+    <collision-box id="0">
+      <size>
+        <x>700.000</x>
+        <y>3100.000</y>
+        <z>1150.000</z>
+      </size>
+      <position>
+        <x>2250.000</x>
+        <y>250.000</y>
+        <z>575.500</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>3.141593</z>
+      </rotation>
+    </collision-box>
+  </collision-geometry>
+  <spawn-points>
+    <spawn-point type="blue">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <position>
+        <x>971.000</x>
+        <y>-936.000</y>
+        <z>101.000</z>
+      </position>
+    </spawn-point>
+    <spawn-point type="red">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <position>
+        <x>341.000</x>
+        <y>-823.000</y>
+        <z>201.000</z>
+      </position>
+    </spawn-point>
+    <spawn-point type="dm">
+      <rotation>
+        <z>0.000000</z>
+      </rotation>
+      <position>
+        <x>-60.000</x>
+        <y>827.000</y>
+        <z>101.000</z>
+      </position>
+    </spawn-point>
+  </spawn-points>
+  <ctf-flags>
+    <flag-blue>
+      <x>835.000</x>
+      <y>127.000</y>
+      <z>1.000</z>
+    </flag-blue>
+    <flag-red>
+      <x>-21.000</x>
+      <y>109.000</y>
+      <z>1.000</z>
+    </flag-red>
+  </ctf-flags>
+  <dom-keypoints/>
+  <bonus-regions>
+    <bonus-region parachute="true" free="true" name="free-bonus">
+      <rotation>
+        <z>0.000</z>
+      </rotation>
+      <min>
+        <x>-350.000</x>
+        <y>150.000</y>
+        <z>400.000</z>
+      </min>
+      <max>
+        <x>150.000</x>
+        <y>650.000</y>
+        <z>700.000</z>
+      </max>
+      <position>
+        <x>-350.000</x>
+        <y>150.000</y>
+        <z>400.000</z>
+      </position>
+      <bonus-type>armorup</bonus-type>
+      <game-mode>dm</game-mode>
+    </bonus-region>
+  </bonus-regions>
+  <special-geometry/>
+  <lights/>
+  <way-points/>
+</map>

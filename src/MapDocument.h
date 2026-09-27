@@ -1,5 +1,6 @@
 #pragma once
 #include <DirectXMath.h>
+#include <array>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -120,6 +121,14 @@ public:
     bool AddVerifiedCollisionForProp(size_t index);
     bool HasVerifiedCollisionForProp(size_t index) const;
     bool HasNativeCollisionForProp(size_t index) const;
+    // Map-verified helperless Fogtown floors. The UI validates each original
+    // 3DS mesh against its certified source-map footprint before calling these.
+    bool HasVerifiedGroundSurfaceForProp(size_t index) const;
+    bool AddVerifiedGroundSurfaceForProp(size_t index);
+    // Uses one spatial pass, not O(props * collision planes), on large maps.
+    // permitted[] is true only after verifying the matching external source 3DS.
+    bool RepairVerifiedGroundSurfaces(const std::array<bool,6>& permitted,
+                                      size_t& added,size_t& unresolved);
     // Generic 3DS plane/triangle helper path. Never manufactures geometry from
     // the visible mesh; refuses existing legacy props without a safe binding.
     bool AddImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source);
@@ -176,6 +185,7 @@ public:
 private:
     bool SerializeLegacy(std::string& xml, std::string& error) const;
     void BindVerifiedCollisionOwners();
+    void BindVerifiedGroundOwners();
 
     std::filesystem::path path_;
     std::string version_;

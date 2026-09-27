@@ -83,7 +83,7 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
+  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
   src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -275,6 +275,21 @@ if(BUILD_TESTING)
   add_test(NAME NativeCollisionAuthoring COMMAND NativeCollisionAuthoringRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/beach_wall_end2_reference.xml")
 
+
+  add_executable(VerifiedGroundCollisionRegression
+    tests/verified_ground_regression.cpp
+    src/MapDocument.cpp src/MapDocument.h src/VerifiedGroundCollision.h
+    src/Logger.cpp src/Logger.h)
+  target_include_directories(VerifiedGroundCollisionRegression PRIVATE src)
+  target_link_libraries(VerifiedGroundCollisionRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(VerifiedGroundCollisionRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(MSVC)
+    target_compile_options(VerifiedGroundCollisionRegression PRIVATE /W4 /permissive- /utf-8)
+  endif()
+  add_test(NAME SourceVerifiedFogtownGroundAndRoundTrip COMMAND VerifiedGroundCollisionRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_ground"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_ground/original_fogtown_ground_six.xml"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_ground/TEST_MAP_AAA-original-repro.xml")
 
   add_executable(GeometryEdgeSnapRegression tests/geometry_snap_regression.cpp src/GeometrySnap.h)
   target_include_directories(GeometryEdgeSnapRegression PRIVATE src)

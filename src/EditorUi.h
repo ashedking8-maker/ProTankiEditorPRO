@@ -66,6 +66,7 @@ private:
     bool allowVisualOnlyPlacement_{}; // explicit opt-in; no silent pass-through walls
     bool allowOpaqueMetadataCopy_{}; // next-placement approval; auto-resets, never a gameplay property
     bool collisionBindingsPending_{true};
+    const AssetRegistry* saveAssets_{}; // source validation for save-time ground repair
     bool showBackgroundPopup_{};
     bool bugReportOpen_{};
     bool bugReportAttachLogs_{}; // privacy: opt-in, not checked by default

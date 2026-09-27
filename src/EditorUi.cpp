@@ -7,6 +7,7 @@
 #include <chrono>
 #include "VerifiedCollisionTemplates.h"
 #include "NativeCollisionImport.h"
+#include "VerifiedGroundCollision.h"
 #include "Theme.h"
 #include "Logger.h"
 #include "SplashScreen.h"
@@ -882,8 +883,37 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         explanation="Native authoring is available only for supported original 3DS helper geometry.";
         return false;
     }
+    // Original Fogtown ground uses separate map XML planes, not 3DS helpers.
+    // Its authored footprint is certified against the complete source map AND
+    // verified against the user's current 3DS geometry before writing anything.
+    const auto* ground=VerifiedGroundCollision::Find(prop.library,prop.group,prop.name);
+    if(ground) {
+        const auto proof=VerifiedGroundCollision::Inspect(asset->mesh,ground);
+        if(!proof.matchesNativeReference) {
+            explanation="Source-verified floor cannot be authored: "+proof.reason;
+            return false;
+        }
+        if(!map.AddVerifiedGroundSurfaceForProp(index)) {
+            explanation="Ground plane already exists or overlaps an indistinguishable placement; duplicate refused.";
+            return false;
+        }
+        explanation="Original Fogtown verified ground XML: one owned native collision plane.";
+        return true;
+    }
     const auto imported=NativeCollisionImport::Read(asset->mesh);
-    if(!imported.Valid()) {explanation=imported.error;return false;}
+    if(!imported.Valid()) {
+        // General protection: helperless rectangular 3DS might be a floor or
+        // a deliberate roof/decal. Never silently turn it into pass-through
+        // terrain. User must explicitly choose visual-only when unsupported.
+        if(imported.error==NativeCollisionImport::NoNativeHelpersError) {
+            const auto probe=VerifiedGroundCollision::Inspect(asset->mesh);
+            if(probe.flatRectangle) {
+                explanation="Flat ground-like 3DS has no verified native collision template; enable visual-only explicitly or provide a source-map reference.";
+                return false;
+            }
+        }
+        explanation=imported.error;return false;
+    }
     if(!map.AddImportedCollisionForProp(index,imported)) {
         explanation="Native helper collision refused (overlapping duplicate or unsupported transform).";
         return false;
@@ -935,7 +965,10 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
                 failure=pending.name+": copied original <with_collision>1</with_collision> but no complete new collider set ("+info+")";
                 break;
             }
-            if(!allowVisualOnlyPlacement_ && !intentionalSprite && !originalWithoutHelpers) {
+            const bool candidateMissingFloor=info.find("Flat ground-like 3DS")!=std::string::npos;
+            const bool confirmedGround=VerifiedGroundCollision::Find(pending.library,pending.group,pending.name)!=nullptr;
+            if(!allowVisualOnlyPlacement_ && !intentionalSprite &&
+               (!originalWithoutHelpers || candidateMissingFloor || confirmedGround)) {
                 failure=pending.name+": "+info;break;
             }
             ++visualOnly;
@@ -1001,10 +1034,41 @@ bool EditorUi::Save(MapDocument& map, bool saveAs) {
     if (map.Path().empty()) saveAs = true;
     std::filesystem::path destination = map.Path();
     if (saveAs) { destination = saveXml(GetActiveWindow(), map.Path()); if (destination.empty()) return false; }
+    // Save-time safety net repairs old editor exports as well as fresh placement.
+    // No source library => never assume a mesh still matches an old template.
+    static constexpr const char* verifiedGroundNames[]={"t11","t21","t22","t32","t33","t55"};
+    std::array<bool,6> certified{};
+    for(size_t i=0;i<certified.size();++i)if(saveAssets_) {
+        const auto* asset=saveAssets_->Find("Fogtown","l",verifiedGroundNames[i]);
+        if(asset&&!asset->mesh.empty()) {
+            const auto* spec=VerifiedGroundCollision::Find("Fogtown","l",verifiedGroundNames[i]);
+            certified[i]=VerifiedGroundCollision::Inspect(asset->mesh,spec).matchesNativeReference;
+        }
+    }
+    MapDocument beforeRepair=map;
+    size_t repaired=0,missing=0;
+    if(!map.RepairVerifiedGroundSurfaces(certified,repaired,missing)) {
+        map=std::move(beforeRepair);
+        const std::string why="Save blocked: "+std::to_string(missing)+
+            " verified Fogtown ground tile(s) still have no matching collision plane. Select the original matching game library; incorrect or missing 3DS is not trusted.";
+        Log::Warning(why);SetMessage(why,true);
+        return false;
+    }
     std::string error;
     const bool ok = saveAs ? map.SaveLegacyAs(destination, error) : map.SaveLegacy(error);
-    if (ok) { Log::Info("UI save succeeded: " + Log::PathUtf8(map.Path())); SetMessage("Legacy-compatible map saved: " + map.Path().filename().string()); }
-    else { Log::Error("UI save failed: " + error); SetMessage(error, true); }
+    if (ok) {
+        if(repaired) {
+            history_.PushSnapshot(std::move(beforeRepair),map);
+            RequestSceneRebuild(true);
+            Log::Info("Save preflight restored "+std::to_string(repaired)+" original-map verified ground planes.");
+        }
+        Log::Info("UI save succeeded: " + Log::PathUtf8(map.Path()));
+        SetMessage("Map saved: "+map.Path().filename().string()+
+            (repaired?"; auto-repaired "+std::to_string(repaired)+" missing ground planes.":"; verified Fogtown ground preflight passed."));
+    } else {
+        map=std::move(beforeRepair);
+        Log::Error("UI save failed: " + error); SetMessage(error, true);
+    }
     return ok;
 }
 
@@ -1266,6 +1330,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
 }
 
 void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scene, SceneRenderer& previewScene) {
+    saveAssets_=&assets; // current manually selected library, never a guessed external path
     // The previous ImGui draw list has already been submitted. Release only
     // Browse GPU views now, not mid-frame while a thumbnail may still be drawn.
     if (browseWasOpen_ && !browseLibraryOpen_) {
@@ -3224,12 +3289,20 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
         HoverHelp("Resolved from the original 3DS material; an empty map texture variant is not a fallback texture.");
     }
     ImGui::Spacing(); ImGui::SeparatorText("Collision");
+    const auto* verifiedGround=VerifiedGroundCollision::Find(p.library,p.group,p.name);
+    const bool hasGroundSurface=verifiedGround && map.HasVerifiedGroundSurfaceForProp(static_cast<size_t>(selected_));
     const bool hasAuthoredCollision=map.HasNativeCollisionForProp(static_cast<size_t>(selected_)) ||
         map.HasVerifiedCollisionForProp(static_cast<size_t>(selected_));
     const bool intentionalSprite=asset&&!asset->sprite.empty();
     if(hasAuthoredCollision) {
         ImGui::TextUnformatted("Collision: linked");
         HoverHelp("Original supported collision helper set is bound to this map instance. The precise game interaction depends on its surface geometry; it is not inferred from with_collision alone.");
+    } else if(hasGroundSurface) {
+        ImGui::TextUnformatted("Collision: native map ground plane present");
+        HoverHelp("Exact original-map verified floor footprint exists in XML. Old source XML planes may be unbound; the editor preserves them.");
+    } else if(verifiedGround) {
+        ImGui::TextColored({1.f,.75f,.34f,1.f},"Ground collision: MISSING (tank can fall through)");
+        HoverHelp("This Fogtown ground identity has an original-game verified floor template. Save with the matching library selected to auto-repair it.");
     } else if(intentionalSprite) {
         ImGui::TextDisabled("Decoration: no physical collision");
         HoverHelp("This source is a sprite and is intentionally visual-only. For example a bush can be driven through. It is not a missing solid-wall collider.");
@@ -3320,6 +3393,20 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
             }
         }
         ImGui::TextDisabled("Original map and library fields are not silently removed.");
+    }
+    if(verifiedGround && !hasGroundSurface) {
+        if(ImGui::Button("Repair missing native ground plane")) {
+            const auto proof=asset&&!asset->mesh.empty()?VerifiedGroundCollision::Inspect(asset->mesh,verifiedGround):VerifiedGroundCollision::Probe{};
+            if(!proof.matchesNativeReference)SetMessage("Ground repair blocked: original 3DS geometry is missing or does not match source map.",true);
+            else {
+                MapDocument before=map;
+                if(map.AddVerifiedGroundSurfaceForProp(static_cast<size_t>(selected_))) {
+                    history_.PushSnapshot(std::move(before),map);RequestSceneRebuild(true);
+                    SetMessage("Original-game verified ground plane added. Save and test in ProTLVK.");
+                } else SetMessage("Ground repair blocked: ambiguous identical prop or existing floor. Inspect Geometry view.",true);
+            }
+        }
+        HoverHelp("Adds only the exact native plane demonstrated by original Fogtown. Other assets are not assigned fictional colliders.");
     }
     if(VerifiedCollisionTemplates::Available(p.library,p.group,p.name) &&
        !map.HasVerifiedCollisionForProp(static_cast<size_t>(selected_))) {

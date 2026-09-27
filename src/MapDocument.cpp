@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "VerifiedCollisionTemplates.h"
 #include "NativeCollisionImport.h"
+#include "VerifiedGroundCollision.h"
 #include <pugixml.hpp>
 #include <windows.h>
 #include <algorithm>
@@ -10,6 +11,10 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <unordered_set>
+#include <unordered_map>
+#include <limits>
+#include <cstdint>
 #include <sstream>
 
 namespace {
@@ -255,6 +260,7 @@ bool MapDocument::Load(const std::filesystem::path& file, std::string& error) {
 
     dirty_ = false;
     BindVerifiedCollisionOwners();
+    BindVerifiedGroundOwners();
     Log::Info("Map load complete. version=" + version_ + " props=" + std::to_string(stats_.props) +
         " collisionPlanes=" + std::to_string(stats_.collisionPlanes) + " collisionBoxes=" + std::to_string(stats_.collisionBoxes) +
         " collisionTriangles=" + std::to_string(stats_.collisionTriangles) + " spawns=" + std::to_string(stats_.spawnPoints) +
@@ -334,6 +340,11 @@ bool MapDocument::SetPropTransform(size_t index, const DirectX::XMFLOAT3& positi
     const bool changed = p.position.x != position.x || p.position.y != position.y || p.position.z != position.z ||
         p.rotation.x != rotation.x || p.rotation.y != rotation.y || p.rotation.z != rotation.z;
     if (!changed) return true;
+    if(VerifiedGroundCollision::Find(p.library,p.group,p.name) &&
+       HasVerifiedGroundSurfaceForProp(index) && !HasNativeCollisionForProp(index)) {
+        Log::Warning("Ground transform refused: original XML plane has ambiguous/unbound ownership.");
+        return false;
+    }
     // Match only colliders with the exact OLD prop origin and no second prop at
     // that location. The source format has no explicit prop/collider relation:
     // never guess a match on proximity or a triangle's zero local origin.
@@ -453,6 +464,17 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
     auto same=[&](const DirectX::XMFLOAT3& a,const DirectX::XMFLOAT3& b) {
         return std::fabs(a.x-b.x)<=0.1f && std::fabs(a.y-b.y)<=0.1f && std::fabs(a.z-b.z)<=0.1f;
     };
+    // Refuse partial deletion when a source floor has ambiguous ownership.
+    // It could otherwise leave a ghost plane or erase a shared floor.
+    for(const auto i:indices) {
+        const auto& p=props_[i];
+        if(p.legacySourceIndex>=0&&VerifiedGroundCollision::Find(p.library,p.group,p.name)&&
+           HasVerifiedGroundSurfaceForProp(i)&&!HasNativeCollisionForProp(i)) {
+            reason="Deletion blocked: source ground plane for prop "+std::to_string(i)+
+                " is shared or ambiguously owned. Inspect Geometry before editing.";
+            Log::Warning(reason);return false;
+        }
+    }
     std::vector<size_t> planes,boxes;
     size_t sharedOrigins=0;
     // A shared collider remains while another visual prop at that position
@@ -519,6 +541,153 @@ bool MapDocument::HasNativeCollisionForProp(size_t index) const {
         return std::any_of(list.begin(),list.end(),[&](const auto& c){return c.authoredOwnerIndex==owner;});
     };
     return owned(collisionPlanes_)||owned(collisionBoxes_)||owned(collisionTriangles_);
+}
+
+// Source ground format: one upright collision-plane, independent of its visual
+// prop. Match by world centre, both side lengths and yaw modulo pi (a plane's
+// 180-degree orientation is the same physical rectangle). Never match by an
+// arbitrary "nearest" plane, and never invent a box around an unknown mesh.
+namespace {
+using GroundSpec=VerifiedGroundCollision::Spec;
+constexpr float GroundYawOffset=-1.5707963267948966f;
+DirectX::XMFLOAT3 groundCenter(const PropInstance& p,const GroundSpec& spec) {
+    const float cs=std::cos(p.rotation.z),sn=std::sin(p.rotation.z);
+    return {p.position.x+cs*spec.x-sn*spec.y,
+            p.position.y+sn*spec.x+cs*spec.y,p.position.z+spec.z};
+}
+bool floorPlaneMatch(const CollisionPlane& plane,const DirectX::XMFLOAT3& at,
+                     const GroundSpec& spec,float yaw) {
+    return std::fabs(plane.position.x-at.x)<.09f&&
+        std::fabs(plane.position.y-at.y)<.09f&&std::fabs(plane.position.z-at.z)<.09f&&
+        std::fabs(plane.width-spec.width)<.09f&&std::fabs(plane.length-spec.length)<.09f&&
+        std::fabs(plane.rotation.x)<.003f&&std::fabs(plane.rotation.y)<.003f&&
+        std::fabs(std::sin(plane.rotation.z-yaw-GroundYawOffset))<.003f;
+}
+std::string floorKey(const DirectX::XMFLOAT3& at,float w,float l,float yaw) {
+    // Native XML saves coordinates to 0.001, angles to 0.000001. Deci-units
+    // avoid rounding drift across save/reload; 2*yaw identifies axes modulo pi.
+    const auto q=[](double v) {return std::to_string(std::llround(v));};
+    return q(at.x*10.)+":"+q(at.y*10.)+":"+q(at.z*10.)+":"+
+        q(w*10.)+":"+q(l*10.)+":"+
+        q(std::sin(2.*yaw)*1000.)+":"+q(std::cos(2.*yaw)*1000.);
+}
+}
+
+void MapDocument::BindVerifiedGroundOwners() {
+    // An original map stores planes outside props. Bind a plane only when the
+    // complete, exact source-map shape has ONE possible floor owner and ONE
+    // matching plane. This protects legacy move/delete and post-save reloads.
+    std::unordered_map<std::string,std::vector<size_t>> planes;
+    planes.reserve(collisionPlanes_.size());
+    for(size_t i=0;i<collisionPlanes_.size();++i) {
+        const auto& c=collisionPlanes_[i];
+        if(c.authoredOwnerIndex>=0||std::fabs(c.rotation.x)>.003f||
+           std::fabs(c.rotation.y)>.003f||c.width<=0||c.length<=0)continue;
+        planes[floorKey(c.position,c.width,c.length,c.rotation.z)].push_back(i);
+    }
+    std::unordered_map<std::string,std::vector<size_t>> possible;
+    possible.reserve(props_.size());
+    for(size_t i=0;i<props_.size();++i) {
+        const auto& p=props_[i];
+        const auto* spec=VerifiedGroundCollision::Find(p.library,p.group,p.name);
+        if(!spec||std::fabs(p.rotation.x)>.0001f||std::fabs(p.rotation.y)>.0001f)continue;
+        possible[floorKey(groundCenter(p,*spec),spec->width,spec->length,
+                          p.rotation.z+GroundYawOffset)].push_back(i);
+    }
+    size_t bound=0;
+    for(const auto& pair:possible) {
+        const auto& options=pair.second;
+        const auto iter=planes.find(pair.first);
+        if(options.size()!=1||iter==planes.end()||iter->second.size()!=1)continue;
+        const size_t propIndex=options.front(),planeIndex=iter->second.front();
+        const auto& p=props_[propIndex];
+        const auto* spec=VerifiedGroundCollision::Find(p.library,p.group,p.name);
+        if(!spec||!floorPlaneMatch(collisionPlanes_[planeIndex],groundCenter(p,*spec),*spec,p.rotation.z))continue;
+        collisionPlanes_[planeIndex].authoredOwnerIndex=static_cast<int>(propIndex);
+        ++bound;
+    }
+    if(bound)Log::Info("Original-map verified ground collision ownership rebound: "+std::to_string(bound)+" floor props.");
+}
+
+bool MapDocument::HasVerifiedGroundSurfaceForProp(size_t index) const {
+    if(index>=props_.size())return false;
+    const auto& p=props_[index];
+    const auto* spec=VerifiedGroundCollision::Find(p.library,p.group,p.name);
+    if(!spec||std::fabs(p.rotation.x)>.0001f||std::fabs(p.rotation.y)>.0001f)return false;
+    const auto center=groundCenter(p,*spec);
+    for(const auto& plane:collisionPlanes_)if(floorPlaneMatch(plane,center,*spec,p.rotation.z))return true;
+    return false;
+}
+
+bool MapDocument::AddVerifiedGroundSurfaceForProp(size_t index) {
+    if(index>=props_.size())return false;
+    const auto& p=props_[index];
+    const auto* spec=VerifiedGroundCollision::Find(p.library,p.group,p.name);
+    if(!spec||std::fabs(p.rotation.x)>.0001f||std::fabs(p.rotation.y)>.0001f||
+       HasVerifiedGroundSurfaceForProp(index))return false;
+    const auto center=groundCenter(p,*spec);
+    // Do not create two indistinguishable owners for an identical prop.
+    for(size_t other=0;other<props_.size();++other)if(other!=index) {
+        const auto& q=props_[other];
+        if(q.library==p.library&&q.group==p.group&&q.name==p.name&&
+           std::fabs(q.position.x-p.position.x)<.01f&&
+           std::fabs(q.position.y-p.position.y)<.01f&&
+           std::fabs(q.position.z-p.position.z)<.01f&&
+           std::fabs(std::sin(q.rotation.z-p.rotation.z))<.001f)return false;
+    }
+    CollisionPlane plane;
+    plane.position=center;plane.rotation={0,0,p.rotation.z+GroundYawOffset};
+    plane.width=spec->width;plane.length=spec->length;
+    plane.authoredOwnerIndex=static_cast<int>(index);plane.transformDirty=true;
+    collisionPlanes_.push_back(plane);
+    stats_.collisionPlanes=collisionPlanes_.size();collisionDirty_=dirty_=true;
+    Log::Info("Original-map verified ground plane authored: "+p.library+"/"+p.group+"/"+p.name+
+        " owner="+std::to_string(index)+" size="+std::to_string(plane.width)+"x"+
+        std::to_string(plane.length));
+    return true;
+}
+
+bool MapDocument::RepairVerifiedGroundSurfaces(const std::array<bool,6>& permitted,
+                                                size_t& added,size_t& unresolved) {
+    added=0;unresolved=0;
+    std::unordered_set<std::string> existing;
+    existing.reserve(collisionPlanes_.size()*2+1);
+    for(const auto& c:collisionPlanes_)if(std::fabs(c.rotation.x)<.003f&&
+       std::fabs(c.rotation.y)<.003f&&c.width>0&&c.length>0)
+        existing.insert(floorKey(c.position,c.width,c.length,c.rotation.z));
+    // One linear pass to detect shared candidate footprints. Calling the
+    // interactive one-object helper for every tile would be O(N^2) on a large
+    // imported Fogtown map and could stall Save/Save As.
+    std::unordered_map<std::string,size_t> expectedCounts;
+    expectedCounts.reserve(props_.size());
+    for(const auto& p:props_) {
+        const auto* spec=VerifiedGroundCollision::Find(p.library,p.group,p.name);
+        if(!spec||std::fabs(p.rotation.x)>.0001f||std::fabs(p.rotation.y)>.0001f)continue;
+        ++expectedCounts[floorKey(groundCenter(p,*spec),spec->width,spec->length,
+                                  p.rotation.z+GroundYawOffset)];
+    }
+    for(size_t i=0;i<props_.size();++i) {
+        const auto& p=props_[i];
+        const auto* spec=VerifiedGroundCollision::Find(p.library,p.group,p.name);
+        if(!spec)continue;
+        if(std::fabs(p.rotation.x)>.0001f||std::fabs(p.rotation.y)>.0001f){++unresolved;continue;}
+        const auto at=groundCenter(p,*spec);
+        const auto key=floorKey(at,spec->width,spec->length,p.rotation.z+GroundYawOffset);
+        if(existing.find(key)!=existing.end())continue;
+        const size_t specIndex=VerifiedGroundCollision::Index(*spec);
+        if(specIndex>=permitted.size()||!permitted[specIndex]||p.nativeWithCollision==0||
+           expectedCounts[key]!=1) {++unresolved;continue;}
+        CollisionPlane plane;
+        plane.position=at;plane.rotation={0,0,p.rotation.z+GroundYawOffset};
+        plane.width=spec->width;plane.length=spec->length;
+        plane.authoredOwnerIndex=static_cast<int>(i);plane.transformDirty=true;
+        collisionPlanes_.push_back(plane);
+        existing.insert(key);++added;
+        Log::Info("Save preflight authored verified ground: Fogtown/l/"+p.name+
+            " owner="+std::to_string(i));
+    }
+    if(added){stats_.collisionPlanes=collisionPlanes_.size();collisionDirty_=dirty_=true;}
+    return unresolved==0;
 }
 
 bool MapDocument::AddImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source) {
@@ -1121,23 +1290,47 @@ bool MapDocument::SerializeLegacy(std::string& xml, std::string& error) const {
             }
             node=next;
         }
+        // Keep ALL original IDs (including opaque strings) byte-preserved.
+        // Only appended native colliders receive fresh IDs, instead of every
+        // new node being id=0. This was a separate export correctness risk.
+        std::unordered_set<std::string> occupiedColliderIds;
+        std::uint64_t nextColliderId=0;
+        for(const auto& old:collision.children())if(old.type()==pugi::node_element) {
+            const std::string id=old.attribute("id").as_string();
+            if(id.empty())continue;
+            occupiedColliderIds.insert(id);
+            if(std::all_of(id.begin(),id.end(),[](unsigned char ch){return ch>='0'&&ch<='9';})) {
+                try {
+                    const auto n=std::stoull(id);
+                    if(n<std::numeric_limits<std::uint64_t>::max()-1)
+                        nextColliderId=std::max(nextColliderId,static_cast<std::uint64_t>(n)+1);
+                } catch(const std::exception&) { /* opaque original ID stays unchanged */ }
+            }
+        }
+        const auto appendId=[&](pugi::xml_node node) {
+            auto id=std::to_string(nextColliderId);
+            while(occupiedColliderIds.find(id)!=occupiedColliderIds.end())
+                id=std::to_string(++nextColliderId);
+            node.append_attribute("id").set_value(id.c_str());
+            occupiedColliderIds.insert(id);++nextColliderId;
+        };
         auto putVec=[](pugi::xml_node n,const DirectX::XMFLOAT3& v,int precision) {
             setOrAppend(n,"x",v.x,precision);setOrAppend(n,"y",v.y,precision);setOrAppend(n,"z",v.z,precision);
         };
         for(const auto& p:collisionPlanes_)if(p.legacySourceIndex<0) {
-            auto n=collision.append_child("collision-plane");n.append_attribute("id").set_value(0);
+            auto n=collision.append_child("collision-plane");appendId(n);
             setOrAppend(n,"width",p.width,3);setOrAppend(n,"length",p.length,3);
             putVec(n.append_child("position"),p.position,3);
             putVec(n.append_child("rotation"),p.rotation,6);
         }
         for(const auto& b:collisionBoxes_)if(b.legacySourceIndex<0) {
-            auto n=collision.append_child("collision-box");n.append_attribute("id").set_value(0);
+            auto n=collision.append_child("collision-box");appendId(n);
             putVec(n.append_child("size"),b.size,3);
             putVec(n.append_child("position"),b.position,3);
             putVec(n.append_child("rotation"),b.rotation,6);
         }
         for(const auto& t:collisionTriangles_)if(t.legacySourceIndex<0) {
-            auto n=collision.append_child("collision-triangle");n.append_attribute("id").set_value(0);
+            auto n=collision.append_child("collision-triangle");appendId(n);
             putVec(n.append_child("v0"),t.v0,3);putVec(n.append_child("v1"),t.v1,3);
             putVec(n.append_child("v2"),t.v2,3);
             putVec(n.append_child("position"),t.position,3);

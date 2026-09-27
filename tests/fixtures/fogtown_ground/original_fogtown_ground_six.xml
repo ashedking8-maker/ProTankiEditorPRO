@@ -1,0 +1,164 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<map version="1.0.Light">
+  <static-geometry>
+    <prop library-name="Fogtown" group-name="l" name="t11">
+      <rotation>
+        <z>0</z>
+      </rotation>
+      <texture-name>asp11 1</texture-name>
+      <position>
+        <x>5250.000</x>
+        <y>-8750.000</y>
+        <z>0.000</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t21">
+      <rotation>
+        <z>0</z>
+      </rotation>
+      <texture-name>g21 3</texture-name>
+      <position>
+        <x>-13500.000</x>
+        <y>-14000.000</y>
+        <z>0.000</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t22">
+      <rotation>
+        <z>0</z>
+      </rotation>
+      <texture-name>g22 2</texture-name>
+      <position>
+        <x>16000.000</x>
+        <y>-3500.000</y>
+        <z>0.000</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t32">
+      <rotation>
+        <z>0</z>
+      </rotation>
+      <texture-name>g32 3</texture-name>
+      <position>
+        <x>-12500.000</x>
+        <y>21500.000</y>
+        <z>300.000</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t33">
+      <rotation>
+        <z>0</z>
+      </rotation>
+      <texture-name>asp33 1</texture-name>
+      <position>
+        <x>-31500.000</x>
+        <y>-12000.000</y>
+        <z>0.000</z>
+      </position>
+    </prop>
+    <prop library-name="Fogtown" group-name="l" name="t55">
+      <rotation>
+        <z>0</z>
+      </rotation>
+      <texture-name>g55 2</texture-name>
+      <position>
+        <x>35000.000</x>
+        <y>-28500.000</y>
+        <z>0.000</z>
+      </position>
+    </prop>
+  </static-geometry>
+  <collision-geometry>
+    <collision-plane id="3">
+      <width>500.000</width>
+      <length>500.000</length>
+      <position>
+        <x>5250.000</x>
+        <y>-8750.000</y>
+        <z>0.000</z>
+      </position>
+      <rotation>
+        <x>0</x>
+        <y>0</y>
+        <z>-1.570796</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="105">
+      <width>500.000</width>
+      <length>1000.000</length>
+      <position>
+        <x>-13500.000</x>
+        <y>-14250.000</y>
+        <z>0.000</z>
+      </position>
+      <rotation>
+        <x>0</x>
+        <y>0</y>
+        <z>1.570796</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="309">
+      <width>1000.000</width>
+      <length>1000.000</length>
+      <position>
+        <x>16000.000</x>
+        <y>-3500.000</y>
+        <z>0.000</z>
+      </position>
+      <rotation>
+        <x>0</x>
+        <y>0</y>
+        <z>-1.570796</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="5">
+      <width>1000.000</width>
+      <length>1500.000</length>
+      <position>
+        <x>-12250.000</x>
+        <y>21500.000</y>
+        <z>300.000</z>
+      </position>
+      <rotation>
+        <x>0</x>
+        <y>0</y>
+        <z>-1.570796</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="302">
+      <width>1500.000</width>
+      <length>1500.000</length>
+      <position>
+        <x>-31750.000</x>
+        <y>-12250.000</y>
+        <z>0.000</z>
+      </position>
+      <rotation>
+        <x>0</x>
+        <y>0</y>
+        <z>-1.570796</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="196">
+      <width>2500.000</width>
+      <length>2500.000</length>
+      <position>
+        <x>34750.000</x>
+        <y>-28250.000</y>
+        <z>0.000</z>
+      </position>
+      <rotation>
+        <x>0</x>
+        <y>0</y>
+        <z>-1.570796</z>
+      </rotation>
+    </collision-plane>
+  </collision-geometry>
+  <spawn-points/>
+  <ctf-flags/>
+  <dom-keypoints/>
+  <bonus-regions/>
+  <special-geometry/>
+  <lights/>
+  <way-points/>
+</map>
