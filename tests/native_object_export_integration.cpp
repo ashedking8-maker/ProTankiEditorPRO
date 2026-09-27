@@ -65,8 +65,11 @@ int main(int argc,char** argv) {
     const auto referenceMesh=LegacyMeshImport::Load(reference);
     PT_REQUIRE(originalMesh.vertices.size()==referenceMesh.vertices.size());
     PT_REQUIRE(originalMesh.indices.size()==referenceMesh.indices.size());
-    // Identify the SINGLE elevated point from the user-validated reference by
-    // its horizontal coordinates; preserve the original importer's vertex order.
+    // Compare imported LOCAL coordinates, not raw 3DS world coordinates: the
+    // original Land01 has a nonzero 3DS pivot while the exported reference is
+    // pivot-relative. The verified peak changes X/Z as well as its height, so
+    // matching only horizontal coordinates wrongly rejects the real fixture.
+    // Preserve the original importer's vertex order for the draft/UV layout.
     std::vector<size_t> changed;
     for(size_t i=0;i<originalMesh.vertices.size();++i){
         const auto& a=originalMesh.vertices[i].position;
@@ -79,14 +82,19 @@ int main(int argc,char** argv) {
     }
     PT_REQUIRE(changed.size()==1);
     const auto& a=originalMesh.vertices[changed.front()].position;
-    const aiVector3D* elevated=nullptr;
-    for(const auto& v:referenceMesh.vertices){
-        const auto& b=v.position;
-        if(std::abs(a.x-b.x)<.05f&&std::abs(a.z-b.z)<.05f&&std::abs(a.y-b.y)>.05f){
-            PT_REQUIRE(elevated==nullptr);elevated=&b;
+    std::vector<size_t> referenceChanges;
+    for(size_t i=0;i<referenceMesh.vertices.size();++i){
+        const auto& b=referenceMesh.vertices[i].position;
+        bool same=false;
+        for(const auto& v:originalMesh.vertices){
+            const auto& p=v.position;
+            if(std::abs(p.x-b.x)<.05f&&std::abs(p.y-b.y)<.05f&&std::abs(p.z-b.z)<.05f){same=true;break;}
         }
+        if(!same)referenceChanges.push_back(i);
     }
-    PT_REQUIRE(elevated);
+    PT_REQUIRE(referenceChanges.size()==1);
+    const auto& elevated=referenceMesh.vertices[referenceChanges.front()].position;
+    PT_REQUIRE(elevated.y>a.y+.05f);
     ObjectDraft::Document draft;
     draft.name="Land01_peak_0528";
     draft.model=asset->mesh;
@@ -96,7 +104,7 @@ int main(int argc,char** argv) {
     draft.libraryTemplateXml=asset->originalLibraryXml;
     draft.meshIndices=originalMesh.indices;
     for(const auto& v:originalMesh.vertices)draft.meshVertices.push_back({v.position.x,v.position.y,v.position.z});
-    draft.meshVertices[changed.front()]={elevated->x,elevated->y,elevated->z};
+    draft.meshVertices[changed.front()]={elevated.x,elevated.y,elevated.z};
     fs::path output;
     if(!NativeObjectExport::Export(draft,assets,output,error)){
         std::cerr<<"Land01 end-to-end native export failed: "<<error<<'\n';return 1;
