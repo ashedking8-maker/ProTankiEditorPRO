@@ -34,7 +34,7 @@ bool App::Initialize(HINSTANCE instance, int show) {
     wc.hIconSm = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(101), IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED));
     RegisterClassExW(&wc);
-    hwnd_ = CreateWindowExW(0,wc.lpszClassName,L"ProTanki Editor PRO 0.5.26",WS_OVERLAPPEDWINDOW,100,80,1500,900,nullptr,nullptr,instance,nullptr);
+    hwnd_ = CreateWindowExW(0,wc.lpszClassName,L"ProTanki Editor PRO 0.5.27",WS_OVERLAPPEDWINDOW,100,80,1500,900,nullptr,nullptr,instance,nullptr);
     if (!hwnd_) { Log::Error("CreateWindowExW failed."); return false; }
     RECT r{}; GetClientRect(hwnd_, &r);
     if (!renderer_.Initialize(hwnd_, r.right-r.left, r.bottom-r.top)) { Log::Error("D3D renderer initialization failed."); return false; }
@@ -62,30 +62,12 @@ bool App::Initialize(HINSTANCE instance, int show) {
     // Always have an actual, initially clean empty XML workspace before a map is
     // opened. Ghost placement without a document used to create invisible props.
     map_.CreateBlank("1.0.Light", false);
-    SplashScreen::Status(L"Checking local asset library...");
-    const auto localLib = std::filesystem::current_path() / "library";
-    if (std::filesystem::is_directory(localLib)) {
-        std::string err;
-        if (assets_.Scan(localLib, err)) { ui_.OnLibraryLoaded(previewScene_,assets_.Root()); Log::Info("Auto-indexed local library root: " + Log::PathUtf8(localLib)); }
-        else Log::Warning("Local library auto-scan failed: " + err);
-    }
+    // Privacy/UX: asset libraries are strictly session-only and must be selected
+    // manually on every launch. Neither startup nor map open may auto-index them.
+    Log::Info("Library is not loaded. Awaiting explicit user folder selection.");
     SplashScreen::Status(L"Opening editor workspace...");
     ShowWindow(hwnd_, ui_.FirstRun()?SW_SHOWMAXIMIZED:show); UpdateWindow(hwnd_);
     Log::Info("App::Initialize complete. sessionLog=" + Log::PathUtf8(Log::SessionFile()));
-    return true;
-}
-
-bool App::TryAutoLibraryForMap() {
-    if (map_.Path().empty()) return false;
-    const auto mapDir = map_.Path().parent_path();
-    const auto candidate = mapDir.parent_path() / "library";
-    if (!std::filesystem::is_directory(candidate)) { Log::Debug("No adjacent library candidate for map: " + Log::PathUtf8(candidate)); return false; }
-    std::error_code sameError;
-    if (!assets_.Root().empty() && std::filesystem::equivalent(assets_.Root(), candidate, sameError) && !sameError) return true;
-    std::string err;
-    if (!assets_.Scan(candidate, err)) { Log::Error("Adjacent library scan failed: " + err); ui_.SetMessage(err, true); return false; }
-    ui_.OnLibraryLoaded(previewScene_,assets_.Root());
-    Log::Info("Auto-selected adjacent library: " + Log::PathUtf8(candidate));
     return true;
 }
 
@@ -156,7 +138,6 @@ void App::CompleteTransition() {
                 map_=std::move(candidate);
             ui_.OnMapLoaded(map_.Path());
             scene_.ResetReferenceViewDirection(); // XML stays untouched; renderer converts legacy handedness only for display
-            TryAutoLibraryForMap();
             if(assets_.AssetCount()) RebuildScene();
             else {scene_.ClearScene();ui_.SetMessage("Map loaded. Select the original 'library' folder to render assets.");}
         } else {Log::Error("Map load failed: "+err);ui_.SetMessage(err,true);}
@@ -241,7 +222,7 @@ void App::RefreshTitle() {
     const bool dirty=map_.Dirty();
     if (dirty==lastDirty_) return;
     lastDirty_=dirty;
-    const std::wstring title=L"ProTanki Editor PRO 0.5.26";
+    const std::wstring title=L"ProTanki Editor PRO 0.5.27";
     SetWindowTextW(hwnd_,title.c_str());
 }
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(GTanksNextEditor VERSION 0.5.26 LANGUAGES CXX)
+project(GTanksNextEditor VERSION 0.5.27 LANGUAGES CXX)
 
 if(NOT WIN32)
   message(FATAL_ERROR "ProTanki Editor PRO currently targets Windows / Direct3D 11.")
@@ -129,6 +129,7 @@ install(FILES
   RELEASE_NOTES_0524.md
   RELEASE_NOTES_0525.md
   RELEASE_NOTES_0526.md
+  RELEASE_NOTES_0527.md
   BUILD_STATUS_0514.md
   BUILD_STATUS_0515.md
   BUILD_STATUS_0520.md
@@ -138,11 +139,13 @@ install(FILES
   BUILD_STATUS_0524.md
   BUILD_STATUS_0525.md
   BUILD_STATUS_0526.md
+  BUILD_STATUS_0527.md
   PATCH_0522_APPLY.txt
   PATCH_0523_APPLY.txt
   PATCH_0524_APPLY.txt
   PATCH_0525_APPLY.txt
   PATCH_0526_APPLY.txt
+  PATCH_0527_APPLY.txt
   DESTINATION docs
   COMPONENT Documentation)
 
@@ -153,7 +156,7 @@ set(CPACK_PACKAGE_NAME "ProTanki Editor PRO")
 set(CPACK_PACKAGE_VENDOR "ProTanki Editor PRO Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPU-accelerated ProTanki legacy map editor")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.26-Portable")
+set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.27-Portable")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)

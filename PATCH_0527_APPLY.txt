@@ -1,0 +1,13 @@
+ProTanki Editor PRO 0.5.27 – GitHub source upgrade
+
+1. Use the FULL SOURCE zip to replace source, preserving all directory paths (including .github and report_gateway/discord). No Windows binaries are in the zip.
+2. Existing Cloudflare: keep DISCORD_WEBHOOK_URL as Secret and REPORT_LIMITS as binding to protanki-report-limits. Edit code -> replace current Worker with report_gateway/discord/worker.mjs -> Deploy. This is a REQUIRED separate step; installing the editor alone does not modify your Cloudflare Worker.
+3. GitHub repository -> Settings -> Secrets and variables -> Actions -> Variables -> New repository variable:
+   Name: PTPRO_BUG_REPORT_ENDPOINT
+   Value: https://protankieditorbugreport.ashedking8.workers.dev/api/report
+   The Discord webhook secret itself must never be placed in source, app or GitHub.
+4. GitHub Actions: run Windows build. It must pass Python audits, offline Node gateway test, MSVC build, CTest, NSIS setup and portable ZIP packaging.
+5. Run the Windows app. Verify opening map DOES NOT auto-load any library, manual selection works and thumbnails clear after relaunch; test Beach water in Browse + viewport; test Report a Bug with and without opt-in logs. First accepted report is delivered, repeat within 30 min silently does nothing.
+
+Privacy note: old preferences may still have a lastLibraryDirectory entry until first launch; 0.5.27 rewrites preferences without that field.
+Server note: KV is eventually consistent and the tested 30-min rate limit is best-effort, not atomic under simultaneous requests.

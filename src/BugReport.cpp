@@ -13,6 +13,8 @@
 #include <fstream>
 #include <iomanip>
 #include <iterator>
+#include <mutex>
+#include <cstdint>
 #include <regex>
 #include <sstream>
 #include <vector>
@@ -21,6 +23,8 @@ namespace BugReport {
 namespace fs=std::filesystem;
 namespace {
 constexpr size_t kMaxSubject=160,kMaxDetails=4000,kMaxLog=32768,kMaxBody=100000;
+constexpr int64_t kCooldownSeconds=30*60;
+std::mutex cooldownMutex;
 struct AutoHandle { HINTERNET h{};explicit AutoHandle(HINTERNET value=nullptr):h(value){}~AutoHandle(){if(h)WinHttpCloseHandle(h);}AutoHandle(const AutoHandle&)=delete;AutoHandle& operator=(const AutoHandle&)=delete;};
 fs::path ConfigDir(){
     PWSTR path=nullptr;fs::path dir;
@@ -37,6 +41,24 @@ std::string InstallationId(){
     if(BCryptGenRandom(nullptr,random.data(),static_cast<ULONG>(random.size()),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0)return {};
     std::ostringstream out;out<<std::hex<<std::setfill('0');for(unsigned char c:random)out<<std::setw(2)<<unsigned(c);
     id=out.str();std::ofstream save(target,std::ios::binary|std::ios::trunc);save<<id;save.flush();return save?id:std::string{};
+}
+// Persistent cooldown contains a timestamp ONLY, never a library path or model.
+fs::path CooldownFile(){const auto dir=ConfigDir();return dir.empty()?fs::path{}:dir/L"bug-report-last-success.txt";}
+int64_t UnixSeconds(){return std::chrono::duration_cast<std::chrono::seconds>(
+    std::chrono::system_clock::now().time_since_epoch()).count();}
+bool InCooldown(){
+    const auto path=CooldownFile();if(path.empty())return false;
+    std::ifstream in(path,std::ios::binary);int64_t last=0;
+    if(!(in>>last))return false;
+    const auto age=UnixSeconds()-last;
+    return age<0 || age<kCooldownSeconds; // fail closed if system clock went backwards
+}
+void RecordCooldown(){
+    const auto path=CooldownFile();if(path.empty())return;
+    std::error_code ec;fs::create_directories(path.parent_path(),ec);
+    if(ec)return;
+    // Truncate only after gateway confirms receipt. Stored across app restarts.
+    std::ofstream out(path,std::ios::binary|std::ios::trunc);if(out)out<<UnixSeconds()<<'\n';
 }
 std::string RecentLogs(){
     Log::Flush();const auto dir=Log::LogDirectory();
@@ -75,7 +97,7 @@ Result Upload(const std::string& json){
     const std::wstring host(parts.lpszHostName,parts.dwHostNameLength);
     std::wstring path(parts.lpszUrlPath,parts.dwUrlPathLength);
     if(parts.dwExtraInfoLength)path.append(parts.lpszExtraInfo,parts.dwExtraInfoLength);
-    AutoHandle session(WinHttpOpen(L"ProTankiEditorPRO-BugReport/0.5.26",WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+    AutoHandle session(WinHttpOpen(L"ProTankiEditorPRO-BugReport/0.5.27",WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
         WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));
     if(!session.h)return {false,"Cannot initialize secure report connection."};
     WinHttpSetTimeouts(session.h,4000,4000,6000,6000);
@@ -100,6 +122,7 @@ Result Upload(const std::string& json){
 }
 } // namespace
 bool Configured(){return kBugReportEndpoint[0]!='\0';}
+bool CooldownActive(){std::lock_guard<std::mutex> lock(cooldownMutex);return InCooldown();}
 std::string EscapeJson(const std::string& value){
     const char* hex="0123456789abcdef";std::string out;out.reserve(value.size()+16);
     for(unsigned char c:value){switch(c){
@@ -130,12 +153,19 @@ std::string RedactLog(std::string text){
 Result Submit(std::string subject,std::string description,bool attachLogs){
     if(subject.empty()||subject.size()>kMaxSubject||description.empty()||description.size()>kMaxDetails)
         return {false,"Please enter a subject and a description within the limits."};
+    // Keep Send visually active. Repeat clicks silently do nothing for 30 minutes;
+    // the check runs before log collection and before ANY network activity.
+    std::lock_guard<std::mutex> lock(cooldownMutex);
+    if(InCooldown())return {true,"",true};
+    if(!Configured())return {false,"Bug report gateway is not configured. Contact the project maintainer."};
     const auto id=InstallationId();if(id.empty())return {false,"Cannot store installation report ID."};
     const std::string logs=attachLogs?RecentLogs():std::string{};
-    const std::string json="{\"version\":\"0.5.26\",\"client_id\":\""+EscapeJson(id)+
+    const std::string json="{\"version\":\"0.5.27\",\"client_id\":\""+EscapeJson(id)+
         "\",\"subject\":\""+EscapeJson(subject)+"\",\"description\":\""+EscapeJson(description)+
         "\",\"logs_opt_in\":"+(attachLogs?"true":"false")+",\"logs\":\""+EscapeJson(logs)+"\"}";
     if(json.size()>kMaxBody)return {false,"Report is too large. Disable logs and retry."};
-    return Upload(json);
+    auto outcome=Upload(json);
+    if(outcome.accepted)RecordCooldown();
+    return outcome;
 }
 } // namespace BugReport

@@ -364,6 +364,9 @@ float EditorUi::SnapRotation(float radians) const {
 EditorUi::EditorUi() {
     ResetCustomBindings();
     LoadControls();
+    // Remove the obsolete persisted library path from 0.5.26 preferences.
+    // Only UI preferences may survive a restart; library selection never does.
+    SaveControls();
     showControlHelp_ = false; // The full manual remains available from the menu.
 }
 
@@ -465,7 +468,6 @@ void EditorUi::LoadControls() {
         else if (tag=="welcomeSeen") { int v{}; if(in>>v) welcomePending_=(v==0); }
         else if (tag=="guideSeen") { int which{},value{}; if(in>>which>>value && which>=1 && which<=3) guidance_.Restore(static_cast<GuideTarget>(which-1),value!=0); }
         else if (tag=="lastMapDirectory") { std::string value; if(in>>std::quoted(value)) lastMapDirectory_=std::filesystem::u8path(value); }
-        else if (tag=="lastLibraryDirectory") { std::string value; if(in>>std::quoted(value)) lastLibraryDirectory_=std::filesystem::u8path(value); }
         else if (tag=="objectDraftOutputRoot") { std::string value; if(in>>std::quoted(value)) objectDraftOutputRoot_=std::filesystem::u8path(value); }
         else if (tag=="uiTheme") { int value{}; if(in>>value && value>=0 && value<=3) uiTheme_=value; }
         else if (tag=="customSurface") { for(auto& v:customSurface_) if(!(in>>v)) break; for(auto& v:customSurface_) v=std::clamp(v,0.f,1.f); }
@@ -521,7 +523,6 @@ void EditorUi::SaveControls() const {
     out<<"welcomeSeen "<<(!welcomePending_)<<'\n';
     for(int i=0;i<3;++i) out<<"guideSeen "<<(i+1)<<' '<<guidance_.Seen(static_cast<GuideTarget>(i))<<'\n';
     out<<"lastMapDirectory "<<std::quoted(Log::PathUtf8(lastMapDirectory_))<<'\n';
-    out<<"lastLibraryDirectory "<<std::quoted(Log::PathUtf8(lastLibraryDirectory_))<<'\n';
     out<<"objectDraftOutputRoot "<<std::quoted(Log::PathUtf8(objectDraftOutputRoot_))<<'\n';
     out<<"uiTheme "<<uiTheme_<<'\n';
     out<<"customSurface "<<customSurface_[0]<<' '<<customSurface_[1]<<' '<<customSurface_[2]<<'\n';
@@ -1781,8 +1782,10 @@ void EditorUi::CaptureBrowseThumbnail(size_t index, size_t variantIndex, const A
     thumb.failed=!thumb.srv;
     browseThumbnails_.insert_or_assign(key,std::move(thumb));
     previewScene.ReleasePreviewResources(); // Map renderer has its own separate caches.
-    // Fixed upper bound: 96 * 194 * 146 * 4 bytes ~= 10.9 MiB of thumbnail pixels.
-    constexpr size_t budget=96;
+    // Only in RAM for the CURRENT manually chosen library/session: <=~222 MiB
+    // for 2048 RGBA 194x146 thumbnails. Never write thumbnails or library index
+    // to disk; a 80+ asset category no longer evicts itself while scrolling.
+    constexpr size_t budget=2048;
     if (browseThumbnails_.size()>budget) {
         auto victim=browseThumbnails_.begin();
         for (auto i=browseThumbnails_.begin();i!=browseThumbnails_.end();++i)
@@ -3904,9 +3907,11 @@ void EditorUi::DrawBugReport(){
         bugReportPending_.wait_for(std::chrono::seconds(0))==std::future_status::ready){
         try {
             const auto response=bugReportPending_.get();
-            bugReportFeedback_=response.message;bugReportFeedbackError_=!response.accepted;
-            if(response.accepted)Log::Info("Bug report accepted by configured HTTPS gateway.");
-            else Log::Warning("Bug report HTTPS delivery unavailable; user can retry.");
+            if (!response.suppressed) {
+                bugReportFeedback_=response.message;bugReportFeedbackError_=!response.accepted;
+                if(response.accepted)Log::Info("Bug report accepted by configured HTTPS gateway.");
+                else Log::Warning("Bug report HTTPS delivery unavailable; user can retry.");
+            }
         }catch(const std::exception&){
             bugReportFeedback_="Unexpected reporting error; no delivery confirmed.";
             bugReportFeedbackError_=true;
@@ -3918,7 +3923,7 @@ void EditorUi::DrawBugReport(){
     const bool waiting=bugReportPending_.valid();
     const bool filled=bugReportDetails_[0]!='\0';
     ImGui::BeginDisabled(waiting||!filled||!BugReport::Configured());
-    if(ImGui::Button(waiting?"Sending...":"Send report",{145.f,0.f})){
+    if(ImGui::Button(waiting?"Sending...":"Send report",{145.f,0.f}) && !BugReport::CooldownActive()){
         const std::string details=bugReportDetails_;
         const auto lineEnd=details.find_first_of("\r\n");
         std::string subject=details.substr(0,std::min(lineEnd,static_cast<size_t>(120)));

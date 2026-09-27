@@ -16,7 +16,6 @@ public:
 private:
     void ProcessPendingOperations();
     void RebuildScene(bool frameScene = true);
-    bool TryAutoLibraryForMap();
     enum class Transition { None, NewMap, OpenMap, Close };
     void CompleteTransition();
     void DrawUnsavedChangesDialog();

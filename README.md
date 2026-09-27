@@ -1,6 +1,6 @@
-# ProTanki Editor PRO 0.5.26 — native visual smoothing & material preservation
+# ProTanki Editor PRO 0.5.27 — Discord reporting and session-only previews
 
-This archive is the **complete 0.5.26 SOURCE candidate**, built from the uploaded 0.5.25 GitHub repository. Replace the complete GitHub repository contents while preserving paths (including `.github/`). This is not a prebuilt Windows installer. Use a successful Windows GitHub Actions run to obtain Setup and Portable binaries. The earlier verified map orientation/legacy XML transformations remain unchanged.
+This archive is the **complete 0.5.27 SOURCE candidate**, continuing the 0.5.26 POSTTEST project. Replace the complete GitHub repository contents while preserving paths (including `.github/`). This is not a prebuilt Windows installer. Use a successful Windows GitHub Actions run to obtain Setup and Portable binaries. The earlier verified map orientation/legacy XML transformations remain unchanged.
 
 ## Obj. Editor export
 
@@ -12,8 +12,12 @@ Obj. Editor > Materials & Shading preserves original per-face smoothing masks an
 
 ## Report a Bug
 
-An unobtrusive **Report a Bug** tab is right-aligned directly above `Seek Help | ProTanki Discord`. Clicking opens a modal with subject, description, and an **unchecked by default** `Attach recent session logs` option. Nothing is submitted before the user presses Send. It sends only subject, description, version, random persistent installation ID, and optionally two sanitized, bounded log excerpts via **HTTPS**. No maps, models, crash dumps, screenshots or email passwords are automatically uploaded. The maintainer's email address and mail API key are **server-only**, never baked into the editor.
+An unobtrusive **Report a Bug** tab is right-aligned directly above `Seek Help | ProTanki Discord`. Clicking opens a modal with one description field (its first line becomes the subject) and an **unchecked by default** `Attach recent session logs` option. Nothing is submitted before the user presses Send. It sends only subject, description, version, random persistent installation ID, and optionally two sanitized, bounded log excerpts via **HTTPS**. No maps, models, crash dumps, screenshots or email passwords are automatically uploaded. The maintainer's email address and mail API key are **server-only**, never baked into the editor.
 
-**The Send button is disabled until an HTTPS gateway is deployed and the PUBLIC URL is set at build time**. See [`report_gateway/README.md`](report_gateway/README.md) for Cloudflare Worker/Durable Object + Resend deployment and the build variable `PTPRO_BUG_REPORT_ENDPOINT`. The backend persists a 30-minute limit by installation ID and public IP; repeated accepted requests are grouped rather than falsely claiming each produced an email. A shared IP can group distinct users. No antivirus product can be guaranteed never to flag an unsigned executable; no hidden process, background telemetry, embedded SMTP password or covert file collection is used.
+**The Send button is disabled until an HTTPS gateway is deployed and the PUBLIC URL is set at build time**. For the new Discord gateway see [`report_gateway/discord/README.md`](report_gateway/discord/README.md), including the Cloudflare Secret/KV binding and the build variable `PTPRO_BUG_REPORT_ENDPOINT`. The backend persists a 30-minute limit by installation ID and public IP; repeated accepted requests are grouped rather than falsely claiming each produced an email. A shared IP can group distinct users. No antivirus product can be guaranteed never to flag an unsigned executable; no hidden process, background telemetry, embedded SMTP password or covert file collection is used.
 
 See `RELEASE_NOTES_0526.md`, `BUILD_STATUS_0526.md`, and `PATCH_0526_APPLY.txt` for current limitations and verification steps.
+
+## 0.5.27 manual library and water changes
+
+Libraries are only indexed after the user chooses a folder during **this launch**; opening a map never auto-loads a library. The editor does not persist the last library path or copy the library into its installation. The 2048-item Browse thumbnail cache is in RAM/GPU memory only; it is discarded on library change/exit, not stored on disk. Graded-alpha water PNGs use a separate sorted translucent pass in the editor viewport and thumbnails. See `RELEASE_NOTES_0527.md` and `PATCH_0527_APPLY.txt`.

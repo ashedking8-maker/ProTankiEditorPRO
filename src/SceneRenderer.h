@@ -138,6 +138,7 @@ private:
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
         unsigned width{1};
         unsigned height{1};
+        bool translucent{}; // true for graded-alpha PNG (e.g. native water)
     };
     struct MeshBatch {
         std::shared_ptr<MeshGpu> mesh;
@@ -201,7 +202,7 @@ private:
     void RenderGrid(const DirectX::XMMATRIX& viewProjection);
     void RenderCollisionGeometry();
     void BuildCollisionGeometry(const MapDocument& map);
-    void RenderMeshes(const CameraConstants& camera);
+    void RenderMeshes(const CameraConstants& camera, bool transparentOnly);
     void RenderSprites(const CameraConstants& camera);
     void RenderDebugOverlay(bool showBounds, bool showGameplay, bool showZones, unsigned overlayMask, unsigned modeMask, bool showLights);
     void RenderSelection();
@@ -234,6 +235,7 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader> meshVs_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> meshPs_;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> transparentMeshPs_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> ghostMeshPs_, ghostSpritePs_;
     Microsoft::WRL::ComPtr<ID3D11InputLayout> meshLayout_;
     Microsoft::WRL::ComPtr<ID3D11VertexShader> spriteVs_;

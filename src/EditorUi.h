@@ -35,7 +35,7 @@ public:
     void ProcessPendingNativeDialogs();
     void ApplyPreferredTheme() const;
     bool FirstRun() const { return welcomePending_; }
-    void ShutdownObjectPreview() { objectScene_.Shutdown(); objectSceneInitialized_=false; objectSceneHasModel_=false; }
+    void ShutdownObjectPreview() { browseThumbnails_.clear(); recentAssets_.clear(); objectScene_.Shutdown(); objectSceneInitialized_=false; objectSceneHasModel_=false; }
 
     bool ConsumeFullscreenToggle() { const bool v = fullscreenToggleRequested_; fullscreenToggleRequested_ = false; return v; }
     bool ConsumeSceneRebuildRequest(bool& preserveCamera) {

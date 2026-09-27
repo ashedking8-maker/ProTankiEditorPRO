@@ -97,9 +97,14 @@ def main() -> int:
                 'pendingLibrary_=assets.Root()' in ui and
                 'GLB-to-native 3DS/textured material conversion has not been verified' in text('src/NativeObjectExport.h') and
                 'Trigger draft has no verified native 3DS gameplay mapping' in text('src/NativeObjectExport.h'),
-                '0.5.26 fail-closed experimental native 3DS writer, authoring UI or CTest missing')
-        require('VERSION 0.5.26' in cmake and '0.5.26' in text('src/App.cpp')
-                and '0.5.26-native-visual-shading-preservation' in text('src/Logger.cpp'),'Version drift')
+                '0.5.27 fail-closed experimental native 3DS writer, authoring UI or CTest missing')
+        require('TryAutoLibraryForMap' not in text('src/App.cpp') and
+                'Auto-indexed local library root' not in text('src/App.cpp') and
+                'out<<"lastLibraryDirectory "' not in ui and
+                'constexpr size_t budget=2048;' in ui,
+                'Session-only manually selected library / thumbnail cache policy regressed')
+        require('VERSION 0.5.27' in cmake and '0.5.27' in text('src/App.cpp')
+                and '0.5.27-discord-session-preview' in text('src/Logger.cpp'),'Version drift')
         require('Native3DSMaterialSmoothingRoundTrip' in cmake and
                 'src/Native3DSVisualMetadata.h' in cmake and
                 (ROOT/'tests/native_visual_metadata_regression.cpp').is_file() and
@@ -107,8 +112,8 @@ def main() -> int:
                 'materialOverride' in text('src/ObjectDraft.h') and
                 'Materials & Shading (native 3DS)' in ui and
                 'bugWidth=std::min(size.x,ImGui::CalcTextSize(bugLabel).x+14.f)' in ui,
-                '0.5.26 native material, smoothing or compact report tab regression')
-        # 0.5.26 must include the whole native path (not only a folder export),
+                '0.5.27 native material, smoothing or compact report tab regression')
+        # 0.5.27 must include the whole native path (not only a folder export),
         # and a separately deployable, privacy-conscious reporting gateway.
         export=text('src/NativeObjectExport.h')
         bug=text('src/BugReport.cpp')
@@ -130,7 +135,7 @@ def main() -> int:
                 all((ROOT/f).is_file() for f in ('README.md','RELEASE_NOTES_0525.md',
                     'BUILD_STATUS_0525.md','PATCH_0525_APPLY.txt',
                     'report_gateway/test_gateway.mjs','report_gateway/README.md')),
-                '0.5.26 native TARA/terrain export, report UI/server or regression fixture incomplete')
+                '0.5.27 native TARA/terrain export, report UI/server or regression fixture incomplete')
         # The maintainer's private address must be configured only as a server
         # secret. Do not accidentally ship it in source/config/client tests.
         private_inbox='ashedking8'+'@gmail.com'
@@ -172,10 +177,10 @@ def main() -> int:
                     'invalid_scaled_visual_frame.3ds')) and
                 (ROOT/'tests/test_native_frames_0520_audit.py').is_file() and
                 'RELEASE_NOTES_0520.md' in cmake and 'BUILD_STATUS_0520.md' in cmake and 'RELEASE_NOTES_0521.md' in cmake and 'BUILD_STATUS_0521.md' in cmake,
-                '0.5.26 rotated original 3DS frame support, safety guards or fixtures incomplete')
+                '0.5.27 rotated original 3DS frame support, safety guards or fixtures incomplete')
         require('float3 linearAlbedo = pow(max(albedo.rgb, 0.0), 2.2)' in scene and
-                'clip(albedo.a - 0.5)' in scene and
-                'if (mode > 5.5) return float4(albedo.rgb, 1.0)' in scene and
+                'clip(shaded.a - 0.5)' in scene and 'PSTransparent' in scene and
+                'if (mode > 5.5) return albedo' in scene and
                 'Unlit texture (diagnostic)' in ui and
                 'mode > 6 ? 6 : mode' in text('src/SceneRenderer.h'),
                 'Bridge 1 sRGB/cutout diagnostic rendering path missing')
@@ -244,7 +249,7 @@ def main() -> int:
             require((ROOT/'assets/functional'/asset).stat().st_size>100,'Missing user-supplied functional model: '+asset)
         require('0.30' in ui and 'ImGuiConfigFlags_NavEnableKeyboard' not in text('src/App.cpp'), 'Simple select/AX keyboard isolation absent')
         require('DrawBrowseLibrary(map, assets, scene, previewScene)' in ui and 'ImGuiListClipper clipper' in ui
-                and 'ImGuiTreeNodeFlags_SpanAvailWidth' in ui and 'constexpr size_t budget=96' in ui
+                and 'ImGuiTreeNodeFlags_SpanAvailWidth' in ui and 'constexpr size_t budget=2048' in ui
                 and 'browseRenderedThisFrame_' in ui, 'Lazy full-workspace library browser missing')
         require('SnapDelta(current.x-drag_.planeStart.x)' in ui and 'SnapDelta(current.y-drag_.planeStart.y)' in ui,
                 'Existing props must snap relative movement, not absolute XML positions')
@@ -273,17 +278,17 @@ def main() -> int:
                     f'{workflow_path}: custom NSIS packaging invocation missing')
             require('cpack -C Release -G NSIS' not in workflow and 'GTanksNextEditor-Setup' not in workflow,
                     f'{workflow_path}: stale installer packaging route')
-            require('ProTankiEditorPRO-0.5.26-Setup.exe' in workflow and
-                    'ProTankiEditorPRO-0.5.26-Portable.zip' in workflow and
+            require('ProTankiEditorPRO-0.5.27-Setup.exe' in workflow and
+                    'ProTankiEditorPRO-0.5.27-Portable.zip' in workflow and
                     'ProTankiEditorPRO-0.5.6-' not in workflow,
-                    f'{workflow_path}: release filename mismatch; replace this file with the 0.5.26 workflow')
+                    f'{workflow_path}: release filename mismatch; replace this file with the 0.5.27 workflow')
         require('SimpleInstaller.nsi' in packaging and
-                'ProTankiEditorPRO-0.5.26-Setup.exe' in packaging and
-                'ProTankiEditorPRO-0.5.26-Portable.zip' in packaging and
+                'ProTankiEditorPRO-0.5.27-Setup.exe' in packaging and
+                'ProTankiEditorPRO-0.5.27-Portable.zip' in packaging and
                 'ProTankiEditorPRO-0.5.6-' not in packaging,
-                'scripts/package-windows.ps1: output filename mismatch; replace with the matching 0.5.26 packaging script')
-        require('0.5.26' in text('assets/GTanksNextEditor.rc') and
-                'FILEVERSION 0,5,26,0' in text('assets/GTanksNextEditor.rc'), 'Resource version drift')
+                'scripts/package-windows.ps1: output filename mismatch; replace with the matching 0.5.27 packaging script')
+        require('0.5.27' in text('assets/GTanksNextEditor.rc') and
+                'FILEVERSION 0,5,27,0' in text('assets/GTanksNextEditor.rc'), 'Resource version drift')
         require('GridStep::Quantize(v,gridSize_)' in ui and 'GridStep::KeyboardStep(gridSize_,io.KeyShift)' in ui
                 and 'GridStepAlwaysOn' in cmake, 'Movement grid regression: grid must snap by default')
         require('objectUndo_.push_back(CaptureObjectSnapshot())' in ui and 'if (objectEditorOpen_)' in ui,
@@ -433,7 +438,7 @@ def main() -> int:
                 'test_map_delta_audit.py' in '\n'.join(p.name for p in (ROOT/'tests').iterdir()) and
                 all('test_*audit.py' in text(path) for path in workflow_paths),
                 'Read-only native map delta audit and workflow tests missing')
-        print('PASS: 0.5.26 source preflight: external launcher, GLB draft editor, collision XML/undo tests, packaging and source structure.')
+        print('PASS: 0.5.27 source preflight: external launcher, GLB draft editor, collision XML/undo tests, packaging and source structure.')
         return 0
     except (ValueError,OSError) as e:
         print(f'FAIL: {e}',file=sys.stderr)
