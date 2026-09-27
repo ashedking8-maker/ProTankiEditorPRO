@@ -1290,6 +1290,28 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
         }
         if(bound)Log::Info("Native 3DS helper collision ownership rebound: "+std::to_string(bound)+" props.");
     }
+    // Prioritize RMB cancellation BEFORE any docked/AX widget sees this frame.
+    // The AX history confirmation may be left open behind an active ghost; it
+    // must never steal RMB from placement or delete a recent asset instead.
+    const bool cancelPlacementByRmb = !browseLibraryOpen_ && !objectEditorOpen_ &&
+        ImGui::IsMouseClicked(ImGuiMouseButton_Right) &&
+        (placementActive_ || lightPlacementActive_ || functionalPlacement_!=FunctionalPlacement::None);
+    if (cancelPlacementByRmb) {
+        const bool wasProp=placementActive_;
+        const bool wasFunctional=functionalPlacement_!=FunctionalPlacement::None;
+        placementActive_=false; placementCommitRequested_=false; ghostValid_=false;
+        placementItems_.clear(); ghostProps_.clear(); clipboardPlacement_=false;
+        scene.ClearGhost();
+        functionalPlacement_=FunctionalPlacement::None; functionalCommitRequested_=false;
+        functionalPasteActive_=false; functionalGhostValid_=false;
+        scene.SetFunctionalGhost({},0,false);
+        lightPlacementActive_=false;
+        // Do not let the same click confirm a stale AX-history removal.
+        axConfirmRemove_=false; axRemovalIndex_=-1;
+        rmbPlacementCancelPendingRelease_=true;
+        SetMessage(wasProp?"Placement cancelled.":wasFunctional?"Functional placement cancelled.":"Light placement cancelled.");
+        Log::Info("RMB cancelled active placement (global input routing; AX history protected).");
+    }
     HandleEditorShortcuts(map, scene, assets);
     scene.AdvanceCameraFocus(ImGui::GetIO().DeltaTime);
     if (axTabHeld_ && !axTabWasHeld_ && !recentAssets_.empty() && !browseLibraryOpen_) {
@@ -1368,6 +1390,9 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
     if (showToastOverlay_ && !browseLibraryOpen_) DrawToast(); DrawControlHelp(); DrawSupportPopup(); DrawBugReport(); DrawFirstRunGuidance();
     // Last, full-workspace opaque window: masks Scene, Viewport, Library, Properties and Gameplay.
     if (browseLibraryOpen_) { browseWasOpen_=true; DrawBrowseLibrary(map, assets, scene, previewScene); }
+    // Retain the guard through RMB release, so release cannot clear selection
+    // and the click/drag cannot simultaneously orbit the camera.
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) rmbPlacementCancelPendingRelease_=false;
 }
 
 void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
@@ -3398,8 +3423,8 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     const bool hovered=ImGui::IsItemHovered() && !overSupportTab;
     ImGuiIO& io=ImGui::GetIO(); auto& nav=CurrentNavigationSettings();
     // A short right click cancels selection. A right-button drag remains camera navigation.
-    // Avoid acting while a placement preview is active (handled immediately below).
-    if (hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Right) &&
+    // Avoid acting while a placement preview is active (handled by Draw() first).
+    if (hovered && !rmbPlacementCancelPendingRelease_ && ImGui::IsMouseReleased(ImGuiMouseButton_Right) &&
         !ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Right, 3.0f) &&
         !placementActive_ && !lightPlacementActive_ && functionalPlacement_==FunctionalPlacement::None &&
         !axConfirmRemove_) {
@@ -3408,15 +3433,8 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         SelectOnly(-1,scene);drag_={};dragBefore_.clear();dragIndices_.clear();
         scene.SetFunctionalGhost({},0,false);
     }
-    if (functionalPlacement_!=FunctionalPlacement::None && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !axConfirmRemove_) {
-        functionalPlacement_=FunctionalPlacement::None;functionalGhostValid_=false;
-        scene.SetFunctionalGhost({},0,false);SetMessage("Functional placement cancelled.");
-    }
-    if(lightPlacementActive_ && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) lightPlacementActive_=false;
-    if (placementActive_ && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !axConfirmRemove_) {
-        placementActive_=false; placementCommitRequested_=false; ghostValid_=false;
-        ghostProps_.clear(); scene.ClearGhost(); SetMessage("Placement cancelled.");
-    }
+    // RMB placement cancellation is already handled globally in Draw(), before
+    // any AX/history or docked control can consume the click.
     bool lightAddedThisFrame=false;
     if(lightPlacementActive_ && hovered && !showCollision_ && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         DirectX::XMFLOAT3 at{};
@@ -3449,7 +3467,8 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         if (io.MouseWheel!=0.0f && !axTabHeld_) scene.Zoom(io.MouseWheel,nav.zoomSpeed);
         const float orbitY=nav.invertOrbitY?-io.MouseDelta.y:io.MouseDelta.y;
         // RMB has only one meaning during placement: cancel the preview, not orbit.
-        if (!placementActive_ && functionalPlacement_==FunctionalPlacement::None) {
+        if (!rmbPlacementCancelPendingRelease_ && !placementActive_ &&
+            functionalPlacement_==FunctionalPlacement::None) {
             if (navigationMode_==NavigationMode::Legacy) {
                 if (ImGui::IsMouseDragging(ImGuiMouseButton_Right,0)) {
                     if (io.KeyShift) scene.Pan(io.MouseDelta.x*nav.panSensitivity,io.MouseDelta.y*nav.panSensitivity);
@@ -4197,6 +4216,8 @@ void EditorUi::ActivateRecent(size_t recentPosition, const AssetRegistry& assets
 
 void EditorUi::DrawAxLibrary(const MapDocument& map, const AssetRegistry& assets, SceneRenderer& scene, SceneRenderer& previewScene) {
     const bool targetVisible=axPinned_ || axTabHeld_;
+    // Do not keep a hidden destructive confirmation armed after AX closes.
+    if (!targetVisible && axConfirmRemove_) {axConfirmRemove_=false; axRemovalIndex_=-1;}
     const float speed=std::clamp(ImGui::GetIO().DeltaTime*9.0f,0.0f,1.0f);
     axReveal_ += ((targetVisible?1.0f:0.0f)-axReveal_)*speed;
     if (!targetVisible && axReveal_<0.015f) {axReveal_=0.0f;return;}
@@ -4264,7 +4285,9 @@ void EditorUi::DrawAxLibrary(const MapDocument& map, const AssetRegistry& assets
         ImGui::Separator();
         ImGui::TextWrapped("Remove this entry from history? RMB confirms.");
         if (ImGui::Button("Cancel")) { axConfirmRemove_=false; axRemovalIndex_=-1; }
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+        if (!rmbPlacementCancelPendingRelease_ &&
+            ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) &&
+            ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
             recentAssets_.erase(recentAssets_.begin()+axRemovalIndex_);
             axConfirmRemove_=false; axRemovalIndex_=-1; axCurrent_=0;
         }

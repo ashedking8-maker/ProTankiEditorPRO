@@ -315,6 +315,7 @@ private:
     DirectX::XMFLOAT3 ghostPivot_{};
     bool ghostValid_{};
     bool placementCommitRequested_{};
+    bool rmbPlacementCancelPendingRelease_{}; // suppress release/orbit/AX after globally cancelling a ghost
     float viewportX_{}, viewportY_{}, viewportW_{}, viewportH_{};
     bool selectionBoxActive_{};
     float selectionStartX_{}, selectionStartY_{}, selectionEndX_{}, selectionEndY_{};
