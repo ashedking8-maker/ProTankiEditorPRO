@@ -133,7 +133,8 @@ private:
     void SelectOnly(int index, SceneRenderer& scene);
     void UpdatePlacementGhost(SceneRenderer&, const AssetRegistry&, float x, float y);
     void CommitPlacement(MapDocument&, const AssetRegistry&, SceneRenderer&);
-    bool AuthorCollisionForPlacement(MapDocument&,const AssetRegistry&,size_t,std::string&);
+    bool AuthorCollisionForPlacement(MapDocument&,const AssetRegistry&,size_t,std::string&,
+                                     bool sourceVerifiedCoincident=false,size_t stagedStart=0);
     void StartClipboardPlacement();
     void CaptureRecentThumbnail(SceneRenderer& previewScene);
     void RememberCopiedAssets(const AssetRegistry& assets);

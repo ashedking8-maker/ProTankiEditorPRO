@@ -131,7 +131,12 @@ public:
                                       size_t& added,size_t& unresolved);
     // Generic 3DS plane/triangle helper path. Never manufactures geometry from
     // the visible mesh; refuses existing legacy props without a safe binding.
-    bool AddImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source);
+    // A copied original source map may contain two EXACT identical visual props
+    // AND two matching native colliders (Esplanade WTile 1). Permit the second
+    // authored set only when a higher-level source-multiplicity proof passed,
+    // and only against an already authored prop from THIS placement transaction.
+    bool AddImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source,
+                                    bool sourceVerifiedCoincident=false,size_t stagedStart=static_cast<size_t>(-1));
     // Re-bind ONLY complete exact sets following Save/Load. No XML writes.
     bool BindImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source);
     bool DeleteProp(size_t index);

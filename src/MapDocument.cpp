@@ -690,7 +690,8 @@ bool MapDocument::RepairVerifiedGroundSurfaces(const std::array<bool,6>& permitt
     return unresolved==0;
 }
 
-bool MapDocument::AddImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source) {
+bool MapDocument::AddImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source,
+                                              bool sourceVerifiedCoincident,size_t stagedStart) {
     if(index>=props_.size()||!source.Valid()||HasNativeCollisionForProp(index))return false;
     const auto& p=props_[index];
     // Never overwrite/duplicate a loaded map's unbound original colliders.
@@ -704,7 +705,13 @@ bool MapDocument::AddImportedCollisionForProp(size_t index,const NativeCollision
            std::fabs(q.position.y-p.position.y)<.01f&&
            std::fabs(q.position.z-p.position.z)<.01f&&
            std::fabs(std::atan2(std::sin(q.rotation.z-p.rotation.z),
-                   std::cos(q.rotation.z-p.rotation.z)))<.001f)return false;
+                   std::cos(q.rotation.z-p.rotation.z)))<.001f) {
+            // The native source can intentionally store two coincident WTile
+            // props and TWO coincident game planes. Never infer a shared owner;
+            // author one complete native set per original source instance.
+            if(!sourceVerifiedCoincident || i<stagedStart ||
+               q.legacySourceIndex>=0 || !HasNativeCollisionForProp(i))return false;
+        }
     }
     const float cs=std::cos(p.rotation.z),sn=std::sin(p.rotation.z);
     const auto place=[&](DirectX::XMFLOAT3 o) {
@@ -821,13 +828,47 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
         return std::array<DirectX::XMFLOAT3,3>{plus(center,rotate(a,rot)),
             plus(center,rotate(b,rot)),plus(center,rotate(c,rot))};
     };
-    // Identically placed props cannot be distinguished by an XML collider owner.
+    // If EXACT duplicate source visuals also have EXACT matching duplicate
+    // native planes, stable one-to-one ownership is safe: each prop gets one
+    // physically identical collider. Every other ambiguous duplicate fails
+    // closed, as before. Original Esplanade has three such WTile pairs.
+    size_t duplicateProps=1;
     for(size_t j=0;j<props_.size();++j)if(j!=index) {
         const auto& q=props_[j];
-        if(q.library==p.library&&q.group==p.group&&q.name==p.name&&eq(q.position,p.position)&&
-            std::fabs(std::atan2(std::sin(q.rotation.z-p.rotation.z),
-                                 std::cos(q.rotation.z-p.rotation.z)))<.002f)return false;
+        if(q.library==p.library&&q.group==p.group&&q.name==p.name&&
+           q.texture==p.texture&&eq(q.position,p.position)&&
+           std::fabs(std::atan2(std::sin(q.rotation.z-p.rotation.z),
+                                std::cos(q.rotation.z-p.rotation.z)))<.002f)++duplicateProps;
     }
+    const bool possibleCoincident = duplicateProps>1 && p.library=="Outer Walls" &&
+        p.group=="default" && p.name=="WTile 1" && source.planes.size()==1 &&
+        source.boxes.empty() && source.triangles.empty();
+    bool verifiedCoincident=false;
+    if(possibleCoincident) {
+        const auto& expected=source.planes.front();
+        const auto center=place(expected.offset);
+        auto rotation=expected.rotation;rotation.z+=p.rotation.z;
+        const auto want=planeCorners(center,rotation,expected.width,expected.length);
+        const auto wantNormal=rotate({0.f,0.f,1.f},rotation);
+        size_t sourcePlaneCopies=0;
+        for(const auto& c:collisionPlanes_) {
+            if(!eq(c.position,center) ||
+               NativeCollisionImport::Dot(wantNormal,rotate({0.f,0.f,1.f},c.rotation))<.999f ||
+               !unorderedEqual(want,planeCorners(c.position,c.rotation,c.width,c.length)))continue;
+            if(c.authoredOwnerIndex>=0) {
+                if(static_cast<size_t>(c.authoredOwnerIndex)>=props_.size())return false;
+                const auto& other=props_[static_cast<size_t>(c.authoredOwnerIndex)];
+                if(other.library!=p.library||other.group!=p.group||other.name!=p.name||
+                   other.texture!=p.texture||!eq(other.position,p.position)||
+                   std::fabs(std::atan2(std::sin(other.rotation.z-p.rotation.z),
+                                        std::cos(other.rotation.z-p.rotation.z)))>=.002f)
+                    return false;
+            }
+            ++sourcePlaneCopies;
+        }
+        verifiedCoincident=sourcePlaneCopies==duplicateProps;
+    }
+    if(duplicateProps>1 && !verifiedCoincident)return false;
     std::vector<size_t> planes,boxes,triangles;
     for(const auto& expected:source.planes) {
         const auto center=place(expected.offset);
@@ -840,7 +881,10 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
             if(c.authoredOwnerIndex>=0||!eq(c.position,center)||
                NativeCollisionImport::Dot(wantNormal,rotate({0.f,0.f,1.f},c.rotation))<.999f||
                !unorderedEqual(want,planeCorners(c.position,c.rotation,c.width,c.length)))continue;
-            if(found!=collisionPlanes_.size())return false; // Ambiguous duplicate.
+            if(found!=collisionPlanes_.size()) {
+                if(verifiedCoincident)continue; // Stable first unbound copy.
+                return false; // Ambiguous duplicate.
+            }
             found=j;
         }
         if(found==collisionPlanes_.size()||std::find(planes.begin(),planes.end(),found)!=planes.end())return false;

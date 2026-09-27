@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8'?>
+<map version="1.0.Light">
+  <static-geometry>
+    <prop library-name="Outer Walls" group-name="default" name="WTile 1">
+      <rotation>
+        <z>3.141593</z>
+      </rotation>
+      <texture-name>WTile Big 1</texture-name>
+      <position>
+        <x>2250.000</x>
+        <y>6250.000</y>
+        <z>1200.000</z>
+      </position>
+    </prop>
+    <prop library-name="Outer Walls" group-name="default" name="WTile 1">
+      <rotation>
+        <z>3.141593</z>
+      </rotation>
+      <texture-name>WTile Big 1</texture-name>
+      <position>
+        <x>2250.000</x>
+        <y>6250.000</y>
+        <z>1200.000</z>
+      </position>
+    </prop>
+    <prop library-name="Industrial Elements" group-name="default" name="Container">
+      <rotation>
+        <z>-3.141593</z>
+      </rotation>
+      <texture-name>Container 1</texture-name>
+      <position>
+        <x>7000.000</x>
+        <y>8500.000</y>
+        <z>2400.000</z>
+      </position>
+    </prop>
+  </static-geometry>
+  <collision-geometry>
+    <collision-plane id="0">
+      <width>600.000</width>
+      <length>500.000</length>
+      <position>
+        <x>2250.001</x>
+        <y>6000.000</y>
+        <z>1500.000</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>1.570796</y>
+        <z>-1.570796</z>
+      </rotation>
+    </collision-plane>
+    <collision-plane id="0">
+      <width>600.000</width>
+      <length>500.000</length>
+      <position>
+        <x>2250.001</x>
+        <y>6000.000</y>
+        <z>1500.000</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>1.570796</y>
+        <z>-1.570796</z>
+      </rotation>
+    </collision-plane>
+    <collision-box id="0">
+      <size>
+        <x>400.000</x>
+        <y>900.000</y>
+        <z>300.000</z>
+      </size>
+      <position>
+        <x>7250.000</x>
+        <y>8500.000</y>
+        <z>2550.000</z>
+      </position>
+      <rotation>
+        <x>0.000000</x>
+        <y>0.000000</y>
+        <z>3.141592</z>
+      </rotation>
+    </collision-box>
+  </collision-geometry>
+  <spawn-points />
+  <ctf-flags />
+  <dom-keypoints />
+  <bonus-regions />
+  <special-geometry />
+  <lights />
+  <way-points />
+</map>

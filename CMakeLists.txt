@@ -291,6 +291,19 @@ if(BUILD_TESTING)
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_ground/original_fogtown_ground_six.xml"
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_ground/TEST_MAP_AAA-original-repro.xml")
 
+  add_executable(EsplanadeCopyRegression
+    tests/esplanade_copy_regression.cpp
+    src/MapDocument.cpp src/MapDocument.h src/NativeCollisionImport.h
+    src/Logger.cpp src/Logger.h)
+  target_include_directories(EsplanadeCopyRegression PRIVATE src)
+  target_link_libraries(EsplanadeCopyRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(EsplanadeCopyRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(MSVC)
+    target_compile_options(EsplanadeCopyRegression PRIVATE /W4 /permissive- /utf-8)
+  endif()
+  add_test(NAME EsplanadeSourceDuplicateAndNamedBoxAnchors COMMAND EsplanadeCopyRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/esplanade")
+
   add_executable(GeometryEdgeSnapRegression tests/geometry_snap_regression.cpp src/GeometrySnap.h)
   target_include_directories(GeometryEdgeSnapRegression PRIVATE src)
   add_test(NAME GeometryEdgesClearanceAndFloor COMMAND GeometryEdgeSnapRegression)

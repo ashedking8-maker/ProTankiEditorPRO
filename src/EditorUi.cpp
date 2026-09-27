@@ -25,6 +25,7 @@
 #include <shobjidl.h>
 #include <cstdio>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cctype>
 #include <vector>
@@ -851,7 +852,8 @@ void EditorUi::StartClipboardPlacement() {
 }
 
 bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry& assets,
-                                           size_t index,std::string& explanation) {
+                                           size_t index,std::string& explanation,
+                                           bool sourceVerifiedCoincident,size_t stagedStart) {
     const auto& prop=map.Props()[index];
     if(prop.hasInvalidNativeMetadata) {
         explanation="Malformed native game flags cannot be copied even with opaque XML approval.";
@@ -914,7 +916,7 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         }
         explanation=imported.error;return false;
     }
-    if(!map.AddImportedCollisionForProp(index,imported)) {
+    if(!map.AddImportedCollisionForProp(index,imported,sourceVerifiedCoincident,stagedStart)) {
         explanation="Native helper collision refused (overlapping duplicate or unsupported transform).";
         return false;
     }
@@ -930,12 +932,112 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     size_t nativeCount=0,visualOnly=0;
     size_t planes=0,triangles=0;
     std::string failure;
-    for (auto p:ghostProps_) {
+    const size_t stagedStart=before.Props().size();
+    // Copy the original map's cardinality, not merely its model name. A pair
+    // of original WTile visuals is eligible for two colliders only if the
+    // original XML also contains two matching independent collision planes.
+    const auto sourceProvesCoincidentWall=[&](const PropInstance& candidate)->bool {
+        if(!clipboardPlacement_ || candidate.legacySourceIndex<0 ||
+           candidate.library!="Outer Walls" || candidate.group!="default" ||
+           candidate.name!="WTile 1")return false;
+        const auto sourceIt=std::find_if(before.Props().begin(),before.Props().end(),
+            [&](const PropInstance& q){return q.legacySourceIndex==candidate.legacySourceIndex;});
+        if(sourceIt==before.Props().end())return false;
+        const auto& original=*sourceIt;
+        const auto same=[](float a,float b){return std::fabs(a-b)<.02f;};
+        const auto sameYaw=[](float a,float b){return std::fabs(std::atan2(
+            std::sin(a-b),std::cos(a-b)))<.001f;};
+        size_t exactSourceProps=0;
+        for(const auto& q:before.Props())if(q.legacySourceIndex>=0&&
+           q.library==original.library&&
+           q.group==original.group&&q.name==original.name&&
+           q.texture==original.texture&&same(q.position.x,original.position.x)&&
+           same(q.position.y,original.position.y)&&same(q.position.z,original.position.z)&&
+           sameYaw(q.rotation.z,original.rotation.z))++exactSourceProps;
+        if(exactSourceProps<2)return false;
+        const auto* asset=assets.Find(original.library,original.group,original.name);
+        if(!asset||asset->mesh.empty())return false;
+        const auto imported=NativeCollisionImport::Read(asset->mesh);
+        if(!imported.Valid()||imported.planes.size()!=1||
+           !imported.boxes.empty()||!imported.triangles.empty())return false;
+        const auto& shape=imported.planes.front();
+        const float cs=std::cos(original.rotation.z),sn=std::sin(original.rotation.z);
+        const DirectX::XMFLOAT3 center{original.position.x+cs*shape.offset.x-sn*shape.offset.y,
+           original.position.y+sn*shape.offset.x+cs*shape.offset.y,
+           original.position.z+shape.offset.z};
+        const auto planeNormal=[](const DirectX::XMFLOAT3& r){
+            // Rx, Ry, Rz on (0,0,1): identical native world-normal rule as
+            // MapDocument::BindImportedCollisionForProp.
+            const DirectX::XMFLOAT3 rx{0.f,-std::sin(r.x),std::cos(r.x)};
+            const DirectX::XMFLOAT3 ry{std::cos(r.y)*rx.x+std::sin(r.y)*rx.z,
+                rx.y,-std::sin(r.y)*rx.x+std::cos(r.y)*rx.z};
+            return DirectX::XMFLOAT3{std::cos(r.z)*ry.x-std::sin(r.z)*ry.y,
+                std::sin(r.z)*ry.x+std::cos(r.z)*ry.y,ry.z};
+        };
+        auto expectedRot=shape.rotation;expectedRot.z+=original.rotation.z;
+        const auto want=planeNormal(expectedRot);
+        // Compare the four world corners, not just the centre and dimensions:
+        // an unrelated 90-degree in-plane rotation can have the same normal.
+        const auto rotate=[](DirectX::XMFLOAT3 v,DirectX::XMFLOAT3 r) {
+            const float cx=std::cos(r.x),sx=std::sin(r.x),
+                cy=std::cos(r.y),sy=std::sin(r.y),
+                cz=std::cos(r.z),sz=std::sin(r.z);
+            const DirectX::XMFLOAT3 x{v.x,cx*v.y-sx*v.z,sx*v.y+cx*v.z};
+            const DirectX::XMFLOAT3 y{cy*x.x+sy*x.z,x.y,-sy*x.x+cy*x.z};
+            return DirectX::XMFLOAT3{cz*y.x-sz*y.y,sz*y.x+cz*y.y,y.z};
+        };
+        const auto corners=[&](DirectX::XMFLOAT3 center,DirectX::XMFLOAT3 rot,
+                               float width,float length) {
+            std::array<DirectX::XMFLOAT3,4> out{};
+            for(int i=0;i<4;++i) {
+                const auto v=rotate({((i&1)?1.f:-1.f)*width*.5f,
+                    ((i&2)?1.f:-1.f)*length*.5f,0.f},rot);
+                out[static_cast<size_t>(i)]={center.x+v.x,center.y+v.y,center.z+v.z};
+            }
+            return out;
+        };
+        const auto expectedCorners=corners(center,expectedRot,shape.width,shape.length);
+        size_t matchingSourcePlanes=0;
+        for(const auto& c:before.CollisionPlanes()) {
+            const auto n=planeNormal(c.rotation);
+            if(!same(c.position.x,center.x)||!same(c.position.y,center.y)||
+               !same(c.position.z,center.z)||
+               NativeCollisionImport::Dot(want,n)<=.999f)continue;
+            const auto actualCorners=corners(c.position,c.rotation,c.width,c.length);
+            std::array<bool,4> used{};
+            bool fullMatch=true;
+            for(const auto& v:expectedCorners) {
+                bool found=false;
+                for(size_t k=0;k<actualCorners.size();++k)if(!used[k]&&
+                    same(v.x,actualCorners[k].x)&&same(v.y,actualCorners[k].y)&&
+                    same(v.z,actualCorners[k].z)) {used[k]=true;found=true;break;}
+                if(!found) {fullMatch=false;break;}
+            }
+            if(fullMatch)++matchingSourcePlanes;
+        }
+        return matchingSourcePlanes==exactSourceProps;
+    };
+    for (size_t slot=0;slot<ghostProps_.size();++slot) {
+        auto p=ghostProps_[slot];
+        bool sourceVerifiedCoincident=false;
+        if(sourceProvesCoincidentWall(p))for(const int prior:inserted) {
+            const auto& q=map.Props()[static_cast<size_t>(prior)];
+            if(q.library==p.library&&q.group==p.group&&q.name==p.name&&
+               q.texture==p.texture&&
+               std::fabs(q.position.x-p.position.x)<.01f&&
+               std::fabs(q.position.y-p.position.y)<.01f&&
+               std::fabs(q.position.z-p.position.z)<.01f&&
+               std::fabs(std::atan2(std::sin(q.rotation.z-p.rotation.z),
+                                    std::cos(q.rotation.z-p.rotation.z)))<.001f) {
+                sourceVerifiedCoincident=true;break;
+            }
+        }
         if(p.hasUncopyableMetadata)p.allowOpaqueMetadataCopy=allowOpaqueMetadataCopy_;
         const auto index=map.AddProp(std::move(p));
         const auto oldPlanes=map.CollisionPlanes().size(),oldTriangles=map.CollisionTriangles().size();
         std::string info;
-        if(AuthorCollisionForPlacement(map,assets,index,info)) {
+        if(AuthorCollisionForPlacement(map,assets,index,info,
+                                       sourceVerifiedCoincident,stagedStart)) {
             ++nativeCount;
             planes+=map.CollisionPlanes().size()-oldPlanes;
             triangles+=map.CollisionTriangles().size()-oldTriangles;
@@ -977,7 +1079,21 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     }
     allowOpaqueMetadataCopy_=false; // approval is never carried into a later placement
     if(!failure.empty()) {
-        Log::Warning("Placement transaction rolled back: "+failure+
+        // The failing candidate has been staged but NOT added to inserted.
+        // Report a stable original XML index and actual target position for
+        // large map copies, without committing any partial work.
+        std::string location;
+        if(inserted.size()<ghostProps_.size()) {
+            const auto& failed=ghostProps_[inserted.size()];
+            location=" item="+std::to_string(inserted.size()+1)+"/"+
+                std::to_string(ghostProps_.size())+
+                " sourceIndex="+std::to_string(failed.legacySourceIndex)+
+                " identity="+failed.library+"/"+failed.group+"/"+failed.name+
+                " targetPos=("+std::to_string(failed.position.x)+","+
+                std::to_string(failed.position.y)+","+
+                std::to_string(failed.position.z)+")";
+        }
+        Log::Warning("Placement transaction rolled back: "+failure+location+
             " (candidate additions were staged, not committed).");
         map=std::move(before); // all-or-nothing, no ghost wall left in the document
         SetMessage("Placement blocked: "+failure+". Check the advanced opaque-copy and visual-only options before retrying.",true);

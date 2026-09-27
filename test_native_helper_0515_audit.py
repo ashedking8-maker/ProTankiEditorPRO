@@ -92,7 +92,7 @@ class OriginalNativeGeometryAudit(unittest.TestCase):
         header=(ROOT/'src/EditorUi.h').read_text(encoding='utf8')
         importer=(ROOT/'src/NativeCollisionImport.h').read_text(encoding='utf8')
         self.assertIn('bool allowVisualOnlyPlacement_{};',header)
-        self.assertIn('map.AddImportedCollisionForProp(index,imported)',ui)
+        self.assertIn('map.AddImportedCollisionForProp(index,imported,',ui)
         self.assertIn('Native helper collision refused',ui)
         self.assertIn('GLB: collision draft',ui)
         self.assertIn('Edit solid/trigger boxes below.',ui)

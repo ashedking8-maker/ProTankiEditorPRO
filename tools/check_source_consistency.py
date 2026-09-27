@@ -82,8 +82,8 @@ def main() -> int:
                 'else if(t->transformDirty)' in doc and
                 't.legacySourceIndex<0' in doc and
                 'map.AddVerifiedCollisionForProp(index)' in ui and
-                'AuthorCollisionForPlacement(map,assets,index,info)' in ui and
-                'map.AddImportedCollisionForProp(index,imported)' in ui and
+                'AuthorCollisionForPlacement(map,assets,index,info,' in ui and
+                'map.AddImportedCollisionForProp(index,imported,' in ui and
                 'Repair saved wall collision' in ui and
                 'HasVerifiedCollisionForProp' in doc,
                 'Verified original native collider ownership/transform/export path missing')
@@ -106,7 +106,7 @@ def main() -> int:
                 'TrimBrowseCpuCache();' in ui,
                 'Session-only manually selected library / thumbnail cache policy regressed')
         require('VERSION 0.5.28' in cmake and '0.5.28' in text('src/App.cpp')
-                and '0.5.28-browse-object-export' in text('src/Logger.cpp'),'Version drift')
+                and '0.5.28-esplanade-copy-guard' in text('src/Logger.cpp'),'Version drift')
         require('Native3DSMaterialSmoothingRoundTrip' in cmake and
                 'src/Native3DSVisualMetadata.h' in cmake and
                 (ROOT/'tests/native_visual_metadata_regression.cpp').is_file() and
@@ -168,7 +168,7 @@ def main() -> int:
                 (ROOT/'tests/fixtures/native_helpers/brid_1.3ds').is_file() and
                 (ROOT/'tests/fixtures/native_helpers/concrete_wall_end1_original_map.xml').is_file() and
                 'BindImportedCollisionForProp' in doc and
-                'AuthorCollisionForPlacement(map,assets,index,info)' in ui and
+                'AuthorCollisionForPlacement(map,assets,index,info,' in ui and
                 'Allow visual-only props' in ui and
                 'inspectedHelpers=NativeCollisionImport::Read(inspectedSource)' in ui and
                 'Placement settings##tools' in ui and 'HoverHelp(' in ui,
