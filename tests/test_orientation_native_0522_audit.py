@@ -34,11 +34,13 @@ class OrientationNative0522(unittest.TestCase):
         mesh=(ROOT/'src/LegacyMeshImport.h').read_text()
         self.assertIn('const aiMatrix4x4 basis(1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,0,1);',mesh)
         self.assertNotIn('0,-1,0,0',mesh)
-    def test_opt_in_edge_and_surface_controls_do_not_mutate_existing_maps(self):
+    def test_edge_snap_and_new_object_surface_controls_do_not_mutate_existing_maps(self):
         ui=(ROOT/'src/EditorUi.cpp').read_text()
         header=(ROOT/'src/EditorUi.h').read_text()
         self.assertIn('bool edgeSnapEnabled_{}',header)
-        self.assertIn('bool surfaceOffsetEnabled_{}',header)
+        self.assertIn('bool surfaceOffsetEnabled_{true}',header)
+        self.assertIn('float surfaceOffsetZ_{0.5f}',header)
+        self.assertIn('if(surfaceOffsetEnabled_ && !clipboardPlacement_) ghostPivot_.z+=surfaceOffsetZ_;',ui)
         self.assertIn('!clipboardPlacement_ && ghostProps_.size()==1',ui)
         self.assertIn('Ghost',ui)
         self.assertIn('Placement transaction rolled back:',ui)

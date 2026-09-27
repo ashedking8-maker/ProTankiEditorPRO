@@ -475,6 +475,8 @@ void EditorUi::LoadControls() {
         else if (tag=="smoothCameraFocus") { int v{};if(in>>v)smoothCameraFocus_=v!=0; }
         else if (tag=="previewNativeLighting") { int v{}; if(in>>v) previewNativeLighting_=v!=0; }
         else if (tag=="previewLightReach") { if(in>>previewLightReach_)previewLightReach_=std::clamp(previewLightReach_,1.f,500.f); }
+        else if (tag=="surfaceOffsetEnabled") { int v{}; if(in>>v) surfaceOffsetEnabled_=v!=0; }
+        else if (tag=="surfaceOffsetZ") { float v{}; if(in>>v && std::isfinite(v)) surfaceOffsetZ_=std::clamp(v,0.f,20.f); }
         else if (tag=="browseThumbScale") { float value{}; if(in>>value && std::isfinite(value) && value>=0.7f && value<=1.65f) browseThumbnailScale_=value; }
         else if (tag=="navigationMode") { int v{}; if(in>>v && v>=0 && v<=3) navigationMode_=static_cast<NavigationMode>(v); }
         else if (tag=="customOrbit") { int v{}; if(in>>v && v>=0 && v<=4) customOrbit_=static_cast<MouseGesture>(v); }
@@ -529,6 +531,8 @@ void EditorUi::SaveControls() const {
     out<<"smoothCameraFocus "<<smoothCameraFocus_<<'\n';
     out<<"previewNativeLighting "<<previewNativeLighting_<<'\n';
     out<<"previewLightReach "<<previewLightReach_<<'\n';
+    out<<"surfaceOffsetEnabled "<<surfaceOffsetEnabled_<<'\n';
+    out<<"surfaceOffsetZ "<<surfaceOffsetZ_<<'\n';
     out<<"browseThumbScale "<<browseThumbnailScale_<<'\n';
     out<<"navigationMode "<<static_cast<int>(navigationMode_)<<'\n';
     out<<"customOrbit "<<static_cast<int>(customOrbit_)<<'\n';
@@ -1466,11 +1470,12 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
                 edgeSnapClearance_=std::clamp(edgeSnapClearance_,0.f,10.f);
                 HoverHelp("0 means exact shared edge, not overlapping coplanar surfaces. This is NOT a vertical material offset.");
             }
-            ImGui::Checkbox("New-object surface Z offset",&surfaceOffsetEnabled_);
-            HoverHelp("Opt-in height offset for new props, to separate coplanar surfaces. The object's native collision follows its changed Z too; do NOT use for a collision-free decal.");
+            if(ImGui::Checkbox("Z-offset protection (new objects)",&surfaceOffsetEnabled_)) SaveControls();
+            HoverHelp("Adds the specified height to newly placed objects, not existing maps. Native collision moves with the object. Disable for precise contact or stacked solids; this is not a visual-only decal offset.");
             if(surfaceOffsetEnabled_) {
                 ImGui::SetNextItemWidth(125.f);ImGui::InputFloat("Z offset (units)",&surfaceOffsetZ_,0,0,"%.3f");
                 surfaceOffsetZ_=std::clamp(surfaceOffsetZ_,0.f,20.f);
+                if(ImGui::IsItemDeactivatedAfterEdit()) SaveControls();
             }
             ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
             HoverHelp("Only for deliberate visual placement. New unsupported 3DS solids will not receive collision.");
@@ -1548,7 +1553,7 @@ void EditorUi::DrawScene(MapDocument& map, SceneRenderer& scene) {
         }
         ImGui::TreePop();
     }
-    if (ImGui::Button("Open gameplay inspector...")) ImGui::SetWindowFocus("Gameplay");
+    // Gameplay is already a docked inspector; avoid a redundant Scene button.
     char collisionLabel[96]; std::snprintf(collisionLabel, sizeof(collisionLabel), "Collision (%zu)", map.Stats().collisionPlanes + map.Stats().collisionBoxes + map.Stats().collisionTriangles);
     if(ImGui::TreeNode(collisionLabel)) {
         HoverHelp("Collision is stored separately from visible props; deleting a visual alone can leave an invisible obstacle. Positions come from the real XML.");
@@ -3229,7 +3234,19 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     const ImVec2 mouse=ImGui::GetMousePos();
     const float lx=mouse.x-origin.x, ly=mouse.y-origin.y;
     const bool mouseInside=lx>=0 && ly>=0 && lx<size.x && ly<size.y;
-    if (placementActive_ && mouseInside) UpdatePlacementGhost(scene,assets,lx,ly);
+    // These two tabs are drawn after the viewport image. Exclude their rectangles
+    // BEFORE handling image clicks; otherwise the same click selects a prop below.
+    constexpr float helpWidth=218.f, helpHeight=21.f, bugHeight=21.f;
+    constexpr const char* bugLabel="Report a Bug";
+    const ImVec2 helpPos{origin.x+std::max(0.f,size.x-helpWidth),origin.y+std::max(0.f,size.y-helpHeight)};
+    const float bugWidth=std::min(size.x,ImGui::CalcTextSize(bugLabel).x+14.f);
+    const ImVec2 bugPos{helpPos.x+std::min(helpWidth,size.x)-bugWidth,helpPos.y-bugHeight};
+    const auto insideRect=[&](const ImVec2& pos,float width,float height) {
+        return mouse.x>=pos.x && mouse.x<pos.x+width && mouse.y>=pos.y && mouse.y<pos.y+height;
+    };
+    const bool overSupportTab=insideRect(helpPos,std::min(helpWidth,size.x),helpHeight) ||
+        (bugPos.y>=origin.y && insideRect(bugPos,bugWidth,bugHeight));
+    if (placementActive_ && mouseInside && !overSupportTab) UpdatePlacementGhost(scene,assets,lx,ly);
     else if (!placementActive_) scene.ClearGhost();
     if (functionalPlacement_!=FunctionalPlacement::None && mouseInside) {
         DirectX::XMFLOAT3 p{};
@@ -3323,7 +3340,8 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         ImGui::GetWindowDrawList()->AddText({origin.x+12,origin.y+67},IM_COL32(240,240,240,255),
             "GREEN: horizontal collider | RED: steep collider / box | not a passability guarantee");
     }
-    const bool hovered=ImGui::IsItemHovered(); ImGuiIO& io=ImGui::GetIO(); auto& nav=CurrentNavigationSettings();
+    const bool hovered=ImGui::IsItemHovered() && !overSupportTab;
+    ImGuiIO& io=ImGui::GetIO(); auto& nav=CurrentNavigationSettings();
     // A short right click cancels selection. A right-button drag remains camera navigation.
     // Avoid acting while a placement preview is active (handled immediately below).
     if (hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Right) &&
@@ -3700,8 +3718,6 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     }
     // A tiny raised tab attached to the viewport's bottom-right corner. It does
     // not allocate a child/footer row or shift the 3D image or its parent dock.
-    constexpr float helpWidth=218.0f, helpHeight=21.0f;
-    const ImVec2 helpPos{origin.x+std::max(0.0f,size.x-helpWidth),origin.y+std::max(0.0f,size.y-helpHeight)};
     ImGui::SetCursorScreenPos(helpPos);
     if (ImGui::InvisibleButton("##discord_corner_tab",{std::min(helpWidth,size.x),helpHeight}))
         ShellExecuteW(nullptr,L"open",L"https://discord.gg/4GRZymqYG3",nullptr,nullptr,SW_SHOWNORMAL);
@@ -3710,10 +3726,7 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     dl->AddText({helpPos.x+7,helpPos.y+3},IM_COL32(198,213,228,246),"Seek Help | ProTanki Discord");
     // Matching raised viewport tab, aligned to the SAME right edge, one row
     // above Discord. No footer/dock resizing and no hidden network request.
-    constexpr float bugHeight=21.f;
-    constexpr const char* bugLabel="Report a Bug";
-    const float bugWidth=std::min(size.x,ImGui::CalcTextSize(bugLabel).x+14.f);
-    const ImVec2 bugPos{helpPos.x+std::min(helpWidth,size.x)-bugWidth,helpPos.y-bugHeight-3.f};
+    // Join the two tabs without a visible gap.
     if(bugPos.y>=origin.y){
         ImGui::SetCursorScreenPos(bugPos);
         if(ImGui::InvisibleButton("##report_bug_corner_tab",{bugWidth,bugHeight}))
@@ -3883,19 +3896,10 @@ void EditorUi::DrawBugReport(){
     ImGui::SetNextWindowSizeConstraints({475.f,0.f},{650.f,620.f});
     if(!ImGui::BeginPopupModal("Report a Bug##ptpro_report",nullptr,ImGuiWindowFlags_AlwaysAutoResize))return;
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX()+495.f);
-    ImGui::TextUnformatted("Subject");
-    ImGui::SetNextItemWidth(475.f);
-    ImGui::InputTextWithHint("##ptpro_report_subject","Short description of the issue",bugReportSubject_,sizeof(bugReportSubject_));
-    ImGui::Spacing();ImGui::TextUnformatted("Describe the bug and steps to reproduce");
+    ImGui::TextUnformatted("Describe the bug or feedback");
     ImGui::InputTextMultiline("##ptpro_report_details",bugReportDetails_,sizeof(bugReportDetails_),{475.f,145.f});
     ImGui::Checkbox("Attach recent session logs (optional)",&bugReportAttachLogs_);
     if(ImGui::IsItemHovered())ImGui::SetTooltip("At most two recent .log excerpts. Paths/email and credential-like lines are redacted. No maps, crash dumps or models.");
-    ImGui::TextDisabled("Nothing is sent before you press Send. Log excerpts may contain diagnostic data.");
-    ImGui::TextDisabled("Repeated submissions may be consolidated by the report service.");
-    if(!BugReport::Configured()){
-        ImGui::TextColored({.98f,.68f,.37f,1.f},"Reporting service is not configured in this build.");
-        ImGui::TextWrapped("The maintainer must deploy the HTTPS gateway and provide its public URL when building the app.");
-    }
     if(bugReportPending_.valid() &&
         bugReportPending_.wait_for(std::chrono::seconds(0))==std::future_status::ready){
         try {
@@ -3912,10 +3916,13 @@ void EditorUi::DrawBugReport(){
     if(!bugReportFeedback_.empty())ImGui::TextColored(bugReportFeedbackError_?ImVec4{1.f,.56f,.46f,1.f}:ImVec4{.47f,.88f,.55f,1.f},
         "%s",bugReportFeedback_.c_str());
     const bool waiting=bugReportPending_.valid();
-    const bool filled=bugReportSubject_[0]!='\0'&&bugReportDetails_[0]!='\0';
+    const bool filled=bugReportDetails_[0]!='\0';
     ImGui::BeginDisabled(waiting||!filled||!BugReport::Configured());
     if(ImGui::Button(waiting?"Sending...":"Send report",{145.f,0.f})){
-        const std::string subject=bugReportSubject_,details=bugReportDetails_;
+        const std::string details=bugReportDetails_;
+        const auto lineEnd=details.find_first_of("\r\n");
+        std::string subject=details.substr(0,std::min(lineEnd,static_cast<size_t>(120)));
+        if(subject.empty())subject="Bug or feedback";
         const bool logs=bugReportAttachLogs_;
         bugReportFeedback_.clear();
         bugReportPending_=std::async(std::launch::async,[subject,details,logs]{
@@ -3923,6 +3930,8 @@ void EditorUi::DrawBugReport(){
         });
     }
     ImGui::EndDisabled();
+    if(!BugReport::Configured() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Sending requires a configured reporting service.");
     ImGui::SameLine();
     if(ImGui::Button("Close##bugreport"))ImGui::CloseCurrentPopup();
     ImGui::PopTextWrapPos();ImGui::EndPopup();

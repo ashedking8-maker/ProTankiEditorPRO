@@ -69,7 +69,6 @@ private:
     bool showBackgroundPopup_{};
     bool bugReportOpen_{};
     bool bugReportAttachLogs_{}; // privacy: opt-in, not checked by default
-    char bugReportSubject_[161]{};
     char bugReportDetails_[4001]{};
     std::future<BugReport::Result> bugReportPending_;
     std::string bugReportFeedback_;
@@ -279,8 +278,8 @@ private:
     bool edgeSnapEnabled_{}; // opt-in until compared against ProTLVK
     float edgeSnapTolerance_{5.f};
     float edgeSnapClearance_{}; // horizontal separation; NOT vertical surface offset
-    bool surfaceOffsetEnabled_{}; // explicit opt-in for new ghost placement only
-    float surfaceOffsetZ_{0.1f};
+    bool surfaceOffsetEnabled_{true}; // default for newly placed props; existing props never move
+    float surfaceOffsetZ_{0.5f};
     float gridSize_ = 500.0f;
     float rotationSnapDeg_ = 90.0f;
     float ghostRotation_{};
