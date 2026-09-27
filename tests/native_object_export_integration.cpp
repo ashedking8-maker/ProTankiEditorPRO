@@ -79,7 +79,7 @@ int main(int argc,char** argv) {
     }
     PT_REQUIRE(changed.size()==1);
     const auto& a=originalMesh.vertices[changed.front()].position;
-    const DirectX::XMFLOAT3* elevated=nullptr;
+    const aiVector3D* elevated=nullptr;
     for(const auto& v:referenceMesh.vertices){
         const auto& b=v.position;
         if(std::abs(a.x-b.x)<.05f&&std::abs(a.z-b.z)<.05f&&std::abs(a.y-b.y)>.05f){
