@@ -89,7 +89,7 @@ inline Bytes Material(const Part& part){
     CStr(tex,part.texture);Add(map,Chunk(0xA300,tex));Add(body,Chunk(0xA200,map));
     return Chunk(0xAFFF,body);
 }
-inline Bytes RGB(const std::array<float,3>& value){
+inline Bytes FloatRgbChunk(const std::array<float,3>& value){
     Bytes rgb;for(float c:value)Float(rgb,c);
     return Chunk(0x0010,rgb);
 }
@@ -116,9 +116,9 @@ inline bool OverrideMaterial(const Bytes& original,const MaterialOverride& optio
                         original.begin()+static_cast<std::ptrdiff_t>(p+size));
         p+=size;
     }
-    Add(body,Chunk(0xA010,RGB(options.ambient)));
-    Add(body,Chunk(0xA020,RGB(options.diffuse)));
-    Add(body,Chunk(0xA030,RGB(options.specular)));
+    Add(body,Chunk(0xA010,FloatRgbChunk(options.ambient)));
+    Add(body,Chunk(0xA020,FloatRgbChunk(options.diffuse)));
+    Add(body,Chunk(0xA030,FloatRgbChunk(options.specular)));
     Add(body,Chunk(0xA040,Percentage(options.shininess)));
     Add(body,Chunk(0xA050,Percentage(options.transparency)));
     Bytes mode;U16(mode,options.shading);Add(body,Chunk(0xA100,mode));

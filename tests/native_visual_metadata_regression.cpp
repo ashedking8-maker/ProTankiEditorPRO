@@ -1,11 +1,21 @@
-#include "Native3DSWriter.h"
-#include "Native3DSVisualMetadata.h"
-#include "ReleaseTestCheck.h"
 #include <array>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+// Mirror the Windows SDK RGB(r,g,b) macro even on non-Windows builders.
+// This test catches collisions with preprocessor macros in public headers.
+#ifndef RGB
+#define RGB(red, green, blue) 0
+#define PTPRO_TEST_DEFINED_RGB
+#endif
+#include "Native3DSWriter.h"
+#ifdef PTPRO_TEST_DEFINED_RGB
+#undef RGB
+#undef PTPRO_TEST_DEFINED_RGB
+#endif
+#include "Native3DSVisualMetadata.h"
+#include "ReleaseTestCheck.h"
 
 int main(){
     namespace w=Native3DSWriter;
