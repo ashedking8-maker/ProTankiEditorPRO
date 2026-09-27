@@ -1,4 +1,4 @@
-# Discord reporting gateway (0.5.27)
+# Discord reporting gateway (0.5.28)
 
 Replace the existing Cloudflare Worker `protankieditorbugreport` code via **Edit code** with `worker.mjs`, then **Deploy**. In Settings keep:
 
@@ -12,7 +12,7 @@ The native client sends version, random persistent installation ID, subject, des
 Test with the Cloudflare HTTP panel: POST `/api/report`, header `Content-Type: application/json`, body:
 
 ```json
-{"version":"0.5.27","client_id":"0123456789abcdef0123456789abcdef","subject":"Discord test","description":"Checking report delivery","logs_opt_in":false,"logs":""}
+{"version":"0.5.28","client_id":"0123456789abcdef0123456789abcdef","subject":"Discord test","description":"Checking report delivery","logs_opt_in":false,"logs":""}
 ```
 
 First valid request should send one Discord message and get HTTP 202. Repeated immediate valid request should get the same HTTP 202 but must not send a new message. To test optional logs, wait 30 minutes or use a different IP/test KV namespace; do not remove production cooldown keys to force extra reports. The gateway is public and **does not authenticate official editor clients**. Never put a secret in the desktop binary.

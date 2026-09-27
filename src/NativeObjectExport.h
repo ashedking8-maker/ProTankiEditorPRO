@@ -8,6 +8,7 @@
 #include "Native3DSWriter.h"
 #include "Native3DSVisualMetadata.h"
 #include "NativeTerrainDelta.h"
+#include "NativeExportCollisionPolicy.h"
 #include "NativeTaraWriter.h"
 #include "ObjectDraft.h"
 #include <pugixml.hpp>
@@ -182,6 +183,15 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     }
     const bool terrain=originalCollision.Valid()&&!originalCollision.triangles.empty() &&
                        originalCollision.planes.empty()&&originalCollision.boxes.empty();
+    // Do not silently replace authored planes or mixed primitives with generic
+    // boxes. Existing box-only assets are an explicit reauthoring path, NOT an
+    // assertion that arbitrary rotated original boxes have been preserved.
+    if(!NativeExportCollisionPolicy::Validate(
+        d.purpose==ObjectDraft::Purpose::Decorative,originalCollision.Valid(),
+        originalCollision.planes.size(),originalCollision.boxes.size(),
+        originalCollision.triangles.size(),
+        originalCollision.error==NativeCollisionImport::NoNativeHelpersError,
+        d.boxes.size(),error))return false;
     if(d.purpose!=ObjectDraft::Purpose::Decorative){
         if(terrain){
             if(!NativeTerrainDelta::Build(source->mesh,output,output.triangles,error))return false;
@@ -265,6 +275,36 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
         if(!native.Valid()||native.triangles.size()!=output.triangles.size()||
            !native.boxes.empty()||!native.planes.empty()){
             cleanup();error="Native terrain helper round-trip failed: "+native.error;return false;
+        }
+        // Round-trip the actual authored helper coordinates. The native reader
+        // computes rotations/local offsets, so inspect source 3DS helper nodes
+        // rather than comparing only primitive counts or floating Euler angles.
+        std::string triangleParseError;
+        const auto writtenNodes=NativeCollisionImport::ReadNodes(modelFile,triangleParseError);
+        if(!triangleParseError.empty()){
+            cleanup();error="Cannot reread exported terrain: "+triangleParseError;return false;
+        }
+        size_t triangleIndex=0;
+        for(const auto& node:writtenNodes)if(NativeCollisionImport::Prefix(node.name,"tri")){
+            if(triangleIndex>=output.triangles.size()||node.vertices.size()!=3||node.faces.size()!=1){
+                cleanup();error="Exported terrain helper topology changed.";return false;
+            }
+            const auto& face=node.faces.front();
+            for(size_t corner=0;corner<3;++corner){
+                if(face[corner]>=node.vertices.size()){
+                    cleanup();error="Exported terrain helper has invalid indices.";return false;
+                }
+                const auto& got=node.vertices[face[corner]];
+                const auto& want=output.triangles[triangleIndex][corner];
+                if(std::abs(got.x-want[0])>.05f||std::abs(got.y-want[1])>.05f||
+                   std::abs(got.z-want[2])>.05f){
+                    cleanup();error="Exported terrain helper vertex changed during 3DS round-trip.";return false;
+                }
+            }
+            ++triangleIndex;
+        }
+        if(triangleIndex!=output.triangles.size()){
+            cleanup();error="Exported terrain helper count differs from the authored geometry.";return false;
         }
     }
     if(!output.boxes.empty()){

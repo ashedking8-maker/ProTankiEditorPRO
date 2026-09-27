@@ -35,7 +35,7 @@ public:
     void ProcessPendingNativeDialogs();
     void ApplyPreferredTheme() const;
     bool FirstRun() const { return welcomePending_; }
-    void ShutdownObjectPreview() { browseThumbnails_.clear(); recentAssets_.clear(); objectScene_.Shutdown(); objectSceneInitialized_=false; objectSceneHasModel_=false; }
+    void ShutdownObjectPreview() { browseThumbnails_.clear(); browseCpuThumbnails_.clear(); recentAssets_.clear(); objectScene_.Shutdown(); objectSceneInitialized_=false; objectSceneHasModel_=false; }
 
     bool ConsumeFullscreenToggle() { const bool v = fullscreenToggleRequested_; fullscreenToggleRequested_ = false; return v; }
     bool ConsumeSceneRebuildRequest(bool& preserveCamera) {
@@ -258,6 +258,7 @@ private:
     float pendingNativeWheel_{};
     bool axTabWasHeld_{};
     bool browseLibraryOpen_{};
+    bool browseWasOpen_{}; // GPU previews are released on the first frame after closing Browse.
     float browseWorkspaceY_{};
     char browseSearch_[128]{};
     int browseCategory_{}; // metadata-only heuristic category filter
@@ -266,11 +267,21 @@ private:
     struct BrowseThumbnail {
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
         DirectX::XMFLOAT3 dimensions{}; // width/depth/height, computed only after this item's 3DS is opened
-        unsigned long long touched{}; bool failed{}, hasDimensions{};
+        unsigned long long touched{}; size_t gpuBytes{};
+        bool failed{}, hasDimensions{};
+    };
+    struct BrowseCpuThumbnail {
+        std::vector<std::uint8_t> png; // WIC-encoded in memory; never written to disk.
+        DirectX::XMFLOAT3 dimensions{};
+        unsigned long long touched{};
     };
     std::unordered_map<uint64_t,BrowseThumbnail> browseThumbnails_;
+    std::unordered_map<uint64_t,BrowseCpuThumbnail> browseCpuThumbnails_;
     unsigned long long browseFrame_{};
     bool browseRenderedThisFrame_{};
+    unsigned browseDecodedThisFrame_{};
+    void TrimBrowseGpuCache(size_t budgetBytes);
+    void TrimBrowseCpuCache();
     bool browsePreviewNeedsRestore_{};
     bool showZones_ = false;
     bool snap_ = true;

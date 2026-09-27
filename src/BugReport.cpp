@@ -97,7 +97,7 @@ Result Upload(const std::string& json){
     const std::wstring host(parts.lpszHostName,parts.dwHostNameLength);
     std::wstring path(parts.lpszUrlPath,parts.dwUrlPathLength);
     if(parts.dwExtraInfoLength)path.append(parts.lpszExtraInfo,parts.dwExtraInfoLength);
-    AutoHandle session(WinHttpOpen(L"ProTankiEditorPRO-BugReport/0.5.27",WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+    AutoHandle session(WinHttpOpen(L"ProTankiEditorPRO-BugReport/0.5.28",WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
         WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));
     if(!session.h)return {false,"Cannot initialize secure report connection."};
     WinHttpSetTimeouts(session.h,4000,4000,6000,6000);
@@ -160,7 +160,7 @@ Result Submit(std::string subject,std::string description,bool attachLogs){
     if(!Configured())return {false,"Bug report gateway is not configured. Contact the project maintainer."};
     const auto id=InstallationId();if(id.empty())return {false,"Cannot store installation report ID."};
     const std::string logs=attachLogs?RecentLogs():std::string{};
-    const std::string json="{\"version\":\"0.5.27\",\"client_id\":\""+EscapeJson(id)+
+    const std::string json="{\"version\":\"0.5.28\",\"client_id\":\""+EscapeJson(id)+
         "\",\"subject\":\""+EscapeJson(subject)+"\",\"description\":\""+EscapeJson(description)+
         "\",\"logs_opt_in\":"+(attachLogs?"true":"false")+",\"logs\":\""+EscapeJson(logs)+"\"}";
     if(json.size()>kMaxBody)return {false,"Report is too large. Disable logs and retry."};

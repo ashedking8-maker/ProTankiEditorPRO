@@ -1,4 +1,4 @@
-// ProTanki Editor PRO Discord gateway 0.5.27.
+// ProTanki Editor PRO Discord gateway 0.5.28.
 // Settings > Variables and secrets: DISCORD_WEBHOOK_URL (Secret).
 // Settings > Bindings: REPORT_LIMITS (KV namespace protanki-report-limits).
 // NEVER embed the Discord webhook URL in a distributable application.
@@ -31,7 +31,7 @@ export default {
       report=JSON.parse(raw);
     }catch{return error('Invalid JSON',400);}
     if(!report || typeof report!=='object' || Array.isArray(report) ||
-       !['0.5.26','0.5.27'].includes(report.version) ||
+       !['0.5.26','0.5.27','0.5.28'].includes(report.version) ||
        typeof report.client_id!=='string'||!/^[a-f0-9]{32}$/.test(report.client_id)||
        typeof report.subject!=='string'||!report.subject.trim()||report.subject.length>160||
        typeof report.description!=='string'||!report.description.trim()||report.description.length>4000||

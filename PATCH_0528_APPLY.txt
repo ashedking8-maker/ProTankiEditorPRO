@@ -1,0 +1,9 @@
+ProTanki Editor PRO 0.5.28 — source update
+
+1. Safest: upload the FULL-SOURCE ZIP contents into the existing GitHub repository, retaining all subfolders and hidden .github/workflows. Or overlay PATCH ZIP in the existing full 0.5.27 repository. Do not create a new repo; keep original game library files outside the source tree.
+2. In Cloudflare Worker `protankieditorbugreport`, replace code with `report_gateway/discord/worker.mjs`, then Deploy. Keep DISCORD_WEBHOOK_URL as Secret and REPORT_LIMITS as the existing KV binding. The previous Worker rejects 0.5.28 report payloads.
+3. In GitHub -> Settings -> Secrets and variables -> Actions -> Variables, use public PTPRO_BUG_REPORT_ENDPOINT=https://protankieditorbugreport.ashedking8.workers.dev/api/report. Never put the private Discord webhook in source or Actions variables.
+4. Run Windows GitHub Actions. Confirm MSVC build, all CTests (including NativeLand01EndToEndExport, NativeExportCollisionSafety, BrowseSessionCacheByteBudgets) and packaging. Inspect any failure before installing.
+5. On Windows, manually verify Browse RAM/VRAM lifecycle and Land01 exported peak/collision in ProTLVK, then Discord first report, silent repeat, opt-in logs after cooldown. No Windows installer is contained in these source archives.
+
+Not promised: automatic native GLB output, arbitrary new mesh topology, multi-point Land01 export, preservation of rotated original boxes, or atomic KV rate limiting.

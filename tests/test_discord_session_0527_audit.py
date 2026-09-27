@@ -13,7 +13,7 @@ class DiscordSession0527Audit(unittest.TestCase):
         self.assertNotIn('assets_.Scan(localLib',app)
         self.assertIn('assets_.Scan(ui_.PendingLibrary(),err)',app)
         self.assertNotIn('out<<"lastLibraryDirectory "',ui)
-        self.assertIn('constexpr size_t budget=2048;',ui)
+        self.assertIn('TrimBrowseGpuCache(PreviewThumbnailCodec::GpuBudget',ui)
         self.assertIn('browseThumbnails_.clear()',ui)
         self.assertNotIn('thumbnail-cache',ui)
 

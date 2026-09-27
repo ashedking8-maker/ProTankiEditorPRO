@@ -1,6 +1,7 @@
 #include "EditorUi.h"
 #include "NativeObjectExport.h"
 #include "BugReport.h"
+#include "PreviewThumbnailCodec.h"
 #include <future>
 #include <chrono>
 #include "VerifiedCollisionTemplates.h"
@@ -345,7 +346,7 @@ void EditorUi::OnLibraryLoaded(SceneRenderer& previewScene, const std::filesyste
     }
     selectedAsset_ = -1; selectedTextureVariant_ = 0; assetPreviewReady_ = false; placementActive_ = false;
     recentAssets_.clear(); axCurrent_=0; axPinned_=false; axConfirmRemove_=false; ghostProps_.clear();
-    browseLibraryOpen_=false; browseThumbnails_.clear(); browseFrame_=0;
+    browseLibraryOpen_=false; browseWasOpen_=false; browseThumbnails_.clear(); browseCpuThumbnails_.clear(); browseFrame_=0;
     previewScene.ClearScene();
 }
 
@@ -1264,6 +1265,12 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
 }
 
 void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scene, SceneRenderer& previewScene) {
+    // The previous ImGui draw list has already been submitted. Release only
+    // Browse GPU views now, not mid-frame while a thumbnail may still be drawn.
+    if (browseWasOpen_ && !browseLibraryOpen_) {
+        browseThumbnails_.clear();
+        browseWasOpen_=false;
+    }
     if(objectEditorOpening_ && GetTickCount64()-objectEditorOpenAt_>=1000ULL) {
         SplashScreen::Close(); objectEditorOpening_=false; objectEditorOpen_=true;
     }
@@ -1360,7 +1367,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
     }
     if (showToastOverlay_ && !browseLibraryOpen_) DrawToast(); DrawControlHelp(); DrawSupportPopup(); DrawBugReport(); DrawFirstRunGuidance();
     // Last, full-workspace opaque window: masks Scene, Viewport, Library, Properties and Gameplay.
-    if (browseLibraryOpen_) DrawBrowseLibrary(map, assets, scene, previewScene);
+    if (browseLibraryOpen_) { browseWasOpen_=true; DrawBrowseLibrary(map, assets, scene, previewScene); }
 }
 
 void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
@@ -1740,64 +1747,109 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
     ImGui::End();
 }
 
-// Full-workspace browser. Library names are metadata-only until the user opens one.
-// One visible thumbnail is generated per frame; hidden/collapsed categories do no GPU work.
+// Byte-budgeted two-tier cache. GPU thumbnails exist only while Browse is open.
+// The small, WIC-compressed RAM cache survives Browse close, but not app exit
+// or a new manually selected library. No user asset/index/PNG is saved to disk.
+void EditorUi::TrimBrowseGpuCache(size_t budgetBytes) {
+    size_t bytes=0;
+    for(const auto& entry:browseThumbnails_)bytes+=entry.second.gpuBytes;
+    while(bytes>budgetBytes && !browseThumbnails_.empty()) {
+        auto victim=browseThumbnails_.end();
+        for(auto it=browseThumbnails_.begin();it!=browseThumbnails_.end();++it) {
+            // ImGui stores raw texture pointers in the current frame's draw list.
+            if(it->second.touched>=browseFrame_)continue;
+            if(victim==browseThumbnails_.end()||it->second.touched<victim->second.touched)victim=it;
+        }
+        if(victim==browseThumbnails_.end())break; // visible entries take priority
+        bytes-=victim->second.gpuBytes;
+        browseThumbnails_.erase(victim);
+    }
+}
+void EditorUi::TrimBrowseCpuCache() {
+    size_t bytes=0;
+    for(const auto& entry:browseCpuThumbnails_)bytes+=entry.second.png.size();
+    while(bytes>PreviewThumbnailCodec::CpuBudget && !browseCpuThumbnails_.empty()) {
+        auto victim=browseCpuThumbnails_.begin();
+        for(auto it=browseCpuThumbnails_.begin();it!=browseCpuThumbnails_.end();++it)
+            if(it->second.touched<victim->second.touched)victim=it;
+        bytes-=victim->second.png.size();
+        browseCpuThumbnails_.erase(victim);
+    }
+}
+
+// Full-workspace browser. One expensive 3DS render, or up to four cheap PNG
+// GPU restores, per frame. Collapsed/hidden categories do not load assets.
 void EditorUi::CaptureBrowseThumbnail(size_t index, size_t variantIndex, const AssetRegistry& assets, SceneRenderer& previewScene) {
-    if (browseRenderedThisFrame_ || index>=assets.Assets().size()) return;
+    if(index>=assets.Assets().size())return;
     const uint64_t key=(static_cast<uint64_t>(index)<<32)|static_cast<uint64_t>(variantIndex);
     auto it=browseThumbnails_.find(key);
-    if (it!=browseThumbnails_.end()) { it->second.touched=browseFrame_; return; }
+    if(it!=browseThumbnails_.end()) {it->second.touched=browseFrame_;return;}
+    if(auto cached=browseCpuThumbnails_.find(key);cached!=browseCpuThumbnails_.end()) {
+        cached->second.touched=browseFrame_;
+        if(browseDecodedThisFrame_>=4)return;
+        ++browseDecodedThisFrame_;
+        BrowseThumbnail thumb;thumb.touched=browseFrame_;
+        thumb.dimensions=cached->second.dimensions;thumb.hasDimensions=true;
+        if(PreviewThumbnailCodec::RestorePng(cached->second.png,previewScene.Device(),thumb.srv)) {
+            thumb.gpuBytes=BrowseCachePolicy::RawBytes(194,146);
+            browseThumbnails_.insert_or_assign(key,std::move(thumb));
+            return;
+        }
+        // Corrupt/unsupported in-memory PNG: regenerate from original source.
+        browseCpuThumbnails_.erase(cached);
+    }
+    if(browseRenderedThisFrame_)return;
     browseRenderedThisFrame_=true;
     const auto& asset=assets.Assets()[index];
     std::string variant;
-    if (!asset.textures.empty() && variantIndex<asset.textures.size()) variant=asset.textures[variantIndex].name;
+    if(!asset.textures.empty() && variantIndex<asset.textures.size())variant=asset.textures[variantIndex].name;
     std::string error;
-    BrowseThumbnail thumb; thumb.touched=browseFrame_;
-    const bool built=previewScene.BuildAssetPreview(asset,variant,error);
-    if (built) {
-        thumb.dimensions=previewScene.PreviewDimensionsLegacy();
-        thumb.hasDimensions=true;
+    BrowseThumbnail thumb;thumb.touched=browseFrame_;
+    if(previewScene.BuildAssetPreview(asset,variant,error)) {
+        thumb.dimensions=previewScene.PreviewDimensionsLegacy();thumb.hasDimensions=true;
         previewScene.Resize(194,146);
         previewScene.Render(false,false,false,false);
         Microsoft::WRL::ComPtr<ID3D11Resource> raw;
-        if (auto* output=previewScene.Output()) output->GetResource(raw.GetAddressOf());
+        if(auto* output=previewScene.Output())output->GetResource(raw.GetAddressOf());
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
-        if (raw && SUCCEEDED(raw.As(&texture))) {
-            D3D11_TEXTURE2D_DESC desc{}; texture->GetDesc(&desc);
+        if(raw && SUCCEEDED(raw.As(&texture))) {
+            D3D11_TEXTURE2D_DESC desc{};texture->GetDesc(&desc);
             desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
-            desc.CPUAccessFlags=0; desc.MiscFlags=0; desc.Usage=D3D11_USAGE_DEFAULT;
+            desc.CPUAccessFlags=0;desc.MiscFlags=0;desc.Usage=D3D11_USAGE_DEFAULT;
             Microsoft::WRL::ComPtr<ID3D11Device> device;
             texture->GetDevice(device.GetAddressOf());
-            if (device) {
+            if(device) {
                 Microsoft::WRL::ComPtr<ID3D11Texture2D> copy;
-                if (SUCCEEDED(device->CreateTexture2D(&desc,nullptr,copy.GetAddressOf()))) {
+                if(SUCCEEDED(device->CreateTexture2D(&desc,nullptr,copy.GetAddressOf()))) {
                     Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
                     device->GetImmediateContext(context.GetAddressOf());
-                    if (context) context->CopyResource(copy.Get(),texture.Get());
+                    if(context)context->CopyResource(copy.Get(),texture.Get());
                     device->CreateShaderResourceView(copy.Get(),nullptr,thumb.srv.GetAddressOf());
+                    if(thumb.srv && context) {
+                        thumb.gpuBytes=BrowseCachePolicy::RawBytes(desc.Width,desc.Height);
+                        std::vector<std::uint8_t> png;
+                        if(PreviewThumbnailCodec::CapturePng(thumb.srv.Get(),device.Get(),context.Get(),png)) {
+                            BrowseCpuThumbnail cpu;cpu.png=std::move(png);
+                            cpu.dimensions=thumb.dimensions;cpu.touched=browseFrame_;
+                            browseCpuThumbnails_.insert_or_assign(key,std::move(cpu));
+                            TrimBrowseCpuCache();
+                        }
+                    }
                 }
             }
         }
     }
     thumb.failed=!thumb.srv;
     browseThumbnails_.insert_or_assign(key,std::move(thumb));
-    previewScene.ReleasePreviewResources(); // Map renderer has its own separate caches.
-    // Only in RAM for the CURRENT manually chosen library/session: <=~222 MiB
-    // for 2048 RGBA 194x146 thumbnails. Never write thumbnails or library index
-    // to disk; a 80+ asset category no longer evicts itself while scrolling.
-    constexpr size_t budget=2048;
-    if (browseThumbnails_.size()>budget) {
-        auto victim=browseThumbnails_.begin();
-        for (auto i=browseThumbnails_.begin();i!=browseThumbnails_.end();++i)
-            if (i->second.touched<victim->second.touched) victim=i;
-        browseThumbnails_.erase(victim);
-    }
+    previewScene.ReleasePreviewResources(); // never pin source models/textures in thumbnail cache
 }
 
 void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
                                   SceneRenderer& scene, SceneRenderer& previewScene) {
     (void)map; (void)scene;
-    ++browseFrame_; browseRenderedThisFrame_=false;
+    ++browseFrame_; browseRenderedThisFrame_=false; browseDecodedThisFrame_=0;
+    // Reclaim old views before this frame builds ImGui draw commands.
+    TrimBrowseGpuCache(PreviewThumbnailCodec::GpuBudget(previewScene.Device()));
     ImGuiViewport* viewport=ImGui::GetMainViewport();
     const float top=std::max(browseWorkspaceY_,viewport->WorkPos.y);
     const ImVec2 pos{viewport->WorkPos.x,top};
@@ -2349,7 +2401,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     if(ImGui::Button("Save isolated object draft",{-1,34})) objectSaveRequested_=true;
     ImGui::EndDisabled();
     ImGui::SeparatorText("Experimental native 3DS library export");
-    ImGui::TextWrapped("Original 3DS templates only. Writes a NEW PTPRO_* folder AND a sibling .tara, without replacing the original library. Verified triangle-only terrain preserves and conforms source helpers for a single edited peak. Other assets use draft solid boxes; GLB and triggers are not supported.");
+    ImGui::TextWrapped("Original 3DS templates only. Writes a NEW PTPRO_* folder AND a sibling .tara, without replacing the original library. Verified triangle-only terrain preserves and conforms source helpers for a single edited peak. Box-only/helperless originals use explicitly authored SOLID boxes (not original rotated helpers). Plane/mixed helpers, GLB and triggers are not supported.");
     const bool nativeValid=ObjectDraft::Validate(objectDraft_,validation) && objectSceneHasModel_ &&
         !assets.Root().empty() && !ObjectDraft::IsGlb(objectDraft_.model) &&
         static_cast<bool>(objectDraft_.libraryTemplateXml);
@@ -2585,7 +2637,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         draftViewport->WorkPos.y+draftViewport->WorkSize.y*.5f},ImGuiCond_Appearing,{.5f,.5f});
     if(ImGui::BeginPopupModal("Confirm native object export",nullptr,ImGuiWindowFlags_AlwaysAutoResize)){
         ImGui::TextWrapped("Create a NEW PTPRO_* library folder and game .tara beside it under the selected Library root?");
-        ImGui::TextWrapped("The original libraries are not modified. This exports the currently edited mesh, original texture variants, and SOLID draft boxes. For verified original triangle terrain, edits are conformed to original collision helpers. Other models export authored SOLID boxes. Unsupported collision changes fail closed. GLB and triggers are not supported. Test in ProTLVK.");
+        ImGui::TextWrapped("The original libraries are not modified. This exports the currently edited mesh, original texture variants, and SOLID draft boxes. For verified original triangle terrain, edits are conformed to original collision helpers. Box-only/helperless models export authored SOLID boxes, not preserved original rotated boxes. Plane/mixed helpers and unsupported changes fail closed. GLB and triggers are not supported. Test in ProTLVK.");
         if(ImGui::Button("Export native 3DS")){
             ObjectDraft::Document toExport=objectDraft_;
             if(objectMeshEditable_&&!objectVisualVertices_.empty()){

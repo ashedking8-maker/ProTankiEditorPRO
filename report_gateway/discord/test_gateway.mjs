@@ -11,7 +11,7 @@ globalThis.fetch=async(url,opts)=>{
  assert.equal(opts.method,'POST'); const p=JSON.parse(opts.body.get('payload_json'));
  messages.push({p,logs:opts.body.get('files[0]')});return new Response('{}',{status:200});
 };
-const base={version:'0.5.27',client_id:'0123456789abcdef0123456789abcdef',subject:'Test',
+const base={version:'0.5.28',client_id:'0123456789abcdef0123456789abcdef',subject:'Test',
  description:'Testing Discord',logs_opt_in:false,logs:''};
 const req=(obj,ip='192.0.2.1')=>new Request('https://unit.test/api/report',{method:'POST',
  headers:{'Content-Type':'application/json','CF-Connecting-IP':ip},body:JSON.stringify(obj)});

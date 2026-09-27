@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(GTanksNextEditor VERSION 0.5.27 LANGUAGES CXX)
+project(GTanksNextEditor VERSION 0.5.28 LANGUAGES CXX)
 
 if(NOT WIN32)
   message(FATAL_ERROR "ProTanki Editor PRO currently targets Windows / Direct3D 11.")
@@ -83,7 +83,7 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeTaraWriter.h src/NativeObjectExport.h
+  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h
   src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -129,7 +129,7 @@ install(FILES
   RELEASE_NOTES_0524.md
   RELEASE_NOTES_0525.md
   RELEASE_NOTES_0526.md
-  RELEASE_NOTES_0527.md
+  RELEASE_NOTES_0528.md
   BUILD_STATUS_0514.md
   BUILD_STATUS_0515.md
   BUILD_STATUS_0520.md
@@ -139,13 +139,13 @@ install(FILES
   BUILD_STATUS_0524.md
   BUILD_STATUS_0525.md
   BUILD_STATUS_0526.md
-  BUILD_STATUS_0527.md
+  BUILD_STATUS_0528.md
   PATCH_0522_APPLY.txt
   PATCH_0523_APPLY.txt
   PATCH_0524_APPLY.txt
   PATCH_0525_APPLY.txt
   PATCH_0526_APPLY.txt
-  PATCH_0527_APPLY.txt
+  PATCH_0528_APPLY.txt
   DESTINATION docs
   COMPONENT Documentation)
 
@@ -156,7 +156,7 @@ set(CPACK_PACKAGE_NAME "ProTanki Editor PRO")
 set(CPACK_PACKAGE_VENDOR "ProTanki Editor PRO Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPU-accelerated ProTanki legacy map editor")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.27-Portable")
+set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.28-Portable")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)
@@ -184,6 +184,20 @@ if(BUILD_TESTING)
   target_include_directories(NativeTerrainDeltaRegression PRIVATE src)
   add_test(NAME NativeTerrainDelta136GameVerified COMMAND NativeTerrainDeltaRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/native_helpers")
+  add_executable(NativeObjectExportIntegration
+    tests/native_object_export_integration.cpp
+    src/AssetRegistry.cpp src/Logger.cpp)
+  target_include_directories(NativeObjectExportIntegration PRIVATE src tests)
+  target_link_libraries(NativeObjectExportIntegration PRIVATE pugixml::pugixml assimp::assimp shell32 ole32 dbghelp)
+  target_compile_definitions(NativeObjectExportIntegration PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  add_test(NAME NativeLand01EndToEndExport COMMAND NativeObjectExportIntegration
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/native_helpers")
+  add_executable(BrowseCachePolicyRegression tests/browse_cache_policy_regression.cpp src/BrowseCachePolicy.h)
+  target_include_directories(BrowseCachePolicyRegression PRIVATE src tests)
+  add_test(NAME BrowseSessionCacheByteBudgets COMMAND BrowseCachePolicyRegression)
+  add_executable(NativeExportCollisionPolicyRegression tests/native_export_collision_policy_regression.cpp src/NativeExportCollisionPolicy.h)
+  target_include_directories(NativeExportCollisionPolicyRegression PRIVATE src tests)
+  add_test(NAME NativeExportCollisionSafety COMMAND NativeExportCollisionPolicyRegression)
   add_executable(ObjectDraftRegression tests/object_draft_regression.cpp src/ObjectDraft.h)
   target_include_directories(ObjectDraftRegression PRIVATE src)
   add_test(NAME IsolatedObjectDraftRoundTrip COMMAND ObjectDraftRegression)
