@@ -2,6 +2,7 @@
 // An isolated, versioned authoring document. It deliberately does NOT write
 // library.xml, 3DS collision helper nodes, or legacy map XML. An explicit,
 // separate native 3DS exporter may consume a validated draft.
+#include "Native3DSWriter.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -50,6 +51,9 @@ struct Document {
     fs::path model;
     Purpose purpose{Purpose::SolidDraft};
     std::array<float,3> tint{1.f,1.f,1.f}; // authoring tint, NOT a game material export
+    int smoothingMode{}; // 0=preserve source, 1=all group 1, 2=flat, 3=chosen group
+    int smoothingGroup{1}; // 1..32, only used for smoothingMode=3
+    Native3DSWriter::MaterialOverride materialOverride; // explicit native 3DS opt-in
     std::vector<Box> boxes{Box{}};
     // Internal renderer Y-up vertices. A self-contained edit layer over the source
     // model; this is NOT a game-native mesh or collision helper export.
@@ -103,6 +107,16 @@ inline bool Validate(const Document& d, std::string& error) {
     }
     for (const auto& b:d.boxes) if(!ValidBox(b)) {error="Collision bounds must be finite and strictly increasing.";return false;}
     for (float v:d.tint) if(!std::isfinite(v) || v<0.f || v>1.f) {error="Material tint must be between 0 and 1.";return false;}
+    if(d.smoothingMode<0||d.smoothingMode>3||d.smoothingGroup<1||d.smoothingGroup>32){
+        error="Invalid smoothing mode/group.";return false;
+    }
+    const auto& m=d.materialOverride;
+    if(m.shading<1||m.shading>3 || !std::isfinite(m.shininess)||m.shininess<0.f||m.shininess>1.f||
+       !std::isfinite(m.transparency)||m.transparency<0.f||m.transparency>1.f){
+        error="Invalid native material shading/percent value.";return false;
+    }
+    for(const auto& color:{m.ambient,m.diffuse,m.specular})for(float v:color)
+        if(!std::isfinite(v)||v<0.f||v>1.f){error="Invalid native material color.";return false;}
     if(!std::isfinite(d.scale) || d.scale<0.001f || d.scale>1000.f) {error="Draft scale must be 0.001 to 1000.";return false;}
     if(d.meshVertices.size()>200000) {error="Draft mesh edit limit is 200,000 vertices.";return false;}
     for(const auto& v:d.meshVertices)for(float coordinate:v)
@@ -183,7 +197,7 @@ inline bool SaveNew(const Document& d,const fs::path& root,fs::path& saved,std::
     if (ec) {cleanup();error="Could not copy source model: "+ec.message();return false;}
     {
         std::ofstream out(temp/"object-draft.txt",std::ios::binary|std::ios::trunc);
-        out << "PROTANKI_OBJECT_DRAFT 4\n" << "name " << std::quoted(d.name) << '\n'
+        out << "PROTANKI_OBJECT_DRAFT 5\n" << "name " << std::quoted(d.name) << '\n'
             << "purpose " << PurposeToken(d.purpose) << '\n'
             << "source " << sourceName << '\n' << "tint " << std::setprecision(9)
             << d.tint[0]<<' '<<d.tint[1]<<' '<<d.tint[2]<<'\n'
@@ -199,6 +213,11 @@ inline bool SaveNew(const Document& d,const fs::path& root,fs::path& saved,std::
         out << "mesh_indices " << d.meshIndices.size() << '\n';
         for(size_t i=0;i<d.meshIndices.size();i+=3)
             out << "triangle " << d.meshIndices[i] << ' ' << d.meshIndices[i+1] << ' ' << d.meshIndices[i+2] << '\n';
+        out << "smoothing " << d.smoothingMode << ' ' << d.smoothingGroup << '\n';
+        const auto& material=d.materialOverride;
+        out << "material_override " << material.enabled << ' ' << material.shading << ' ' << material.twoSided;
+        for(const auto& color:{material.ambient,material.diffuse,material.specular})for(float v:color)out<<' '<<v;
+        out << ' '<<material.shininess<<' '<<material.transparency<<'\n';
         out << "native_export false\n";
         out.flush();
         if (!out) {cleanup();error="Could not write draft manifest.";return false;}
@@ -231,11 +250,11 @@ inline bool Load(const fs::path& folder, Document& result,std::string& error) {
     std::ifstream in(folder/"object-draft.txt",std::ios::binary);
     std::string marker, nameKey, sourceKey, sourceName, tintKey, boxesKey, exportKey, exported;
     int version{};size_t count{};Document doc;
-    if (!(in>>marker>>version) || marker!="PROTANKI_OBJECT_DRAFT" || (version!=2 && version!=3 && version!=4) ||
+    if (!(in>>marker>>version) || marker!="PROTANKI_OBJECT_DRAFT" || (version!=2 && version!=3 && version!=4 && version!=5) ||
         !(in>>nameKey) || nameKey!="name" || !(in>>std::quoted(doc.name))) {
         error="Malformed or unsupported object draft manifest.";return false;
     }
-    if(version==4) {
+    if(version>=4) {
         std::string key,value;
         if(!(in>>key>>value) || key!="purpose" || !ParsePurpose(value,doc.purpose)) {
             error="Unsupported draft-only purpose.";return false;
@@ -284,6 +303,19 @@ inline bool Load(const fs::path& folder, Document& result,std::string& error) {
                 error="Malformed mesh triangle.";return false;
             }
             doc.meshIndices.insert(doc.meshIndices.end(),{a,b,c});
+        }
+    }
+    if(version>=5){
+        std::string smoothingKey,materialKey;
+        auto& material=doc.materialOverride;
+        if(!(in>>smoothingKey>>doc.smoothingMode>>doc.smoothingGroup)||smoothingKey!="smoothing"||
+           !(in>>materialKey>>material.enabled>>material.shading>>material.twoSided)||materialKey!="material_override"){
+            error="Malformed native visual settings.";return false;
+        }
+        for(auto* color:{&material.ambient,&material.diffuse,&material.specular})for(float& value:*color)
+            if(!(in>>value)){error="Malformed native material color.";return false;}
+        if(!(in>>material.shininess>>material.transparency)){
+            error="Malformed native material percentages.";return false;
         }
     }
     if (!(in>>exportKey>>exported) || exportKey!="native_export" || exported!="false") {

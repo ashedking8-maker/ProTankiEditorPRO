@@ -2105,6 +2105,86 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         if(objectSceneHasModel_)objectScene_.ApplyDraftPreviewTint(objectDraft_.tint);
     }
     ImGui::Spacing();
+    if(ImGui::CollapsingHeader("Materials & Shading (native 3DS)",ImGuiTreeNodeFlags_DefaultOpen)){
+        ImGui::TextWrapped("3DS source values are preserved automatically by default. Draft tint is preview-only; changes below apply on NEW 3DS export, not to the original library.");
+        static std::filesystem::path visualMetaSource;
+        static Native3DSVisualMetadata::Visual visualMeta;
+        static std::string visualMetaError;
+        if(objectDraft_.model!=visualMetaSource){
+            visualMetaSource=objectDraft_.model;visualMeta={};visualMetaError.clear();
+            if(!visualMetaSource.empty()&&LegacyMeshImport::Lower(visualMetaSource.extension().string())==".3ds"){
+                const auto sourceInfo=NativeCollisionImport::Read(visualMetaSource);
+                if(!sourceInfo.visualAnchor.empty())
+                    Native3DSVisualMetadata::Read(visualMetaSource,sourceInfo.visualAnchor,visualMeta,visualMetaError);
+                else visualMetaError="Visual node was not resolved.";
+            }
+        }
+        if(!visualMetaError.empty())ImGui::TextWrapped("Native metadata: %s",visualMetaError.c_str());
+        if(!visualMeta.faces.empty()){
+            ImGui::Text("Source visual faces: %zu | smoothing chunk: %s | materials: %zu",
+                visualMeta.faces.size(),visualMeta.hasSmoothing?"present":"absent",visualMeta.materials.size());
+            const auto count=std::count_if(visualMeta.faces.begin(),visualMeta.faces.end(),
+                [](const auto& f){return f.smoothing!=0;});
+            ImGui::TextDisabled("Source smoothed faces: %zu / %zu",static_cast<size_t>(count),visualMeta.faces.size());
+        }
+        int mode=objectDraft_.smoothingMode;
+        if(ImGui::Combo("Smoothing policy",&mode,
+            "Preserve original per-face groups\0Smooth all (group 1)\0Flat (mask 0)\0Custom common group\0")){
+            PushObjectUndo();objectDraft_.smoothingMode=mode;
+        }
+        if(mode==3){int group=objectDraft_.smoothingGroup;
+            if(ImGui::SliderInt("Group number",&group,1,32)){
+                PushObjectUndo();objectDraft_.smoothingGroup=group;
+            }
+        }
+        ImGui::TextDisabled("Smoothing groups alter light normals, not polygon count or collision.");
+        for(const auto& sourceMaterial:visualMeta.materials)
+            ImGui::TextWrapped("Source material: %s | shading %u | map %s",
+                sourceMaterial.name.c_str(),static_cast<unsigned>(sourceMaterial.shading),sourceMaterial.texture.c_str());
+        bool overrideEnabled=objectDraft_.materialOverride.enabled;
+        if(ImGui::Checkbox("Edit native material fields",&overrideEnabled)){
+            PushObjectUndo();
+            if(overrideEnabled&&!visualMeta.materials.empty()){
+                auto& output=objectDraft_.materialOverride;
+                const auto& input=visualMeta.materials.front();
+                output.ambient=input.ambient;output.diffuse=input.diffuse;output.specular=input.specular;
+                output.shininess=input.shininess;output.transparency=input.transparency;
+                output.twoSided=input.twoSided;
+                output.shading=std::clamp<std::uint16_t>(input.shading,1,3);
+            }
+            objectDraft_.materialOverride.enabled=overrideEnabled;
+        }
+        if(overrideEnabled){
+            ImGui::TextWrapped("Overrides apply to all source visual materials; original texture maps and unknown material data remain intact.");
+            auto& material=objectDraft_.materialOverride;
+            const auto editColor=[&](const char* label,std::array<float,3>& color){
+                float rgb[3]={color[0],color[1],color[2]};
+                if(ImGui::ColorEdit3(label,rgb)){
+                    PushObjectUndo();color={rgb[0],rgb[1],rgb[2]};
+                }
+            };
+            editColor("Ambient color",material.ambient);
+            editColor("Diffuse color",material.diffuse);
+            editColor("Specular color",material.specular);
+            float shine=material.shininess;
+            if(ImGui::SliderFloat("Shininess",&shine,0.f,1.f,"%.2f")){
+                PushObjectUndo();material.shininess=shine;
+            }
+            float transparency=material.transparency;
+            if(ImGui::SliderFloat("Transparency",&transparency,0.f,1.f,"%.2f")){
+                PushObjectUndo();material.transparency=transparency;
+            }
+            bool twoSided=material.twoSided;
+            if(ImGui::Checkbox("Two-sided",&twoSided)){
+                PushObjectUndo();material.twoSided=twoSided;
+            }
+            int shade=material.shading-1;
+            if(ImGui::Combo("Native shading mode",&shade,"Flat (1)\0Gouraud (2)\0Phong (3)\0")){
+                PushObjectUndo();material.shading=static_cast<std::uint16_t>(shade+1);
+            }
+        }
+        ImGui::TextDisabled("Material controls write native 3DS fields; game renderer may interpret them differently.");
+    }
     ImGui::Separator();
     ImGui::SeparatorText("Editable visual mesh");
     ImGui::Checkbox("Show face edges",&objectShowMeshEdges_);ImGui::SameLine();
@@ -3631,14 +3711,16 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     // Matching raised viewport tab, aligned to the SAME right edge, one row
     // above Discord. No footer/dock resizing and no hidden network request.
     constexpr float bugHeight=21.f;
-    const ImVec2 bugPos{helpPos.x,helpPos.y-bugHeight-3.f};
+    constexpr const char* bugLabel="Report a Bug";
+    const float bugWidth=std::min(size.x,ImGui::CalcTextSize(bugLabel).x+14.f);
+    const ImVec2 bugPos{helpPos.x+std::min(helpWidth,size.x)-bugWidth,helpPos.y-bugHeight-3.f};
     if(bugPos.y>=origin.y){
         ImGui::SetCursorScreenPos(bugPos);
-        if(ImGui::InvisibleButton("##report_bug_corner_tab",{std::min(helpWidth,size.x),bugHeight}))
+        if(ImGui::InvisibleButton("##report_bug_corner_tab",{bugWidth,bugHeight}))
             bugReportOpen_=true;
         const ImU32 color=ImGui::IsItemHovered()?IM_COL32(30,40,51,248):IM_COL32(15,20,27,227);
-        dl->AddRectFilled(bugPos,{bugPos.x+std::min(helpWidth,size.x),bugPos.y+bugHeight},color);
-        dl->AddText({bugPos.x+7,bugPos.y+3},IM_COL32(198,213,228,246),"Report a Bug");
+        dl->AddRectFilled(bugPos,{bugPos.x+bugWidth,bugPos.y+bugHeight},color);
+        dl->AddText({bugPos.x+7,bugPos.y+3},IM_COL32(198,213,228,246),bugLabel);
     }
     ImGui::End(); ImGui::PopStyleVar();
 }

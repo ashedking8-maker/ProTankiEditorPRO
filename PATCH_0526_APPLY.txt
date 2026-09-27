@@ -1,0 +1,5 @@
+ProTanki Editor PRO 0.5.26 — source patch, NOT a Windows installer.
+Apply over the complete 0.5.25 repository by overlaying matching paths, keeping .github and tests.
+Run the GitHub Windows build and all CTest tests. Download Setup/Portable artifacts from successful GitHub Actions.
+Test a newly named Land01_AX_V3 draft; do not overwrite original Beach or an existing PTPRO library. Place the new TARA in the actual ProTLVK resource path and restart ProTLVK completely.
+Compare original Beach, LandHills and NEW exported asset at separate locations. Check 0x4150 face masks, material values, appearance, and 138 new collision triangles. The existing 0.5.25 TARA does NOT gain smoothing automatically: export a new named library.

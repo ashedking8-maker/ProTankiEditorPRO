@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(GTanksNextEditor VERSION 0.5.25 LANGUAGES CXX)
+project(GTanksNextEditor VERSION 0.5.26 LANGUAGES CXX)
 
 if(NOT WIN32)
   message(FATAL_ERROR "ProTanki Editor PRO currently targets Windows / Direct3D 11.")
@@ -83,7 +83,7 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/NativeTerrainDelta.h src/NativeTaraWriter.h src/NativeObjectExport.h
+  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeTaraWriter.h src/NativeObjectExport.h
   src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -128,6 +128,7 @@ install(FILES
   RELEASE_NOTES_0523.md
   RELEASE_NOTES_0524.md
   RELEASE_NOTES_0525.md
+  RELEASE_NOTES_0526.md
   BUILD_STATUS_0514.md
   BUILD_STATUS_0515.md
   BUILD_STATUS_0520.md
@@ -136,10 +137,12 @@ install(FILES
   BUILD_STATUS_0523.md
   BUILD_STATUS_0524.md
   BUILD_STATUS_0525.md
+  BUILD_STATUS_0526.md
   PATCH_0522_APPLY.txt
   PATCH_0523_APPLY.txt
   PATCH_0524_APPLY.txt
   PATCH_0525_APPLY.txt
+  PATCH_0526_APPLY.txt
   DESTINATION docs
   COMPONENT Documentation)
 
@@ -150,7 +153,7 @@ set(CPACK_PACKAGE_NAME "ProTanki Editor PRO")
 set(CPACK_PACKAGE_VENDOR "ProTanki Editor PRO Project")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "GPU-accelerated ProTanki legacy map editor")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.25-Portable")
+set(CPACK_PACKAGE_FILE_NAME "ProTankiEditorPRO-0.5.26-Portable")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)
@@ -169,6 +172,10 @@ if(BUILD_TESTING)
   add_executable(Native3DSWriterRegression tests/native_3ds_writer_regression.cpp src/Native3DSWriter.h src/NativeCollisionImport.h)
   target_include_directories(Native3DSWriterRegression PRIVATE src)
   add_test(NAME NativeEditedObject3DSWriter COMMAND Native3DSWriterRegression)
+  add_executable(NativeVisualMetadataRegression tests/native_visual_metadata_regression.cpp
+    src/Native3DSWriter.h src/Native3DSVisualMetadata.h)
+  target_include_directories(NativeVisualMetadataRegression PRIVATE src)
+  add_test(NAME Native3DSMaterialSmoothingRoundTrip COMMAND NativeVisualMetadataRegression)
   add_executable(NativeTerrainDeltaRegression tests/native_terrain_delta_regression.cpp
     src/NativeTerrainDelta.h src/Native3DSWriter.h src/NativeTaraWriter.h src/NativeCollisionImport.h)
   target_include_directories(NativeTerrainDeltaRegression PRIVATE src)

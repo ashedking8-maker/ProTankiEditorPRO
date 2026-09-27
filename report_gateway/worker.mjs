@@ -53,7 +53,7 @@ export default {
       const raw=await request.text();if(raw.length>100000)return new Response('Payload too large',{status:413});
       body=JSON.parse(raw);
     }catch{return new Response('Malformed JSON',{status:400});}
-    if(body?.version!=='0.5.25'||typeof body.client_id!=='string'||!/^[a-f0-9]{32}$/.test(body.client_id)||
+    if(!['0.5.25','0.5.26'].includes(body?.version)||typeof body.client_id!=='string'||!/^[a-f0-9]{32}$/.test(body.client_id)||
        typeof body.subject!=='string'||!body.subject.trim()||body.subject.length>160||
        typeof body.description!=='string'||!body.description.trim()||body.description.length>4000||
        typeof body.logs!=='string'||body.logs.length>70000||typeof body.logs_opt_in!=='boolean'||

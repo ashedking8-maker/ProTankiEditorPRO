@@ -6,6 +6,7 @@
 #include "LegacyMeshImport.h"
 #include "NativeCollisionImport.h"
 #include "Native3DSWriter.h"
+#include "Native3DSVisualMetadata.h"
 #include "NativeTerrainDelta.h"
 #include "NativeTaraWriter.h"
 #include "ObjectDraft.h"
@@ -92,6 +93,22 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
        imported.vertices.size()>65535||imported.indices.size()/3>65535){
         error="Source model exceeds the 3DS 16-bit limits or has no visible triangles.";return false;
     }
+    // Read the SOURCE 3DS metadata, not Assimp's generated preview normals:
+    // preserve per-face smoothing masks and complete original material chunks.
+    const auto sourceCollision=NativeCollisionImport::Read(source->mesh);
+    if(sourceCollision.visualAnchor.empty()){
+        error="Original 3DS visual anchor could not be resolved.";return false;
+    }
+    Native3DSVisualMetadata::Visual sourceVisual;
+    if(!Native3DSVisualMetadata::Read(source->mesh,sourceCollision.visualAnchor,sourceVisual,error))return false;
+    Native3DSWriter::Model sourceModel;
+    sourceModel.vertices.reserve(imported.vertices.size());
+    for(const auto& v:imported.vertices)
+        sourceModel.vertices.push_back({v.position.x,v.position.y,v.position.z,v.uv.x,v.uv.y});
+    sourceModel.indices=imported.indices;
+    std::vector<std::uint32_t> sourceSmooth;
+    std::vector<std::string> sourceFaceMaterial;
+    if(!Native3DSVisualMetadata::Match(sourceVisual,sourceModel,sourceSmooth,sourceFaceMaterial,error))return false;
     Native3DSWriter::Model output;
     output.visualName="ptpro_mesh"; // 3DS visual anchor; helper nodes have Box prefix.
     output.vertices.reserve(d.meshVertices.empty()?imported.vertices.size():d.meshVertices.size());
@@ -109,13 +126,47 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
         output.vertices.push_back({p[0],p[1],p[2],v.uv.x,v.uv.y});
     }
     if(output.indices!=sourceIndices&&imported.parts.size()==1){
-        output.parts={{0,output.indices.size(),"ptpro_mat_0",""}};
+        output.parts={{0,output.indices.size(),"",""}};
+        if(!std::all_of(sourceFaceMaterial.begin(),sourceFaceMaterial.end(),[&](const auto& n){return n==sourceFaceMaterial.front();})){
+            error="Edited triangles span different source materials; export refused.";return false;
+        }
+        if(!std::all_of(sourceSmooth.begin(),sourceSmooth.end(),[&](auto n){return n==sourceSmooth.front();})){
+            error="New face smoothing is ambiguous across original groups; export refused.";return false;
+        }
+        output.smoothingGroups.assign(output.indices.size()/3,sourceSmooth.front());
     } else {
         for(size_t i=0;i<imported.parts.size();++i){
             const auto& part=imported.parts[i];
-            output.parts.push_back({part.firstIndex,part.indexCount,"ptpro_mat_"+std::to_string(i),""});
+            output.parts.push_back({part.firstIndex,part.indexCount,"",""});
         }
+        output.smoothingGroups=sourceSmooth;
     }
+    for(size_t i=0;i<output.parts.size();++i){
+        auto& part=output.parts[i];
+        const size_t sourcePart=i<imported.parts.size()?i:0;
+        const size_t begin=imported.parts[sourcePart].firstIndex/3;
+        const size_t count=imported.parts[sourcePart].indexCount/3;
+        if(begin>=sourceFaceMaterial.size()||count>sourceFaceMaterial.size()-begin){
+            error="Invalid original material/face range.";return false;
+        }
+        const auto& name=sourceFaceMaterial[begin];
+        if(!std::all_of(sourceFaceMaterial.begin()+static_cast<std::ptrdiff_t>(begin),
+            sourceFaceMaterial.begin()+static_cast<std::ptrdiff_t>(begin+count),
+            [&](const auto& n){return n==name;})){
+            error="Assimp material split does not agree with source 3DS material faces.";return false;
+        }
+        const auto mat=std::find_if(sourceVisual.materials.begin(),sourceVisual.materials.end(),
+            [&](const auto& m){return m.name==name;});
+        if(mat==sourceVisual.materials.end()||!Native3DSWriter::SafeAscii(name,50)){
+            error="Cannot preserve a source 3DS material safely.";return false;
+        }
+        part.material=name;
+        output.nativeMaterials.push_back(mat->raw);
+    }
+    output.materialOverride=d.materialOverride;
+    if(d.smoothingMode==1)output.smoothingGroups.assign(output.indices.size()/3,1u);
+    if(d.smoothingMode==2)output.smoothingGroups.assign(output.indices.size()/3,0u);
+    if(d.smoothingMode==3)output.smoothingGroups.assign(output.indices.size()/3,1u<<static_cast<unsigned>(d.smoothingGroup-1));
     // A verified, original triangle-only surface is NOT a box. For this
     // constrained heightfield case use original authored helpers, conform them
     // to the edited visual surface and split the peak-containing source face.
@@ -151,6 +202,14 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
             else {error="Cannot match a 3DS material to its original texture variant.";return false;}
         }
         output.parts[i].texture=texture->diffuse.filename().string();
+        // The source's FULL material chunk is retained, including the native
+        // map filename. Do not claim preservation if it references another texture.
+        const auto originalMaterial=std::find_if(sourceVisual.materials.begin(),sourceVisual.materials.end(),
+            [&](const auto& m){return m.name==output.parts[i].material;});
+        if(originalMaterial==sourceVisual.materials.end() ||
+           Lower(fs::path(originalMaterial->texture).filename().string())!=Lower(output.parts[i].texture)){
+            error="Source material texture differs from library variant; raw material preservation is unsafe.";return false;
+        }
         if(!Native3DSWriter::SafeAscii(output.parts[i].texture,120)){
             error="3DS source texture filename is unsupported.";return false;
         }
@@ -223,6 +282,23 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
                !close(c.size.z,b.max[2]-b.min[2])){
                 cleanup();error="Native box dimensions/placement changed during round-trip.";return false;
             }
+        }
+    }
+    Native3DSVisualMetadata::Visual roundTrip;
+    if(!Native3DSVisualMetadata::Read(modelFile,output.visualName,roundTrip,error)||
+       roundTrip.faces.size()!=output.smoothingGroups.size()){
+        cleanup();error="Native 3DS smoothing/material readback failed: "+error;return false;
+    }
+    for(size_t i=0;i<roundTrip.faces.size();++i)if(roundTrip.faces[i].smoothing!=output.smoothingGroups[i]){
+        cleanup();error="Native 3DS smoothing group changed during round-trip.";return false;
+    }
+    for(size_t i=0;i<output.parts.size();++i){
+        const auto material=std::find_if(roundTrip.materials.begin(),roundTrip.materials.end(),
+            [&](const auto& m){return m.name==output.parts[i].material;});
+        if(material==roundTrip.materials.end()||
+           Lower(fs::path(material->texture).filename().string())!=Lower(output.parts[i].texture)||
+           (!output.materialOverride.enabled && material->raw!=output.nativeMaterials[i])){
+            cleanup();error="Source 3DS material or texture did not survive native round-trip.";return false;
         }
     }
     try{

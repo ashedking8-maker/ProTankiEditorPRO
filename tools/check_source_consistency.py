@@ -97,10 +97,18 @@ def main() -> int:
                 'pendingLibrary_=assets.Root()' in ui and
                 'GLB-to-native 3DS/textured material conversion has not been verified' in text('src/NativeObjectExport.h') and
                 'Trigger draft has no verified native 3DS gameplay mapping' in text('src/NativeObjectExport.h'),
-                '0.5.25 fail-closed experimental native 3DS writer, authoring UI or CTest missing')
-        require('VERSION 0.5.25' in cmake and '0.5.25' in text('src/App.cpp')
-                and '0.5.25-native-terrain-export-and-report' in text('src/Logger.cpp'),'Version drift')
-        # 0.5.25 must include the whole native path (not only a folder export),
+                '0.5.26 fail-closed experimental native 3DS writer, authoring UI or CTest missing')
+        require('VERSION 0.5.26' in cmake and '0.5.26' in text('src/App.cpp')
+                and '0.5.26-native-visual-shading-preservation' in text('src/Logger.cpp'),'Version drift')
+        require('Native3DSMaterialSmoothingRoundTrip' in cmake and
+                'src/Native3DSVisualMetadata.h' in cmake and
+                (ROOT/'tests/native_visual_metadata_regression.cpp').is_file() and
+                'Native3DSVisualMetadata::Match' in text('src/NativeObjectExport.h') and
+                'materialOverride' in text('src/ObjectDraft.h') and
+                'Materials & Shading (native 3DS)' in ui and
+                'bugWidth=std::min(size.x,ImGui::CalcTextSize(bugLabel).x+14.f)' in ui,
+                '0.5.26 native material, smoothing or compact report tab regression')
+        # 0.5.26 must include the whole native path (not only a folder export),
         # and a separately deployable, privacy-conscious reporting gateway.
         export=text('src/NativeObjectExport.h')
         bug=text('src/BugReport.cpp')
@@ -122,7 +130,7 @@ def main() -> int:
                 all((ROOT/f).is_file() for f in ('README.md','RELEASE_NOTES_0525.md',
                     'BUILD_STATUS_0525.md','PATCH_0525_APPLY.txt',
                     'report_gateway/test_gateway.mjs','report_gateway/README.md')),
-                '0.5.25 native TARA/terrain export, report UI/server or regression fixture incomplete')
+                '0.5.26 native TARA/terrain export, report UI/server or regression fixture incomplete')
         # The maintainer's private address must be configured only as a server
         # secret. Do not accidentally ship it in source/config/client tests.
         private_inbox='ashedking8'+'@gmail.com'
@@ -164,7 +172,7 @@ def main() -> int:
                     'invalid_scaled_visual_frame.3ds')) and
                 (ROOT/'tests/test_native_frames_0520_audit.py').is_file() and
                 'RELEASE_NOTES_0520.md' in cmake and 'BUILD_STATUS_0520.md' in cmake and 'RELEASE_NOTES_0521.md' in cmake and 'BUILD_STATUS_0521.md' in cmake,
-                '0.5.25 rotated original 3DS frame support, safety guards or fixtures incomplete')
+                '0.5.26 rotated original 3DS frame support, safety guards or fixtures incomplete')
         require('float3 linearAlbedo = pow(max(albedo.rgb, 0.0), 2.2)' in scene and
                 'clip(albedo.a - 0.5)' in scene and
                 'if (mode > 5.5) return float4(albedo.rgb, 1.0)' in scene and
@@ -265,17 +273,17 @@ def main() -> int:
                     f'{workflow_path}: custom NSIS packaging invocation missing')
             require('cpack -C Release -G NSIS' not in workflow and 'GTanksNextEditor-Setup' not in workflow,
                     f'{workflow_path}: stale installer packaging route')
-            require('ProTankiEditorPRO-0.5.25-Setup.exe' in workflow and
-                    'ProTankiEditorPRO-0.5.25-Portable.zip' in workflow and
+            require('ProTankiEditorPRO-0.5.26-Setup.exe' in workflow and
+                    'ProTankiEditorPRO-0.5.26-Portable.zip' in workflow and
                     'ProTankiEditorPRO-0.5.6-' not in workflow,
-                    f'{workflow_path}: release filename mismatch; replace this file with the 0.5.25 workflow')
+                    f'{workflow_path}: release filename mismatch; replace this file with the 0.5.26 workflow')
         require('SimpleInstaller.nsi' in packaging and
-                'ProTankiEditorPRO-0.5.25-Setup.exe' in packaging and
-                'ProTankiEditorPRO-0.5.25-Portable.zip' in packaging and
+                'ProTankiEditorPRO-0.5.26-Setup.exe' in packaging and
+                'ProTankiEditorPRO-0.5.26-Portable.zip' in packaging and
                 'ProTankiEditorPRO-0.5.6-' not in packaging,
-                'scripts/package-windows.ps1: output filename mismatch; replace with the matching 0.5.25 packaging script')
-        require('0.5.25' in text('assets/GTanksNextEditor.rc') and
-                'FILEVERSION 0,5,25,0' in text('assets/GTanksNextEditor.rc'), 'Resource version drift')
+                'scripts/package-windows.ps1: output filename mismatch; replace with the matching 0.5.26 packaging script')
+        require('0.5.26' in text('assets/GTanksNextEditor.rc') and
+                'FILEVERSION 0,5,26,0' in text('assets/GTanksNextEditor.rc'), 'Resource version drift')
         require('GridStep::Quantize(v,gridSize_)' in ui and 'GridStep::KeyboardStep(gridSize_,io.KeyShift)' in ui
                 and 'GridStepAlwaysOn' in cmake, 'Movement grid regression: grid must snap by default')
         require('objectUndo_.push_back(CaptureObjectSnapshot())' in ui and 'if (objectEditorOpen_)' in ui,
@@ -425,7 +433,7 @@ def main() -> int:
                 'test_map_delta_audit.py' in '\n'.join(p.name for p in (ROOT/'tests').iterdir()) and
                 all('test_*audit.py' in text(path) for path in workflow_paths),
                 'Read-only native map delta audit and workflow tests missing')
-        print('PASS: 0.5.25 source preflight: external launcher, GLB draft editor, collision XML/undo tests, packaging and source structure.')
+        print('PASS: 0.5.26 source preflight: external launcher, GLB draft editor, collision XML/undo tests, packaging and source structure.')
         return 0
     except (ValueError,OSError) as e:
         print(f'FAIL: {e}',file=sys.stderr)

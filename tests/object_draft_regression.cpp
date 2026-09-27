@@ -10,7 +10,11 @@ int main() {
     {std::ofstream out(file,std::ios::binary);out<<"placeholder source bytes";}
     ObjectDraft::Document d;d.name="My Example";d.model=file;
     d.boxes.push_back({{-100,-90,0},{100,90,110},ObjectDraft::BoxRole::Trigger});
-    d.scale=0.5f;d.meshVertices={{{-3.f,2.f,0.f}},{{0.f,2.f,1.f}},{{3.f,2.f,0.f}},{{4.f,3.f,0.f}}};d.meshIndices={0,1,2,1,2,3};
+    d.scale=0.5f;
+    d.smoothingMode=3;d.smoothingGroup=7;
+    d.materialOverride.enabled=true;d.materialOverride.shading=2;
+    d.materialOverride.diffuse={.25f,.5f,.75f};d.materialOverride.shininess=.42f;
+    d.meshVertices={{{-3.f,2.f,0.f}},{{0.f,2.f,1.f}},{{3.f,2.f,0.f}},{{4.f,3.f,0.f}}};d.meshIndices={0,1,2,1,2,3};
     const auto originalLibrary=root/"OriginalLibrary";
     fs::create_directories(originalLibrary/"nested");
     PT_REQUIRE(ObjectDraft::IsWithin(originalLibrary/"nested",originalLibrary));
@@ -27,6 +31,9 @@ int main() {
     PT_REQUIRE(loaded.scale==0.5f && loaded.meshVertices.size()==4 && loaded.meshVertices[3][0]==4.f);
     PT_REQUIRE(loaded.meshIndices.size()==6 && loaded.meshIndices[5]==3);
     PT_REQUIRE(loaded.purpose==ObjectDraft::Purpose::SolidDraft);
+    PT_REQUIRE(loaded.smoothingMode==3 && loaded.smoothingGroup==7 &&
+        loaded.materialOverride.enabled && loaded.materialOverride.shading==2 &&
+        loaded.materialOverride.diffuse[2]==.75f && loaded.materialOverride.shininess==.42f);
     // Optional template is a complete, isolated original library source.
     // Importing a template does NOT convert it into native playable GLB data.
     ObjectDraft::Document templated=d;
@@ -61,20 +68,29 @@ int main() {
     ObjectDraft::Document intactTemplate=templateReloaded;
     PT_REQUIRE(!ObjectDraft::Load(templateSaved,intactTemplate,error));
     PT_REQUIRE(intactTemplate.libraryTemplateXml && *intactTemplate.libraryTemplateXml==libraryBytes);
-    // Version 3 was the previous saved-draft format. It must still load with
-    // a safe, explicit default rather than being silently rejected by v4.
+    // Version 4 and 3 manifests still load with safe defaults for new visual fields.
     {
         const auto manifest=saved/"object-draft.txt";
         std::ifstream in(manifest,std::ios::binary);
         std::string data((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
-        const auto version=data.find("PROTANKI_OBJECT_DRAFT 4");
-        const auto purpose=data.find("purpose solid_draft\n");
-        PT_REQUIRE(version!=std::string::npos && purpose!=std::string::npos);
-        data.replace(version,std::string("PROTANKI_OBJECT_DRAFT 4").size(),"PROTANKI_OBJECT_DRAFT 3");
+        const auto version=data.find("PROTANKI_OBJECT_DRAFT 5");
+        const auto smoothing=data.find("smoothing 3 7\n");
+        const auto material=data.find("material_override ");
+        PT_REQUIRE(version!=std::string::npos && smoothing!=std::string::npos && material!=std::string::npos);
+        data.replace(version,std::string("PROTANKI_OBJECT_DRAFT 5").size(),"PROTANKI_OBJECT_DRAFT 4");
+        const auto materialEnd=data.find('\n',data.find("material_override "));
+        data.erase(data.find("material_override "),materialEnd-data.find("material_override ")+1);
+        data.erase(data.find("smoothing 3 7\n"),std::string("smoothing 3 7\n").size());
+        {std::ofstream out(manifest,std::ios::binary|std::ios::trunc);out<<data;}
+        ObjectDraft::Document v4;
+        PT_REQUIRE(ObjectDraft::Load(saved,v4,error) && v4.purpose==ObjectDraft::Purpose::SolidDraft &&
+            v4.smoothingMode==0 && !v4.materialOverride.enabled);
+        data.replace(data.find("PROTANKI_OBJECT_DRAFT 4"),std::string("PROTANKI_OBJECT_DRAFT 4").size(),"PROTANKI_OBJECT_DRAFT 3");
         data.erase(data.find("purpose solid_draft\n"),std::string("purpose solid_draft\n").size());
-        std::ofstream out(manifest,std::ios::binary|std::ios::trunc);out<<data;out.close();
-        ObjectDraft::Document old;
-        PT_REQUIRE(ObjectDraft::Load(saved,old,error) && old.purpose==ObjectDraft::Purpose::SolidDraft);
+        {std::ofstream out(manifest,std::ios::binary|std::ios::trunc);out<<data;}
+        ObjectDraft::Document v3;
+        PT_REQUIRE(ObjectDraft::Load(saved,v3,error) && v3.purpose==ObjectDraft::Purpose::SolidDraft &&
+            v3.smoothingMode==0 && !v3.materialOverride.enabled);
     }
     // A decoration is an actual box-free authoring draft, not a fake native
     // collision. The purpose must survive serialization without a game claim.
