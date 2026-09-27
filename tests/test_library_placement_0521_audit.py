@@ -41,8 +41,9 @@ class LibraryPlacement0521(unittest.TestCase):
     def test_mousewheel_requires_tab_and_no_global_placement_capture(self):
         s=(ROOT/'src/EditorUi.cpp').read_text()
         self.assertIn('if (!tab || browseLibraryOpen_) return false;',s)
-        self.assertIn('if (axTabHeld_ && placementWheel_!=0.0f',s)
-        self.assertIn('const bool scroll=axTabHeld_;',s)
+        self.assertIn('if (axTabHeld_ && !browseLibraryOpen_) {',s)
+        self.assertIn('if (placementWheel_!=0.0f)',s)
+        self.assertIn('AxRecentFilter::NextRow(axCurrent_,visible.size(),placementWheel_)',s)
         self.assertNotIn('axTabHeld_ || placementActive_ || overPinnedAx',s)
     def test_browser_preserves_texture_variants_and_flattened_display(self):
         s=(ROOT/'src/EditorUi.cpp').read_text()

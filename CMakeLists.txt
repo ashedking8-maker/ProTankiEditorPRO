@@ -83,7 +83,7 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h
+  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
   src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -195,6 +195,9 @@ if(BUILD_TESTING)
   add_executable(BrowseCachePolicyRegression tests/browse_cache_policy_regression.cpp src/BrowseCachePolicy.h)
   target_include_directories(BrowseCachePolicyRegression PRIVATE src tests)
   add_test(NAME BrowseSessionCacheByteBudgets COMMAND BrowseCachePolicyRegression)
+  add_executable(AxOnlyUsedWheelRegression tests/ax_only_used_wheel_regression.cpp src/AxRecentFilter.h)
+  target_include_directories(AxOnlyUsedWheelRegression PRIVATE src tests)
+  add_test(NAME AxOnlyUsedFiltersTabWheel COMMAND AxOnlyUsedWheelRegression)
   add_executable(NativeExportCollisionPolicyRegression tests/native_export_collision_policy_regression.cpp src/NativeExportCollisionPolicy.h)
   target_include_directories(NativeExportCollisionPolicyRegression PRIVATE src tests)
   add_test(NAME NativeExportCollisionSafety COMMAND NativeExportCollisionPolicyRegression)

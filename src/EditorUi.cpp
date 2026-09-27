@@ -2,6 +2,7 @@
 #include "NativeObjectExport.h"
 #include "BugReport.h"
 #include "PreviewThumbnailCodec.h"
+#include "AxRecentFilter.h"
 #include <future>
 #include <chrono>
 #include "VerifiedCollisionTemplates.h"
@@ -1314,16 +1315,42 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
     }
     HandleEditorShortcuts(map, scene, assets);
     scene.AdvanceCameraFocus(ImGui::GetIO().DeltaTime);
-    if (axTabHeld_ && !axTabWasHeld_ && !recentAssets_.empty() && !browseLibraryOpen_) {
-        axCurrent_=std::clamp(axCurrent_,0,static_cast<int>(recentAssets_.size())-1);
-        ActivateRecent(static_cast<size_t>(axCurrent_),assets,previewScene);
+    // AX only-used is a navigation filter as well as a visual filter.  A
+    // previously clicked but never placed object must NOT be selectable by Tab.
+    // Empty filtered history must not reactivate a stale placement ghost.
+    if (axTabHeld_ && !browseLibraryOpen_) {
+        const auto visible=AxRecentFilter::VisiblePositions(recentAssets_,assets.Assets(),map.Props(),axOnlyUsed_);
+        axCurrent_=AxRecentFilter::ClampRow(axCurrent_,visible.size());
+        if (axOnlyUsed_ && visible.empty()) {
+            // All history entries were filtered out. Never leave an unused
+            // recent as an invisible placeable ghost after pressing Tab.
+            placementCommitRequested_=false;
+            if (placementActive_ && !clipboardPlacement_) {
+                placementActive_=false; ghostValid_=false;
+                placementItems_.clear(); ghostProps_.clear(); scene.ClearGhost();
+            }
+        }
+        if (!visible.empty()) {
+            const auto recentAt=visible[static_cast<size_t>(axCurrent_)];
+            const bool staleSelected=selectedAsset_<0 ||
+                recentAssets_[recentAt].index!=static_cast<size_t>(selectedAsset_);
+            if (!axTabWasHeld_ || staleSelected) {
+                // A filtered-out selection (including one deleted from the
+                // map during an active Tab hold) must never remain placeable.
+                placementCommitRequested_=false;
+                ActivateRecent(recentAt,assets,previewScene);
+            }
+            if (placementWheel_!=0.0f) {
+                axCurrent_=AxRecentFilter::NextRow(axCurrent_,visible.size(),placementWheel_);
+                placementCommitRequested_=false; // switching is not a drop
+                ActivateRecent(visible[static_cast<size_t>(axCurrent_)],assets,previewScene);
+                Log::Debug("AX Tab wheel: onlyUsed="+std::to_string(axOnlyUsed_?1:0)+
+                    " row="+std::to_string(axCurrent_)+" visible="+std::to_string(visible.size()));
+            }
+        }
     }
     axTabWasHeld_=axTabHeld_;
-    if (axTabHeld_ && placementWheel_!=0.0f && !recentAssets_.empty()) {
-        axCurrent_=(axCurrent_+(placementWheel_<0?1:static_cast<int>(recentAssets_.size())-1))%static_cast<int>(recentAssets_.size());
-        ActivateRecent(static_cast<size_t>(axCurrent_),assets,previewScene);
-        placementWheel_=0.0f;
-    }
+    placementWheel_=0.0f;
     scene.SetEffectMode(effectMode_);
     scene.SetBackgroundColor({viewportBackground_[0],viewportBackground_[1],viewportBackground_[2]});
     scene.SetGridColor({viewportGridColor_[0],viewportGridColor_[1],viewportGridColor_[2]});
@@ -1440,7 +1467,12 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
                 if (ImGui::MenuItem(EffectName(mode),nullptr,effectMode_==mode)) effectMode_=mode;
             ImGui::EndMenu();
         }
-        ImGui::MenuItem("AX Library: only used",nullptr,&axOnlyUsed_);
+        if (ImGui::MenuItem("AX Library: only used",nullptr,&axOnlyUsed_)) {
+            // Filter changes invalidate the old displayed-row index.  Force
+            // one eligible activation if Tab remains held across the change.
+            axCurrent_=0; axTabWasHeld_=false;
+            Log::Info(std::string("AX Library only-used ")+(axOnlyUsed_?"enabled":"disabled"));
+        }
         if (ImGui::MenuItem("Gameplay inspector...")) ImGui::SetWindowFocus("Gameplay");
         if (ImGui::MenuItem("Geometry / collision view (G)",nullptr,showCollision_)) {
             showCollision_=!showCollision_;
@@ -4242,26 +4274,11 @@ void EditorUi::DrawAxLibrary(const MapDocument& map, const AssetRegistry& assets
         ImGui::SetCursorPosX(ImGui::GetWindowWidth()-35.0f);
         if (ImGui::SmallButton("X##close_ax")) axPinned_=false;
     } else ImGui::Dummy({0,20});
-    std::vector<size_t> visible;
-    for (size_t i=0;i<recentAssets_.size();++i) {
-        const auto index=recentAssets_[i].index;
-        if (index>=assets.Assets().size()) continue;
-        const auto& asset=assets.Assets()[index];
-        if (axOnlyUsed_ && std::none_of(map.Props().begin(),map.Props().end(),[&](const PropInstance& p){
-            return p.library==asset.library && p.group==asset.group && p.name==asset.name;
-        })) continue;
-        visible.push_back(i);
-    }
-    if (!visible.empty()) {
-        if (axCurrent_<0 || axCurrent_>=static_cast<int>(visible.size())) axCurrent_=0;
-        const bool scroll=axTabHeld_;
-        if (scroll && ImGui::GetIO().MouseWheel!=0.0f) {
-            axCurrent_=(axCurrent_+(ImGui::GetIO().MouseWheel<0?1:static_cast<int>(visible.size())-1))%static_cast<int>(visible.size());
-            const int currentRow=axCurrent_;
-            ActivateRecent(visible[static_cast<size_t>(currentRow)],assets,previewScene);
-            axCurrent_=currentRow;
-        }
-    }
+    // Read-only overlay: the same filtered view is used by Tab+wheel above.
+    // Never process wheel a second time here (native WM_MOUSEWHEEL is routed
+    // before ImGui NewFrame, and double-handling can select a hidden asset).
+    const auto visible=AxRecentFilter::VisiblePositions(recentAssets_,assets.Assets(),map.Props(),axOnlyUsed_);
+    axCurrent_=AxRecentFilter::ClampRow(axCurrent_,visible.size());
     if (ImGui::BeginChild("##axlist",{0,-(axConfirmRemove_?67.0f:8.0f)},false,ImGuiWindowFlags_NoScrollWithMouse)) {
         for (size_t row=0;row<visible.size();++row) {
             const size_t at=visible[row]; const auto& recent=recentAssets_[at];
@@ -4296,5 +4313,5 @@ void EditorUi::DrawAxLibrary(const MapDocument& map, const AssetRegistry& assets
         ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
         !ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows)) axPinned_=false;
     ImGui::End(); ImGui::PopStyleVar();
-    (void)scene;
+    (void)scene; (void)previewScene;
 }
