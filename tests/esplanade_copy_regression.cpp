@@ -12,6 +12,7 @@ int main(int argc,char** argv) {
     const auto wall=NativeCollisionImport::Read(path/"wtile_1.3ds");
     const auto container=NativeCollisionImport::Read(path/"contain.3ds");
     const auto tunnel=NativeCollisionImport::Read(path/"tunnel_1.3ds");
+    const auto tunnel2=NativeCollisionImport::Read(path/"tunnel_2.3ds");
     CHECK(wall.Valid() && wall.visualAnchor=="wtile_1" && wall.planes.size()==1);
     CHECK(container.Valid() && container.visualAnchor=="Box04" && container.boxes.size()==1);
     CHECK(std::fabs(container.boxes[0].size.x-400.f)<.02f);
@@ -19,6 +20,8 @@ int main(int argc,char** argv) {
     CHECK(std::fabs(container.boxes[0].size.z-300.f)<.02f);
     CHECK(tunnel.Valid() && tunnel.visualAnchor=="Box01" &&
           tunnel.planes.size()==3 && tunnel.boxes.size()==3 && tunnel.triangles.size()==2);
+    CHECK(tunnel2.Valid() && tunnel2.visualAnchor=="Box02" &&
+          tunnel2.planes.size()==3 && tunnel2.boxes.size()==3 && tunnel2.triangles.empty());
     std::string err;
     MapDocument source;
     CHECK(source.Load(path/"original_collision_excerpt.xml",err));
@@ -65,6 +68,6 @@ int main(int argc,char** argv) {
           final.CollisionBoxes().size()==1);
     std::error_code ec;std::filesystem::remove(out,ec);
     std::cout<<"Esplanade duplicate original WTile 2/2 planes, Container Box04/Box34, "
-                "Tunnel Box01 helpers; paste/save/reload/rebind/delete/move OK\n";
+                "Tunnel1 Box01 and Tunnel2 Box02 helpers; paste/save/reload/rebind/delete/move OK\n";
     return 0;
 }

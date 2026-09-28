@@ -26,18 +26,33 @@ struct PropInstance {
     bool hasUncopyableMetadata{}; // opaque source fields require deliberate copy approval
     bool hasInvalidNativeMetadata{}; // malformed known game flags cannot be copied even with approval
     bool allowOpaqueMetadataCopy{}; // transient per-copy opt-in, never serialized as a game flag
+    // Full-map native clipboard clones keep the complete original XML subtree
+    // even when the editor cannot interpret one of its legacy fields. This is
+    // an in-memory provenance marker only; it is never serialized as a game flag.
+    bool losslessNativeClone{};
+    int nativeCloneBatchId{-1};
     std::shared_ptr<const std::string> originalPropXml; // complete detached source <prop> subtree
     int legacySourceIndex{-1}; // original <static-geometry>/<prop> index, -1 for newly created props
 };
 
-struct CollisionPlane { int legacySourceIndex{-1}; int authoredOwnerIndex{-1}; bool transformDirty{}; DirectX::XMFLOAT3 position{}; DirectX::XMFLOAT3 rotation{}; float width{}; float length{}; };
-struct CollisionBox { int legacySourceIndex{-1}; int authoredOwnerIndex{-1}; bool transformDirty{}; DirectX::XMFLOAT3 position{}; DirectX::XMFLOAT3 rotation{}; DirectX::XMFLOAT3 size{}; };
+struct CollisionPlane {
+    int legacySourceIndex{-1}; int authoredOwnerIndex{-1}; int nativeCloneBatchId{-1}; bool transformDirty{};
+    DirectX::XMFLOAT3 position{}; DirectX::XMFLOAT3 rotation{}; float width{}; float length{};
+    std::shared_ptr<const std::string> originalXml; // complete source collision node for lossless cloning
+};
+struct CollisionBox {
+    int legacySourceIndex{-1}; int authoredOwnerIndex{-1}; int nativeCloneBatchId{-1}; bool transformDirty{};
+    DirectX::XMFLOAT3 position{}; DirectX::XMFLOAT3 rotation{}; DirectX::XMFLOAT3 size{};
+    std::shared_ptr<const std::string> originalXml;
+};
 struct CollisionTriangle {
     int legacySourceIndex{-1};
     int authoredOwnerIndex{-1};
+    int nativeCloneBatchId{-1};
     bool transformDirty{};
     DirectX::XMFLOAT3 v0{}, v1{}, v2{};
     DirectX::XMFLOAT3 position{}, rotation{};
+    std::shared_ptr<const std::string> originalXml;
 };
 
 struct SpecialBox {
@@ -116,6 +131,16 @@ public:
 
     bool SetPropTransform(size_t index, const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& rotation);
     size_t AddProp(PropInstance prop);
+    // Lossless full-static-map clone path used by Ctrl+C/V when every static
+    // prop is selected. The collision bundle is copied from the source map as
+    // opaque native data instead of being reconstructed from 3DS helpers.
+    // Unknown XML attributes/children are retained and only transform/ID data
+    // required for the new instance is rewritten. Collider owner indices in
+    // the bundle are source PROP SLOTS (0..props.size-1) and are remapped here.
+    bool AppendLosslessNativeStaticClone(std::vector<PropInstance> props,
+        std::vector<CollisionPlane> planes, std::vector<CollisionBox> boxes,
+        std::vector<CollisionTriangle> triangles, std::vector<int>& inserted,
+        std::string& error);
     // Exactly one verified original native template is supported in this phase.
     // Returns false for unsupported models; the UI must disclose visual-only placement.
     bool AddVerifiedCollisionForProp(size_t index);
@@ -211,5 +236,6 @@ private:
     std::vector<CollisionTriangle> collisionTriangles_;
     MapStats stats_{};
     bool dirty_{};
+    int nextNativeCloneBatchId_{1};
     bool flagsDirty_{}, spawnsDirty_{}, pointsDirty_{}, bonusesDirty_{}, zonesDirty_{}, collisionDirty_{}, lightsDirty_{};
 };

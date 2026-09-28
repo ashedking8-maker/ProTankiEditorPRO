@@ -1,0 +1,17 @@
+Apply this patch on top of the current ProTanki Editor PRO 0.5.28 source that already contains the Fogtown ground and Esplanade Ctrl+V fixes.
+
+1. Extract the ZIP at the repository root, preserving folders.
+2. Replace the matching files.
+3. Commit/push and wait for GitHub Actions Windows build + CTest.
+4. Start the new build and confirm the session log says:
+   version=0.5.28-lossless-native-copy
+5. Test Silence:
+   - load map_silence.xml
+   - Ctrl+A, Ctrl+C, Ctrl+V
+   - place the full ghost
+   - Save As a new XML
+   - close/reopen the XML in the editor
+   - test the saved XML in ProTLVK
+6. Re-test Esplanade full-map copy and Fogtown floor collision for regression.
+
+Do not overwrite your only original XML during testing.

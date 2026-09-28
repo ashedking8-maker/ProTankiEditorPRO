@@ -106,7 +106,14 @@ def main() -> int:
                 'TrimBrowseCpuCache();' in ui,
                 'Session-only manually selected library / thumbnail cache policy regressed')
         require('VERSION 0.5.28' in cmake and '0.5.28' in text('src/App.cpp')
-                and '0.5.28-esplanade-copy-guard' in text('src/Logger.cpp'),'Version drift')
+                and '0.5.28-lossless-native-copy' in text('src/Logger.cpp'),'Version drift')
+        require('AppendLosslessNativeStaticClone' in doc and
+                'clipboardHasNativeStaticBundle_' in ui and
+                '3DS reinterpretation bypassed' in ui and
+                'originalXml' in text('src/MapDocument.h') and
+                'stem=="tunnel_2"' in text('src/NativeCollisionImport.h') and
+                'LosslessFullStaticMapClone' in cmake,
+                '0.5.28 lossless full-map native clipboard / Tunnel 2 regression missing')
         require('Native3DSMaterialSmoothingRoundTrip' in cmake and
                 'src/Native3DSVisualMetadata.h' in cmake and
                 (ROOT/'tests/native_visual_metadata_regression.cpp').is_file() and

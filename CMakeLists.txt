@@ -304,6 +304,19 @@ if(BUILD_TESTING)
   add_test(NAME EsplanadeSourceDuplicateAndNamedBoxAnchors COMMAND EsplanadeCopyRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/esplanade")
 
+  add_executable(LosslessNativeCloneRegression
+    tests/lossless_native_clone_regression.cpp
+    src/MapDocument.cpp src/MapDocument.h
+    src/Logger.cpp src/Logger.h)
+  target_include_directories(LosslessNativeCloneRegression PRIVATE src)
+  target_link_libraries(LosslessNativeCloneRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(LosslessNativeCloneRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(MSVC)
+    target_compile_options(LosslessNativeCloneRegression PRIVATE /W4 /permissive- /utf-8)
+  endif()
+  add_test(NAME LosslessFullStaticMapClone COMMAND LosslessNativeCloneRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/lossless_clone")
+
   add_executable(GeometryEdgeSnapRegression tests/geometry_snap_regression.cpp src/GeometrySnap.h)
   target_include_directories(GeometryEdgeSnapRegression PRIVATE src)
   add_test(NAME GeometryEdgesClearanceAndFloor COMMAND GeometryEdgeSnapRegression)

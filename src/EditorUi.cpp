@@ -271,7 +271,9 @@ const char* EditorUi::EffectName(int mode) {
 void EditorUi::OnMapLoaded(const std::filesystem::path& successfulMapPath) {
     collisionBindingsPending_=true;
     history_.Clear(); drag_ = {}; propertyEditActive_ = false; propertyEditIndex_ = -1; selected_ = -1; selectedItems_.clear();
-    clipboard_.clear(); placementItems_.clear(); ghostProps_.clear(); ghostValid_=false; selectionBoxActive_=false; placementActive_ = false;
+    clipboard_.clear(); clipboardHasNativeStaticBundle_=false;
+    clipboardCollisionPlanes_.clear();clipboardCollisionBoxes_.clear();clipboardCollisionTriangles_.clear();
+    placementItems_.clear(); ghostProps_.clear(); ghostValid_=false; selectionBoxActive_=false; placementActive_ = false;
     gameplayMode_ = -1; showGameplay_ = false; showSpawns_=showFlags_=showPoints_=showBonuses_=false; showZones_ = false; browseLibraryOpen_=false;
     functionalSelected_=FunctionalType::None; functionalPlacement_=FunctionalPlacement::None;
     // A new map must not inherit an unverified native bonus identifier from
@@ -848,7 +850,10 @@ void EditorUi::StartClipboardPlacement() {
     placementTemplate_=placementItems_.front(); ghostRotation_=0.0f;
     // Clipboard positions are relative to their shared pivot. Caller keeps placementZ_.
     placementActive_=true; ghostValid_=false;
-    SetMessage("Copied group follows the cursor. Space drops it; RMB cancels.");
+    if(clipboardHasNativeStaticBundle_)
+        SetMessage("Full static map follows the cursor with its complete native collision bundle. Space drops it; RMB cancels.");
+    else
+        SetMessage("Copied group follows the cursor. Space drops it; RMB cancels.");
 }
 
 bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry& assets,
@@ -927,6 +932,49 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
 
 void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, SceneRenderer& scene) {
     if (!placementActive_ || !ghostValid_ || ghostProps_.empty() || map.Version().empty()) return;
+    if(clipboardPlacement_ && clipboardHasNativeStaticBundle_) {
+        if(ghostProps_.size()!=clipboard_.size()) {
+            SetMessage("Lossless map paste blocked: clipboard prop count changed before commit.",true);
+            Log::Warning("Lossless map paste blocked: clipboard prop count changed before commit.");
+            return;
+        }
+        MapDocument before=map;
+        auto props=ghostProps_;
+        auto planes=clipboardCollisionPlanes_;
+        auto boxes=clipboardCollisionBoxes_;
+        auto triangles=clipboardCollisionTriangles_;
+        const float cs=std::cos(ghostRotation_),sn=std::sin(ghostRotation_);
+        const auto worldPosition=[&](DirectX::XMFLOAT3 relative) {
+            return DirectX::XMFLOAT3{ghostPivot_.x+cs*relative.x-sn*relative.y,
+                ghostPivot_.y+sn*relative.x+cs*relative.y,ghostPivot_.z+relative.z};
+        };
+        const auto transformCollider=[&](auto& c) {
+            c.position=worldPosition(c.position);
+            c.rotation.z+=ghostRotation_;
+        };
+        for(auto& c:planes)transformCollider(c);
+        for(auto& c:boxes)transformCollider(c);
+        for(auto& c:triangles)transformCollider(c);
+        std::vector<int> inserted;
+        std::string error;
+        if(!map.AppendLosslessNativeStaticClone(std::move(props),std::move(planes),std::move(boxes),
+                                                std::move(triangles),inserted,error)) {
+            map=std::move(before);
+            Log::Warning("Lossless native static paste rolled back: "+error);
+            SetMessage("Lossless map paste blocked: "+error,true);
+            return;
+        }
+        allowOpaqueMetadataCopy_=false;
+        Log::Info("Lossless native static paste committed: props="+std::to_string(inserted.size())+
+            " planes="+std::to_string(clipboardCollisionPlanes_.size())+
+            " boxes="+std::to_string(clipboardCollisionBoxes_.size())+
+            " triangles="+std::to_string(clipboardCollisionTriangles_.size())+
+            " (3DS reinterpretation bypassed)");
+        selectedItems_=inserted;selected_=inserted.empty()?-1:inserted.back();scene.SetSelection(selectedItems_);
+        history_.PushSnapshot(std::move(before),map);RequestSceneRebuild(true);
+        SetMessage("Lossless full-map paste: "+std::to_string(inserted.size())+" props + complete native collision copied without reinterpreting unknown 3DS objects.");
+        return;
+    }
     MapDocument before=map;
     std::vector<int> inserted;
     size_t nativeCount=0,visualOnly=0;
@@ -1275,22 +1323,52 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
             default:functionalClipboardKind_=FunctionalType::None;break;
             }
             clipboard_.clear();
+            clipboardHasNativeStaticBundle_=false;clipboardCollisionPlanes_.clear();
+            clipboardCollisionBoxes_.clear();clipboardCollisionTriangles_.clear();
             if(functionalClipboardKind_!=FunctionalType::None)SetMessage("Gameplay properties copied. Ctrl+V previews a duplicate.");
         }
         return;
     }
     if (io.KeyCtrl && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_C,false) && !selectedItems_.empty()) {
         clipboard_.clear();functionalClipboardKind_=FunctionalType::None;functionalPasteActive_=false;
-        for (int index:selectedItems_) if (index>=0 && static_cast<size_t>(index)<map.Props().size())
-            clipboard_.push_back(map.Props()[static_cast<size_t>(index)]);
+        clipboardHasNativeStaticBundle_=false;clipboardCollisionPlanes_.clear();
+        clipboardCollisionBoxes_.clear();clipboardCollisionTriangles_.clear();
+        std::vector<int> copyIndices;
+        copyIndices.reserve(selectedItems_.size());
+        for(int index:selectedItems_)if(index>=0 && static_cast<size_t>(index)<map.Props().size())copyIndices.push_back(index);
+        std::sort(copyIndices.begin(),copyIndices.end());
+        copyIndices.erase(std::unique(copyIndices.begin(),copyIndices.end()),copyIndices.end());
+        bool completeIndexSet=copyIndices.size()==map.Props().size();
+        if(completeIndexSet)for(size_t i=0;i<copyIndices.size();++i)
+            if(copyIndices[i]!=static_cast<int>(i)){completeIndexSet=false;break;}
+        for(int index:copyIndices)clipboard_.push_back(map.Props()[static_cast<size_t>(index)]);
         if (!clipboard_.empty()) {
             const DirectX::XMFLOAT3 center=clipboard_.front().position;
             clipboardAnchor_=center;
             for (auto& p:clipboard_) { p.position.x-=center.x; p.position.y-=center.y; p.position.z-=center.z; }
+            if(completeIndexSet) {
+                // Full static-map copy is deliberately OPAQUE: do not ask the
+                // 3DS importer to reinterpret every legacy object. Copy the
+                // map's actual native collision records as the authoritative data.
+                clipboardHasNativeStaticBundle_=true;
+                clipboardCollisionPlanes_=map.CollisionPlanes();
+                clipboardCollisionBoxes_=map.CollisionBoxes();
+                clipboardCollisionTriangles_=map.CollisionTriangles();
+                auto relative=[&](auto& c){c.position.x-=center.x;c.position.y-=center.y;c.position.z-=center.z;};
+                for(auto& c:clipboardCollisionPlanes_)relative(c);
+                for(auto& c:clipboardCollisionBoxes_)relative(c);
+                for(auto& c:clipboardCollisionTriangles_)relative(c);
+            }
             // The target plane matches the original selection height.
             placementZ_=center.z;
             RememberCopiedAssets(assets); // identical original library assets appear in AX recents
-            SetMessage("Copied "+std::to_string(clipboard_.size())+" prop(s). Ctrl+V follows cursor.");
+            if(clipboardHasNativeStaticBundle_)
+                SetMessage("Copied FULL static map losslessly: "+std::to_string(clipboard_.size())+" props + "+
+                    std::to_string(clipboardCollisionPlanes_.size())+" planes + "+
+                    std::to_string(clipboardCollisionBoxes_.size())+" boxes + "+
+                    std::to_string(clipboardCollisionTriangles_.size())+" triangles. Ctrl+V follows cursor.");
+            else
+                SetMessage("Copied "+std::to_string(clipboard_.size())+" prop(s). Ctrl+V follows cursor.");
         }
         return;
     }

@@ -303,6 +303,13 @@ private:
     std::vector<PropInstance> clipboard_;
     DirectX::XMFLOAT3 clipboardAnchor_{};
     bool clipboardPlacement_{};
+    // When Ctrl+C covers every static prop, copy the COMPLETE native collision
+    // section too. Positions are stored relative to clipboardAnchor_; raw source
+    // XML stays attached to each collider so unsupported legacy fields survive.
+    bool clipboardHasNativeStaticBundle_{};
+    std::vector<CollisionPlane> clipboardCollisionPlanes_;
+    std::vector<CollisionBox> clipboardCollisionBoxes_;
+    std::vector<CollisionTriangle> clipboardCollisionTriangles_;
     // Native gameplay clipboard: retains all authored fields rather than palette defaults.
     FunctionalType functionalClipboardKind_{FunctionalType::None};
     DirectX::XMFLOAT3 functionalClipboardAnchor_{};

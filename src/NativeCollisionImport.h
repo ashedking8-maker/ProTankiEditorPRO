@@ -157,6 +157,21 @@ inline Result Read(const std::filesystem::path& file) {
        nodes[5].name=="plane02" && nodes[6].name=="tri" &&
        nodes[7].name=="tri0" && nodes[8].name=="Box06")
         visual=&nodes[0];
+    // OuterWalls/tunnel_2.3ds is another original legacy naming collision.
+    // Box02 is the rendered tunnel mesh; Box10/Box11/Box09 are the actual box
+    // helpers and Plane06/plane03/plane04 are the native plane helpers. This
+    // exact source topology was captured from the user's original library.
+    // Full-map Ctrl+C/V no longer depends on this exception (it clones native
+    // map data losslessly), but individual library placement still needs the
+    // original visual pivot to author helper collision correctly.
+    if(!visual && stem=="tunnel_2" && nodes.size()==7 &&
+       nodes[0].name=="Box02" && nodes[0].vertices.size()==21 &&
+       nodes[0].faces.size()==12 && nodes[0].hasMatrix &&
+       nodes[1].name=="Box10" && nodes[1].vertices.size()==26 && nodes[1].faces.size()==12 &&
+       nodes[2].name=="Box11" && nodes[2].vertices.size()==26 && nodes[2].faces.size()==12 &&
+       nodes[3].name=="Plane06" && nodes[4].name=="plane03" &&
+       nodes[5].name=="plane04" && nodes[6].name=="Box09")
+        visual=&nodes[0];
     if(!visual||!visual->hasMatrix) {result.error="3DS visual anchor/pivot is not available.";return result;}
     // The native 3DS vertex lists are stored in authoring/world coordinates.
     // 0x4160 gives an oriented object basis. Both are needed: the visual pivot
