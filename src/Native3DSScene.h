@@ -31,7 +31,7 @@ struct Frame {
     V pivot{},position{},rotation{},scale{1,1,1};
 };
 struct Scene {std::vector<Node> nodes;std::vector<Frame> frames;bool migratedFlatGenerated{};};
-struct Selection {size_t node{};int frame{-1};};
+struct Selection {size_t node{};int frame{-1};bool usedRootFallback{};};
 inline V Rotate(V v,V r){
     const float cx=std::cos(r.x),sx=std::sin(r.x),cy=std::cos(r.y),sy=std::sin(r.y),cz=std::cos(r.z),sz=std::sin(r.z);
     V x{v.x,cx*v.y-sx*v.z,sx*v.y+cx*v.z};V y{cy*x.x+sy*x.z,x.y,-sy*x.x+cy*x.z};
@@ -148,18 +148,29 @@ inline bool Read(const std::filesystem::path& path,Scene& out,std::string& error
     error.clear();return true;
 }
 inline bool Resolve(const Scene& s,const std::string& objectName,Selection& selection,std::string& error){
+    selection={};
     std::vector<int> candidates;
     if(!s.frames.empty()){
         for(size_t i=0;i<s.frames.size();++i)if(objectName.empty()?s.frames[i].parent<0:s.frames[i].name==objectName)candidates.push_back(static_cast<int>(i));
-        if(candidates.size()!=1){error=objectName.empty()?"Ambiguous 3DS roots: set mesh object in library.xml.":"3DS mesh object is missing or ambiguous.";return false;}
+        if(objectName.empty()){
+            // AIR Set.peek() has no portable dictionary ordering. For libraries
+            // without an explicit object, use the first declared usable mesh root.
+            // Do not reject the entire prop just because a sibling root exists.
+            candidates.erase(std::remove_if(candidates.begin(),candidates.end(),[&](int i){
+                return std::none_of(s.nodes.begin(),s.nodes.end(),[&](const Node& n){return n.name==s.frames[i].name&&!n.faces.empty();});
+            }),candidates.end());
+            selection.usedRootFallback=candidates.size()>1;
+        }
+        if(candidates.empty()||(!objectName.empty()&&candidates.size()!=1)){error="3DS mesh object is missing or ambiguous.";return false;}
         selection.frame=candidates.front();
         const auto& name=s.frames[static_cast<size_t>(selection.frame)].name;
         size_t count=0;for(size_t i=0;i<s.nodes.size();++i)if(s.nodes[i].name==name){selection.node=i;++count;}
         if(count!=1){error="Selected 3DS root is not a unique mesh.";return false;}
     }else{
         selection.frame=-1;size_t count=0;
-        for(size_t i=0;i<s.nodes.size();++i)if(objectName.empty()||s.nodes[i].name==objectName){selection.node=i;++count;}
-        if(count!=1){error="3DS without hierarchy needs a unique mesh object in library.xml.";return false;}
+        for(size_t i=0;i<s.nodes.size();++i)if((objectName.empty()&&!s.nodes[i].faces.empty())||s.nodes[i].name==objectName){if(count==0)selection.node=i;++count;}
+        selection.usedRootFallback=objectName.empty()&&count>1;
+        if(count==0||(!objectName.empty()&&count!=1)){error="3DS mesh object is missing or ambiguous.";return false;}
     }
     if(s.nodes[selection.node].faces.empty()){error="Selected 3DS object has no faces.";return false;}
     error.clear();return true;

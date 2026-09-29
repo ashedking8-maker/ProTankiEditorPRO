@@ -60,5 +60,19 @@ int main(){
     PT_REQUIRE(back.CollisionTriangles().size()==4&&Eq(back.CollisionTriangles()[3].rotation.x,.7f));
     {std::ofstream f(temp/"v3.xml");f<<"<map version=\"3.0\"><static-geometry/></map>";}
     PT_REQUIRE(!back.Load(temp/"v3.xml",error)&&error.find("Unsupported map version")!=std::string::npos);
+    MapDocument large;large.CreateBlank();
+    std::vector<PropInstance> many(2000);std::vector<CollisionBox> solids(2000);
+    for(size_t i=0;i<many.size();++i){many[i].library="UnavailableLibrary";many[i].group="g";many[i].name="MissingMesh";many[i].position.x=100.f*static_cast<float>(i);
+        solids[i].position=many[i].position;solids[i].size={20,20,20};solids[i].authoredOwnerIndex=static_cast<int>(i);}
+    std::vector<int> added;
+    PT_REQUIRE(large.AppendLosslessNativeStaticClone(many,{},solids,{},added,error));
+    std::vector<size_t> all;for(size_t i=0;i<many.size();++i)all.push_back(i);
+    PT_REQUIRE(large.CopyNativeCollisionForProps(all,planes,boxes,triangles)&&boxes.size()==2000);
+    MapDocument destination;destination.CreateBlank();
+    PT_REQUIRE(destination.AppendLosslessNativeStaticClone(large.Props(),planes,boxes,triangles,added,error));
+    PT_REQUIRE(destination.Props().size()==2000&&destination.CollisionBoxes().size()==2000);
+    PT_REQUIRE(destination.SaveLegacyAs(temp/"large.xml",error));
+    MapDocument largeRead;PT_REQUIRE(largeRead.Load(temp/"large.xml",error));
+    PT_REQUIRE(largeRead.Props().size()==2000&&largeRead.CollisionBoxes().size()==2000);
     std::cout<<"Native XML: tilted plane/box/triangle rotations, rebind, owned subset copy/remap/delete/move, unresolved guards and version rejection PASS\n";
 }

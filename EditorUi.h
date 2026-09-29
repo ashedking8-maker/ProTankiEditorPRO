@@ -1,12 +1,16 @@
 #pragma once
+#include "GameplaySelection.h"
 #include "MapDocument.h"
 #include "AssetRegistry.h"
 #include "SceneRenderer.h"
 #include "EditHistory.h"
 #include "GuidanceState.h"
 #include "ObjectDraft.h"
+#include "BugReport.h"
+#include <future>
 #include <filesystem>
 #include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -32,7 +36,7 @@ public:
     void ProcessPendingNativeDialogs();
     void ApplyPreferredTheme() const;
     bool FirstRun() const { return welcomePending_; }
-    void ShutdownObjectPreview() { objectScene_.Shutdown(); objectSceneInitialized_=false; objectSceneHasModel_=false; }
+    void ShutdownObjectPreview() { browseThumbnails_.clear(); browseCpuThumbnails_.clear(); recentAssets_.clear(); objectScene_.Shutdown(); objectSceneInitialized_=false; objectSceneHasModel_=false; }
 
     bool ConsumeFullscreenToggle() { const bool v = fullscreenToggleRequested_; fullscreenToggleRequested_ = false; return v; }
     bool ConsumeSceneRebuildRequest(bool& preserveCamera) {
@@ -50,7 +54,9 @@ public:
 
 private:
     enum class ToolMode { Select, Move, Rotate };
-    enum class FunctionalType { None, Flag, Spawn, Point, Bonus, Zone, Light };
+    using FunctionalType=GameplaySelection::Kind;
+    GameplaySelection::Visibility SelectionVisibility() const;
+    void PruneFunctionalSelection(const MapDocument& map);
     enum class FunctionalPlacement { None, RedFlag, BlueFlag, SpawnDm, SpawnRed, SpawnBlue, SpawnDomRed, SpawnDomBlue, ControlPoint, BonusRegion, KillZone, KickZone, Light };
     enum class NavigationMode { Legacy, Adobe, Simple, Custom };
     int uiTheme_{};
@@ -63,7 +69,14 @@ private:
     bool allowVisualOnlyPlacement_{}; // explicit opt-in; no silent pass-through walls
     bool allowOpaqueMetadataCopy_{}; // next-placement approval; auto-resets, never a gameplay property
     bool collisionBindingsPending_{true};
+    const AssetRegistry* saveAssets_{}; // source validation for save-time ground repair
     bool showBackgroundPopup_{};
+    bool bugReportOpen_{};
+    bool bugReportAttachLogs_{}; // privacy: opt-in, not checked by default
+    char bugReportDetails_[4001]{};
+    std::future<BugReport::Result> bugReportPending_;
+    std::string bugReportFeedback_;
+    bool bugReportFeedbackError_{};
     bool smoothCameraFocus_{true};
     bool previewNativeLighting_{true};
     float previewLightReach_{100.0f};
@@ -98,7 +111,7 @@ private:
     void DrawScene(MapDocument&, SceneRenderer&);
     void DrawLibrary(MapDocument&, const AssetRegistry&, SceneRenderer&, SceneRenderer& previewScene);
     void DrawBrowseLibrary(MapDocument&, const AssetRegistry&, SceneRenderer&, SceneRenderer&);
-    void CaptureBrowseThumbnail(size_t assetIndex, const AssetRegistry&, SceneRenderer&);
+    void CaptureBrowseThumbnail(size_t assetIndex, size_t variantIndex, const AssetRegistry&, SceneRenderer&);
     void DrawProperties(MapDocument&, const AssetRegistry&, SceneRenderer&);
     void DrawFunctionalProperties(MapDocument&, SceneRenderer&);
     void DrawViewport(MapDocument&, const AssetRegistry&, SceneRenderer&);
@@ -107,6 +120,7 @@ private:
     static const char* EffectName(int mode);
     void DrawControlHelp();
     void DrawSupportPopup();
+    void DrawBugReport();
     void DrawFirstRunGuidance();
     void RequestGuidedOpen(int kind);
     void CompleteGuidedOpen(int kind);
@@ -122,7 +136,8 @@ private:
     void SelectOnly(int index, SceneRenderer& scene);
     void UpdatePlacementGhost(SceneRenderer&, const AssetRegistry&, float x, float y);
     void CommitPlacement(MapDocument&, const AssetRegistry&, SceneRenderer&);
-    bool AuthorCollisionForPlacement(MapDocument&,const AssetRegistry&,size_t,std::string&);
+    bool AuthorCollisionForPlacement(MapDocument&,const AssetRegistry&,size_t,std::string&,
+                                     bool sourceVerifiedCoincident=false,size_t stagedStart=0);
     void StartClipboardPlacement();
     void CaptureRecentThumbnail(SceneRenderer& previewScene);
     void RememberCopiedAssets(const AssetRegistry& assets);
@@ -207,6 +222,7 @@ private:
     unsigned long long objectEditorOpenAt_{};
     bool objectHelpRequested_{};
     bool objectSaveRequested_{};
+    bool objectNativeExportRequested_{};
     bool objectCloseRequested_{};
     bool objectDirty_{};
     bool objectVertexDragHistoryCaptured_{};
@@ -247,6 +263,7 @@ private:
     float pendingNativeWheel_{};
     bool axTabWasHeld_{};
     bool browseLibraryOpen_{};
+    bool browseWasOpen_{}; // GPU previews are released on the first frame after closing Browse.
     float browseWorkspaceY_{};
     char browseSearch_[128]{};
     int browseCategory_{}; // metadata-only heuristic category filter
@@ -255,14 +272,30 @@ private:
     struct BrowseThumbnail {
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
         DirectX::XMFLOAT3 dimensions{}; // width/depth/height, computed only after this item's 3DS is opened
-        unsigned long long touched{}; bool failed{}, hasDimensions{};
+        unsigned long long touched{}; size_t gpuBytes{};
+        bool failed{}, hasDimensions{};
     };
-    std::unordered_map<size_t,BrowseThumbnail> browseThumbnails_;
+    struct BrowseCpuThumbnail {
+        std::vector<std::uint8_t> png; // WIC-encoded in memory; never written to disk.
+        DirectX::XMFLOAT3 dimensions{};
+        unsigned long long touched{};
+    };
+    std::unordered_map<uint64_t,BrowseThumbnail> browseThumbnails_;
+    std::unordered_map<uint64_t,BrowseCpuThumbnail> browseCpuThumbnails_;
     unsigned long long browseFrame_{};
     bool browseRenderedThisFrame_{};
+    unsigned browseDecodedThisFrame_{};
+    void TrimBrowseGpuCache(size_t budgetBytes);
+    void TrimBrowseCpuCache();
     bool browsePreviewNeedsRestore_{};
     bool showZones_ = false;
     bool snap_ = true;
+    bool absoluteGridSnap_ = true;
+    bool edgeSnapEnabled_{}; // opt-in until compared against ProTLVK
+    float edgeSnapTolerance_{5.f};
+    float edgeSnapClearance_{}; // horizontal separation; NOT vertical surface offset
+    bool surfaceOffsetEnabled_{false}; // default for newly placed props; existing props never move
+    float surfaceOffsetZ_{0.5f};
     float gridSize_ = 500.0f;
     float rotationSnapDeg_ = 90.0f;
     float ghostRotation_{};
@@ -273,6 +306,13 @@ private:
     std::vector<PropInstance> clipboard_;
     DirectX::XMFLOAT3 clipboardAnchor_{};
     bool clipboardPlacement_{};
+    // When Ctrl+C covers every static prop, copy the COMPLETE native collision
+    // section too. Positions are stored relative to clipboardAnchor_; raw source
+    // XML stays attached to each collider so unsupported legacy fields survive.
+    bool clipboardHasNativeStaticBundle_{};
+    std::vector<CollisionPlane> clipboardCollisionPlanes_;
+    std::vector<CollisionBox> clipboardCollisionBoxes_;
+    std::vector<CollisionTriangle> clipboardCollisionTriangles_;
     // Native gameplay clipboard: retains all authored fields rather than palette defaults.
     FunctionalType functionalClipboardKind_{FunctionalType::None};
     DirectX::XMFLOAT3 functionalClipboardAnchor_{};
@@ -287,12 +327,13 @@ private:
     DirectX::XMFLOAT3 ghostPivot_{};
     bool ghostValid_{};
     bool placementCommitRequested_{};
+    bool rmbPlacementCancelPendingRelease_{}; // suppress release/orbit/AX after globally cancelling a ghost
     float viewportX_{}, viewportY_{}, viewportW_{}, viewportH_{};
     bool selectionBoxActive_{};
     float selectionStartX_{}, selectionStartY_{}, selectionEndX_{}, selectionEndY_{};
     std::vector<PropTransformState> dragBefore_;
     std::vector<int> dragIndices_;
-    struct RecentAsset { size_t index{}; Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> thumbnail; };
+    struct RecentAsset { size_t index{}; Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> thumbnail; int textureVariant{}; };
     std::vector<RecentAsset> recentAssets_;
     bool axPinned_{}, axOnlyUsed_{}, axConfirmRemove_{};
     int axRemovalIndex_{-1};
@@ -317,7 +358,9 @@ private:
     bool placementActive_{};
     PropInstance placementTemplate_{};
     float placementZ_{};
+    DirectX::XMFLOAT3 placementKeyboardOffset_{};
 
+    std::vector<GameplaySelection::Item> functionalSelection_;
     FunctionalType functionalSelected_{FunctionalType::None};
     size_t functionalIndex_{};
     FunctionalPlacement functionalPlacement_{FunctionalPlacement::None};

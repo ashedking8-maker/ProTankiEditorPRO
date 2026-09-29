@@ -1,4 +1,5 @@
 #pragma once
+#include "GameplaySelection.h"
 #include "MapDocument.h"
 #include "AssetRegistry.h"
 #include "SceneRenderer.h"
@@ -53,7 +54,9 @@ public:
 
 private:
     enum class ToolMode { Select, Move, Rotate };
-    enum class FunctionalType { None, Flag, Spawn, Point, Bonus, Zone, Light };
+    using FunctionalType=GameplaySelection::Kind;
+    GameplaySelection::Visibility SelectionVisibility() const;
+    void PruneFunctionalSelection(const MapDocument& map);
     enum class FunctionalPlacement { None, RedFlag, BlueFlag, SpawnDm, SpawnRed, SpawnBlue, SpawnDomRed, SpawnDomBlue, ControlPoint, BonusRegion, KillZone, KickZone, Light };
     enum class NavigationMode { Legacy, Adobe, Simple, Custom };
     int uiTheme_{};
@@ -291,7 +294,7 @@ private:
     bool edgeSnapEnabled_{}; // opt-in until compared against ProTLVK
     float edgeSnapTolerance_{5.f};
     float edgeSnapClearance_{}; // horizontal separation; NOT vertical surface offset
-    bool surfaceOffsetEnabled_{true}; // default for newly placed props; existing props never move
+    bool surfaceOffsetEnabled_{false}; // default for newly placed props; existing props never move
     float surfaceOffsetZ_{0.5f};
     float gridSize_ = 500.0f;
     float rotationSnapDeg_ = 90.0f;
@@ -355,7 +358,9 @@ private:
     bool placementActive_{};
     PropInstance placementTemplate_{};
     float placementZ_{};
+    DirectX::XMFLOAT3 placementKeyboardOffset_{};
 
+    std::vector<GameplaySelection::Item> functionalSelection_;
     FunctionalType functionalSelected_{FunctionalType::None};
     size_t functionalIndex_{};
     FunctionalPlacement functionalPlacement_{FunctionalPlacement::None};

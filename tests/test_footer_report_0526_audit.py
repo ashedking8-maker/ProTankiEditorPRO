@@ -23,11 +23,11 @@ class FooterReport0526Audit(unittest.TestCase):
         self.assertIn('bool bugReportAttachLogs_{}', HEADER)
 
     def test_offset_default_and_preferences(self):
-        self.assertIn('bool surfaceOffsetEnabled_{true}', HEADER)
+        self.assertIn('bool surfaceOffsetEnabled_{false}', HEADER)
         self.assertIn('float surfaceOffsetZ_{0.5f}', HEADER)
-        self.assertIn('tag=="surfaceOffsetEnabled"', UI)
+        self.assertIn('tag=="nativeSurfaceOffsetEnabled"', UI)
         self.assertIn('tag=="surfaceOffsetZ"', UI)
-        self.assertIn('out<<"surfaceOffsetEnabled "', UI)
+        self.assertIn('out<<"nativeSurfaceOffsetEnabled "', UI)
         self.assertIn('out<<"surfaceOffsetZ "', UI)
         self.assertIn('Native collision moves with the object', UI)
 

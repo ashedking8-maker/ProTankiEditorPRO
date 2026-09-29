@@ -11,6 +11,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS = (
+    ('gameplay_selection_regression.cpp', ()),
     ('native_3ds_writer_regression.cpp', ()),
     ('native_visual_metadata_regression.cpp', ()),
     ('native_terrain_delta_regression.cpp', ('tests/fixtures/native_helpers',)),

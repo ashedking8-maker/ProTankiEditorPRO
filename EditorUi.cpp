@@ -275,6 +275,7 @@ void EditorUi::OnMapLoaded(const std::filesystem::path& successfulMapPath) {
     clipboardCollisionPlanes_.clear();clipboardCollisionBoxes_.clear();clipboardCollisionTriangles_.clear();
     placementItems_.clear(); ghostProps_.clear(); ghostValid_=false; selectionBoxActive_=false; placementActive_ = false;
     gameplayMode_ = -1; showGameplay_ = false; showSpawns_=showFlags_=showPoints_=showBonuses_=false; showZones_ = false; browseLibraryOpen_=false;
+    functionalSelection_.clear();
     functionalSelected_=FunctionalType::None; functionalPlacement_=FunctionalPlacement::None;
     // A new map must not inherit an unverified native bonus identifier from
     // an unrelated library/map, or an old mode-selection warning.
@@ -483,7 +484,7 @@ void EditorUi::LoadControls() {
         else if (tag=="smoothCameraFocus") { int v{};if(in>>v)smoothCameraFocus_=v!=0; }
         else if (tag=="previewNativeLighting") { int v{}; if(in>>v) previewNativeLighting_=v!=0; }
         else if (tag=="previewLightReach") { if(in>>previewLightReach_)previewLightReach_=std::clamp(previewLightReach_,1.f,500.f); }
-        else if (tag=="surfaceOffsetEnabled") { int v{}; if(in>>v) surfaceOffsetEnabled_=v!=0; }
+        else if (tag=="nativeSurfaceOffsetEnabled") { int v{}; if(in>>v) surfaceOffsetEnabled_=v!=0; }
         else if (tag=="surfaceOffsetZ") { float v{}; if(in>>v && std::isfinite(v)) surfaceOffsetZ_=std::clamp(v,0.f,20.f); }
         else if (tag=="browseThumbScale") { float value{}; if(in>>value && std::isfinite(value) && value>=0.7f && value<=1.65f) browseThumbnailScale_=value; }
         else if (tag=="navigationMode") { int v{}; if(in>>v && v>=0 && v<=3) navigationMode_=static_cast<NavigationMode>(v); }
@@ -538,7 +539,7 @@ void EditorUi::SaveControls() const {
     out<<"smoothCameraFocus "<<smoothCameraFocus_<<'\n';
     out<<"previewNativeLighting "<<previewNativeLighting_<<'\n';
     out<<"previewLightReach "<<previewLightReach_<<'\n';
-    out<<"surfaceOffsetEnabled "<<surfaceOffsetEnabled_<<'\n';
+    out<<"nativeSurfaceOffsetEnabled "<<surfaceOffsetEnabled_<<'\n';
     out<<"surfaceOffsetZ "<<surfaceOffsetZ_<<'\n';
     out<<"browseThumbScale "<<browseThumbnailScale_<<'\n';
     out<<"navigationMode "<<static_cast<int>(navigationMode_)<<'\n';
@@ -608,12 +609,14 @@ void EditorUi::PushDiscreteTransform(MapDocument& map, SceneRenderer& scene, int
 }
 
 void EditorUi::SelectOnly(int index, SceneRenderer& scene) {
+    functionalSelection_.clear();
     selected_=index; selectedItems_.clear(); if(index>=0) functionalSelected_=FunctionalType::None;
     if (index>=0) {selectedItems_.push_back(index);functionalPropertyBefore_.reset();zonePropertyBefore_.reset();}
     scene.SetSelection(selectedItems_);
 }
 
 void EditorUi::SelectAllStaticProps(const MapDocument& map, SceneRenderer& scene) {
+    functionalSelection_.clear();
     selectedItems_.clear();
     for(size_t i=0;i<map.Props().size();++i)
         selectedItems_.push_back(static_cast<int>(i));
@@ -772,20 +775,16 @@ void EditorUi::CommitFunctionalPlacement(MapDocument& map, SceneRenderer& scene)
     Log::Info("Gameplay element added. Undo available.");
 }
 
-void EditorUi::DeleteFunctional(MapDocument& map, SceneRenderer& scene) {
-    MapDocument before=map;
-    bool removed=false;
-    switch(functionalSelected_) {
-    case FunctionalType::Flag:removed=map.DeleteFlag(functionalIndex_);break;
-    case FunctionalType::Spawn:removed=map.DeleteSpawn(functionalIndex_);break;
-    case FunctionalType::Point:removed=map.DeleteControlPoint(functionalIndex_);break;
-    case FunctionalType::Bonus:removed=map.DeleteBonusRegion(functionalIndex_);break;
-    case FunctionalType::Zone:removed=map.DeleteSpecialBox(functionalIndex_);break;
-    case FunctionalType::Light:removed=map.DeleteLight(functionalIndex_);break;
-    default:break;
-    }
-    if(removed) {history_.PushSnapshot(std::move(before),map);functionalSelected_=FunctionalType::None;RequestSceneRebuild(true);scene.SetFunctionalGhost({},0,false);SetMessage("Functional element removed. Undo restores it.");}
+GameplaySelection::Visibility EditorUi::SelectionVisibility() const {
+    return {showGameplay_,showFlags_,showSpawns_,showPoints_,showBonuses_,showZones_,showLights_,gameplayMode_};
 }
+void EditorUi::PruneFunctionalSelection(const MapDocument& map){
+    const auto visible=GameplaySelection::Visible(map,SelectionVisibility());
+    auto present=[&](GameplaySelection::Item item){return std::any_of(visible.begin(),visible.end(),[&](const auto& c){return c.item==item;});};
+    functionalSelection_.erase(std::remove_if(functionalSelection_.begin(),functionalSelection_.end(),[&](auto item){return !present(item);}),functionalSelection_.end());
+    if(functionalSelected_!=FunctionalType::None&&!present({functionalSelected_,functionalIndex_}))functionalSelected_=FunctionalType::None;
+}
+void EditorUi::DeleteFunctional(MapDocument& map, SceneRenderer& scene) { DeleteSelected(map,scene); }
 
 void EditorUi::Undo(MapDocument& map, SceneRenderer& scene) {
     std::vector<size_t> changed;
@@ -808,19 +807,21 @@ void EditorUi::Redo(MapDocument& map, SceneRenderer& scene) {
 }
 
 void EditorUi::DeleteSelected(MapDocument& map, SceneRenderer& scene) {
-    if(selectedItems_.empty())return;
-    std::vector<int> indices=selectedItems_;
-    std::sort(indices.begin(),indices.end());
-    indices.erase(std::unique(indices.begin(),indices.end()),indices.end());
-    MapDocument before=map;
-    std::vector<size_t> valid;
-    for(int index:indices)if(index>=0 && static_cast<size_t>(index)<map.Props().size())valid.push_back(static_cast<size_t>(index));
-    std::string outcome;
-    if(!map.DeletePropsWithCollision(valid,outcome)) { SetMessage(outcome,true); return; }
+    PruneFunctionalSelection(map);
+    auto gameplay=functionalSelection_;
+    if(gameplay.empty()&&functionalSelected_!=FunctionalType::None)gameplay.push_back({functionalSelected_,functionalIndex_});
+    std::vector<size_t> indices;
+    for(int i:selectedItems_)if(i>=0&&static_cast<size_t>(i)<map.Props().size())indices.push_back(static_cast<size_t>(i));
+    std::sort(indices.begin(),indices.end());indices.erase(std::unique(indices.begin(),indices.end()),indices.end());
+    if(indices.empty()&&gameplay.empty())return;
+    MapDocument before=map;std::string outcome;
+    if(!indices.empty()&&!map.DeletePropsWithCollision(indices,outcome)){SetMessage(outcome,true);return;}
+    if(!GameplaySelection::Delete(map,gameplay)){map=std::move(before);SetMessage("Selection changed; deletion rolled back.",true);return;}
     history_.PushSnapshot(std::move(before),map);
-    SelectOnly(-1,scene);drag_={};dragBefore_.clear();dragIndices_.clear();
+    SelectOnly(-1,scene);functionalSelected_=FunctionalType::None;selectedLight_=-1;drag_={};dragBefore_.clear();dragIndices_.clear();
+    functionalDragActive_=false;functionalDragBefore_.reset();zoneDragBefore_.reset();
     RequestSceneRebuild(true);
-    SetMessage(outcome);
+    SetMessage("Deleted "+std::to_string(indices.size())+" props and "+std::to_string(gameplay.size())+" gameplay items. Undo restores the complete selection.");
 }
 
 void EditorUi::RememberCopiedAssets(const AssetRegistry& assets) {
@@ -849,7 +850,7 @@ void EditorUi::StartClipboardPlacement() {
     if (clipboard_.empty()) return;
     placementItems_=clipboard_;
     clipboardPlacement_=true;
-    placementTemplate_=placementItems_.front(); ghostRotation_=0.0f;
+    placementTemplate_=placementItems_.front(); ghostRotation_=0.0f;placementKeyboardOffset_={};
     // Clipboard positions are relative to their shared pivot. Caller keeps placementZ_.
     placementActive_=true; ghostValid_=false;
     if(clipboardHasNativeStaticBundle_)
@@ -1172,7 +1173,8 @@ void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& a
     ghostPivot_=clipboardPlacement_ ? DirectX::XMFLOAT3{
         GridStep::QuantizeAroundAnchor(target.x,gridSize_,clipboardAnchor_.x),
         GridStep::QuantizeAroundAnchor(target.y,gridSize_,clipboardAnchor_.y),placementZ_} :
-        DirectX::XMFLOAT3{SnapPosition(target.x),SnapPosition(target.y),SnapPosition(placementZ_)};
+        DirectX::XMFLOAT3{SnapPosition(target.x),SnapPosition(target.y),placementZ_};
+    ghostPivot_.x+=placementKeyboardOffset_.x;ghostPivot_.y+=placementKeyboardOffset_.y;ghostPivot_.z+=placementKeyboardOffset_.z;
     if(surfaceOffsetEnabled_ && !clipboardPlacement_) ghostPivot_.z+=surfaceOffsetZ_;
     ghostProps_=placementItems_;
     const float cs=std::cos(ghostRotation_),sn=std::sin(ghostRotation_);
@@ -1279,7 +1281,9 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
     if (Pressed(Action::Undo)) { Undo(map,scene); return; }
     if (Pressed(Action::Redo)) { Redo(map,scene); return; }
     if(io.KeyCtrl && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_A,false)) {
-        SelectAllStaticProps(map,scene);return;
+        SelectAllStaticProps(map,scene);
+        for(const auto& c:GameplaySelection::Visible(map,SelectionVisibility()))functionalSelection_.push_back(c.item);
+        SetMessage("Selected all "+std::to_string(selectedItems_.size())+" props and "+std::to_string(functionalSelection_.size())+" visible gameplay items.");return;
     }
 
     if (functionalPlacement_!=FunctionalPlacement::None &&
@@ -1288,7 +1292,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
     }
     // X rotates a selected spawn as well as a not-yet-placed spawn.
     if (!io.KeyCtrl && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_X,false) &&
-        functionalPlacement_==FunctionalPlacement::None && functionalSelected_==FunctionalType::Spawn &&
+        functionalPlacement_==FunctionalPlacement::None && functionalSelection_.size()<=1 && functionalSelected_==FunctionalType::Spawn &&
         functionalIndex_<map.Spawns().size()) {
         MapDocument before=map;
         auto spawn=map.Spawns()[functionalIndex_];
@@ -1310,7 +1314,8 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
         SetMessage("Functional placement cancelled.");return;
     }
     if(io.KeyCtrl && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_C,false) &&
-       functionalSelected_!=FunctionalType::None) {
+       functionalSelected_!=FunctionalType::None && selectedItems_.empty()) {
+        if(functionalSelection_.size()>1){SetMessage("Gameplay group selection supports Delete/Undo; select one item to copy its properties.",true);return;}
         DirectX::XMFLOAT3 at{};
         if(FunctionalPosition(map,at)) {
             functionalClipboardKind_=functionalSelected_;
@@ -1343,8 +1348,10 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
         bool completeIndexSet=copyIndices.size()==map.Props().size();
         if(completeIndexSet)for(size_t i=0;i<copyIndices.size();++i)
             if(copyIndices[i]!=static_cast<int>(i)){completeIndexSet=false;break;}
+        Log::Info("Clipboard selection: selected="+std::to_string(copyIndices.size())+" document="+std::to_string(map.Props().size())+" full="+std::to_string(completeIndexSet));
         if(!completeIndexSet && std::any_of(copyIndices.begin(),copyIndices.end(),[&](int i){return map.Props()[static_cast<size_t>(i)].collisionOwnershipUnresolved;})) {
-            SetMessage("Copy blocked: selected objects have unresolved source collision ownership. Resolve the Library or copy the full static map.",true);return;
+            Log::Warning("Partial copy blocked: unresolved collision ownership. Ctrl+A selects every document prop, including unavailable meshes.");
+            SetMessage("Partial copy blocked: unresolved collisions. For the full static map use Ctrl+A, Ctrl+C, Ctrl+V; no model regeneration is required.",true);return;
         }
         for(int index:copyIndices)clipboard_.push_back(map.Props()[static_cast<size_t>(index)]);
         if (!clipboard_.empty()) {
@@ -1431,7 +1438,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
     if (Pressed(Action::Place) && selectedAsset_>=0) { BeginPlacement(assets); return; }
     if (Pressed(Action::Cancel)) {
         if (placementActive_) { placementActive_=false; ghostProps_.clear(); scene.ClearGhost(); SetMessage("Placement cancelled."); }
-        else { drag_={}; SelectOnly(-1,scene); }
+        else { drag_={}; SelectOnly(-1,scene);functionalSelected_=FunctionalType::None; }
         return;
     }
     if (Pressed(Action::Delete) || (navigationMode_!=NavigationMode::Custom && ImGui::IsKeyPressed(ImGuiKey_Backspace,false))) {
@@ -1439,7 +1446,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
         else DeleteSelected(map,scene);
         return;
     }
-    if (functionalSelected_!=FunctionalType::None && selectedItems_.empty() && functionalPlacement_==FunctionalPlacement::None) {
+    if (!placementActive_ && functionalSelection_.size()<=1 && functionalSelected_!=FunctionalType::None && selectedItems_.empty() && functionalPlacement_==FunctionalPlacement::None) {
         DirectX::XMFLOAT3 old{}; if(!FunctionalPosition(map,old))return;
         float right=0,forward=0,height=0;
         if(Pressed(Action::MoveXP,true))right+=1;if(Pressed(Action::MoveXN,true))right-=1;
@@ -1463,15 +1470,15 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
         return;
     }
     if (placementActive_) {
-        // While the ghost follows the cursor, WASD/QE navigate the CAMERA, not the object.
-        const float speed=std::max(500.0f,gridSize_*2.0f)*std::clamp(io.DeltaTime,0.0f,0.05f)*4.0f;
-        const float right=float(ImGui::IsKeyDown(ImGuiKey_D))-float(ImGui::IsKeyDown(ImGuiKey_A));
-        const float forward=float(ImGui::IsKeyDown(ImGuiKey_W))-float(ImGui::IsKeyDown(ImGuiKey_S));
-        const float height=float(ImGui::IsKeyDown(ImGuiKey_E))-float(ImGui::IsKeyDown(ImGuiKey_Q));
-        if (!io.KeyCtrl && !io.KeyAlt && (right!=0||forward!=0||height!=0)) {
+        if(!io.KeyCtrl&&!io.KeyAlt){
+            const float right=float(ImGui::IsKeyPressed(ImGuiKey_D,true))-float(ImGui::IsKeyPressed(ImGuiKey_A,true));
+            const float forward=float(ImGui::IsKeyPressed(ImGuiKey_W,true))-float(ImGui::IsKeyPressed(ImGuiKey_S,true));
+            const float height=float(ImGui::IsKeyPressed(ImGuiKey_E,true))-float(ImGui::IsKeyPressed(ImGuiKey_Q,true));
+            const float step=GridStep::KeyboardStep(gridSize_,io.KeyShift);
             DirectX::XMFLOAT3 r{1,0,0},f{0,1,0};scene.CameraMoveBasisLegacy(r,f);
-            scene.MoveCameraLegacy({speed*(r.x*right+f.x*forward),
-                speed*(r.y*right+f.y*forward),speed*height});
+            placementKeyboardOffset_.x+=step*(r.x*right+f.x*forward);
+            placementKeyboardOffset_.y+=step*(r.y*right+f.y*forward);
+            placementKeyboardOffset_.z+=step*height;
         }
         return;
     }
@@ -1648,13 +1655,13 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
         ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.23f, &right, &center);
         ImGuiID rightBottom; ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.35f, &rightBottom, &right);
         ImGui::DockBuilderDockWindow("Gameplay", left); ImGui::DockBuilderDockWindow("Library", right);
-        ImGui::DockBuilderDockWindow("Scene", rightBottom); ImGui::DockBuilderDockWindow("Lighting", rightBottom); ImGui::DockBuilderDockWindow("Properties", rightBottom);
+        ImGui::DockBuilderDockWindow("Properties", rightBottom); ImGui::DockBuilderDockWindow("Scene", rightBottom); ImGui::DockBuilderDockWindow("Lighting", rightBottom);
         ImGui::DockBuilderDockWindow("Viewport", center);
         ImGui::DockBuilderFinish(dock);
     }
 
     DrawStatus(map, assets, scene); ImGui::End();
-    DrawScene(map, scene); DrawLibrary(map, assets, scene, previewScene); DrawProperties(map, assets, scene);
+    DrawProperties(map, assets, scene); DrawScene(map, scene); DrawLibrary(map, assets, scene, previewScene);
     DrawGameplay(map, scene); DrawLighting(map, scene); DrawViewport(map, assets, scene);
     DrawObjectEditor(assets,scene);
     if (firstGameplayFocus_) { ImGui::SetWindowFocus("Gameplay"); firstGameplayFocus_=false; }
@@ -1706,7 +1713,7 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         if (ImGui::MenuItem("Redo",shortcut(Action::Redo).c_str(),false,objectEditorOpen_?!objectRedo_.empty():history_.CanRedo())) { if(objectEditorOpen_)RedoObject();else Redo(map,scene); }
         if (ImGui::MenuItem("Select all static props","Ctrl+A",false,!objectEditorOpen_ && !map.Props().empty()))
             SelectAllStaticProps(map,scene);
-        if (ImGui::MenuItem("Delete selected",shortcut(Action::Delete).c_str(),false,!objectEditorOpen_ && (selected_>=0 || functionalSelected_!=FunctionalType::None))) {
+        if (ImGui::MenuItem("Delete selected",shortcut(Action::Delete).c_str(),false,!objectEditorOpen_ && (selected_>=0 || functionalSelected_!=FunctionalType::None || !functionalSelection_.empty()))) {
             if(functionalSelected_!=FunctionalType::None)DeleteFunctional(map,scene);else DeleteSelected(map,scene);
         }
         ImGui::EndMenu();
@@ -1878,7 +1885,7 @@ void EditorUi::DrawScene(MapDocument& map, SceneRenderer& scene) {
         for (const auto& p : map.Props()) {
             if (!ContainsInsensitive(p.name, filter) && !ContainsInsensitive(p.library, filter)) { ++index; continue; }
             char label[320]; std::snprintf(label, sizeof(label), "%s##%d", p.name.c_str(), index);
-            if (ImGui::Selectable(label, selected_ == index)) { selected_ = index; scene.SetSelected(index); if (CurrentNavigationSettings().focusSelectionOnClick) scene.FocusSelectionKeepDistance(smoothCameraFocus_); }
+            if (ImGui::Selectable(label, selected_ == index)) { SelectOnly(index,scene); if (CurrentNavigationSettings().focusSelectionOnClick) scene.FocusSelectionKeepDistance(smoothCameraFocus_); }
             ++index;
         }
         ImGui::TreePop();
@@ -1958,6 +1965,7 @@ void EditorUi::RebuildAssetPreview(const AssetRegistry& assets, SceneRenderer& p
 }
 
 void EditorUi::BeginPlacement(const AssetRegistry& assets) {
+    placementKeyboardOffset_={};functionalSelection_.clear();functionalSelected_=FunctionalType::None;
     if (selectedAsset_ < 0 || static_cast<size_t>(selectedAsset_) >= assets.Assets().size()) return;
     const auto& a = assets.Assets()[static_cast<size_t>(selectedAsset_)];
     placementTemplate_ = {};
@@ -3438,6 +3446,14 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
 
 void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, SceneRenderer& scene) {
     ImGui::Begin("Properties");
+    PruneFunctionalSelection(map);
+    if(!functionalSelection_.empty() && selectedItems_.size()+functionalSelection_.size()>1){
+        ImGui::Text("Selection: %zu props + %zu gameplay items",selectedItems_.size(),functionalSelection_.size());
+        ImGui::TextWrapped("Delete removes this selection together; Undo restores it. Ctrl+C copies selected static props. Select a single gameplay item to edit its properties.");
+        if(ImGui::Button("Delete selection"))DeleteSelected(map,scene);
+        ImGui::End();return;
+    }
+
     if (browseLibraryOpen_) { ImGui::End(); return; }
     if (selected_ < 0 || static_cast<size_t>(selected_) >= map.Props().size()) {
         if(functionalSelected_!=FunctionalType::None)DrawFunctionalProperties(map,scene);
@@ -3824,6 +3840,8 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
             functionalPlacement_==FunctionalPlacement::None && !axTabHeld_) {
             // Gameplay objects use the same pointer gesture as props. The closest visible
             // functional marker wins before static-geometry picking.
+            PruneFunctionalSelection(map);
+            const GameplaySelection::Item previouslyActive{functionalSelected_,functionalIndex_};
             bool foundFunctional=false;
             if(showLights_) {
                 float distance2=18.f*18.f;
@@ -3912,13 +3930,23 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
                     }
             }
             if(foundFunctional) {
+                const GameplaySelection::Item hit{functionalSelected_,functionalIndex_};
+                if((io.KeyCtrl||io.KeyShift)&&!(io.KeyCtrl&&io.KeyShift)){
+                    if(functionalSelection_.empty()&&previouslyActive.kind!=FunctionalType::None)GameplaySelection::Add(functionalSelection_,previouslyActive);
+                    GameplaySelection::Add(functionalSelection_,hit,io.KeyCtrl);
+                    if(functionalSelection_.empty())functionalSelected_=FunctionalType::None;
+                    else{functionalSelected_=functionalSelection_.back().kind;functionalIndex_=functionalSelection_.back().index;}
+                    functionalDragActive_=false;
+                    SetMessage("Selected "+std::to_string(selectedItems_.size())+" props and "+std::to_string(functionalSelection_.size())+" gameplay items. Delete removes the selection.");
+                }else{
                 functionalPropertyBefore_.reset();zonePropertyBefore_.reset();SelectOnly(-1,scene);
+                functionalSelection_.push_back(hit);
                 ImGui::SetWindowFocus("Properties");
                 functionalResizeActive_=false;
                 functionalResizeZoneBase_.reset();functionalResizeBonusBase_.reset();
-                // Ctrl + upper corner handle resizes the actual native XML volume.
+                // Ctrl+Shift + upper corner handle resizes the actual native XML volume.
                 // Normal LMB remains a translation. No generated collider is written.
-                if(io.KeyCtrl && (functionalSelected_==FunctionalType::Zone || functionalSelected_==FunctionalType::Bonus)) {
+                if(io.KeyCtrl && io.KeyShift && (functionalSelected_==FunctionalType::Zone || functionalSelected_==FunctionalType::Bonus)) {
                     DirectX::XMFLOAT3 lo{},hi{};bool valid=false;
                     if(functionalSelected_==FunctionalType::Zone && functionalIndex_<map.SpecialBoxes().size()) {
                         const auto& b=map.SpecialBoxes()[functionalIndex_];lo=b.min;hi=b.max;
@@ -3945,6 +3973,7 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
                 functionalDragBefore_.reset();zoneDragBefore_.reset();
                 if(functionalDragActive_)
                     scene.ScreenToLegacyPlane(lx,ly,functionalDragOriginal_.z,functionalDragPlaneStart_);
+                }
             } else {
             const int hit=scene.Pick(lx,ly);
             if (hit>=0) {
@@ -3956,6 +3985,7 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
                     functionalSelected_=FunctionalType::None;
                 } else {
                     if (std::find(selectedItems_.begin(),selectedItems_.end(),hit)==selectedItems_.end()) SelectOnly(hit,scene);
+                    functionalSelection_.clear();functionalSelected_=FunctionalType::None;
                     if (nav.focusSelectionOnClick && selectedItems_.size()==1) scene.FocusSelectionKeepDistance(smoothCameraFocus_);
                     // LMB drag is always movement of the selected object/group, even in Select tool.
                     drag_={}; drag_.active=true; drag_.tool=tool_==ToolMode::Rotate?ToolMode::Rotate:ToolMode::Move;
@@ -3968,8 +3998,9 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
                     }
                 }
             } else {
+                if((io.KeyCtrl||io.KeyShift)&&functionalSelection_.empty()&&previouslyActive.kind!=FunctionalType::None)GameplaySelection::Add(functionalSelection_,previouslyActive);
                 selectionBoxActive_=true; selectionStartX_=selectionEndX_=lx; selectionStartY_=selectionEndY_=ly;
-                if (!io.KeyCtrl && !io.KeyShift) SelectOnly(-1,scene);
+                if (!io.KeyCtrl && !io.KeyShift) {SelectOnly(-1,scene);functionalSelected_=FunctionalType::None;}
             }
             } // static prop selection only if no functional object was hit
         }
@@ -4033,8 +4064,13 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         if (std::fabs(selectionEndX_-selectionStartX_)>=3 || std::fabs(selectionEndY_-selectionStartY_)>=3) {
             const auto found=scene.SelectInScreenRect(selectionStartX_,selectionStartY_,selectionEndX_,selectionEndY_);
             for (int index:found) if (std::find(selectedItems_.begin(),selectedItems_.end(),index)==selectedItems_.end()) selectedItems_.push_back(index);
+            for(const auto& candidate:GameplaySelection::Visible(map,SelectionVisibility()))
+                if(GameplaySelection::Intersects(candidate,selectionStartX_,selectionStartY_,selectionEndX_,selectionEndY_,
+                    [&](DirectX::XMFLOAT3 p,float& x,float& y){return scene.ProjectLegacy(p,x,y);}))GameplaySelection::Add(functionalSelection_,candidate.item);
+            functionalSelected_=functionalSelection_.empty()?FunctionalType::None:functionalSelection_.back().kind;
+            if(!functionalSelection_.empty())functionalIndex_=functionalSelection_.back().index;
             selected_=selectedItems_.empty()?-1:selectedItems_.back(); scene.SetSelection(selectedItems_);
-            SetMessage("Selected "+std::to_string(selectedItems_.size())+" props. LMB drag, WASD or Ctrl+C.");
+            SetMessage("Selected "+std::to_string(selectedItems_.size())+" props and "+std::to_string(functionalSelection_.size())+" gameplay items. Delete removes the selection; Ctrl+C copies static props.");
         }
     }
     if (drag_.active && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !dragBefore_.empty() &&
@@ -4069,16 +4105,23 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     }
 
     if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && selected_>=0 && !placementActive_ && hovered) scene.FrameSelection();
-    auto* dl=ImGui::GetWindowDrawList(); const auto& rs=scene.Stats(); char top[256];
+    PruneFunctionalSelection(map);
+    auto* dl=ImGui::GetWindowDrawList();
+    for(const auto& candidate:GameplaySelection::Visible(map,SelectionVisibility())){
+        if(std::find(functionalSelection_.begin(),functionalSelection_.end(),candidate.item)==functionalSelection_.end())continue;
+        DirectX::XMFLOAT3 center{(candidate.min.x+candidate.max.x)*.5f,(candidate.min.y+candidate.max.y)*.5f,(candidate.min.z+candidate.max.z)*.5f};
+        float x{},y{};if(scene.ProjectLegacy(center,x,y))dl->AddCircle({origin.x+x,origin.y+y},20.f,IM_COL32(255,204,64,255),24,2.f);
+    }
+    const auto& rs=scene.Stats(); char top[256];
     const char* toolName=tool_==ToolMode::Select?"SELECT":tool_==ToolMode::Move?"MOVE":"ROTATE";
     std::snprintf(top,sizeof(top),"%s | %zu selected | %zu props | %zu batches | %zu calls | %s",
-        toolName,selectedItems_.size(),map.Props().size(),rs.meshBatches+rs.spriteBatches,rs.drawCalls,NavigationModeName());
+        toolName,selectedItems_.size()+functionalSelection_.size(),map.Props().size(),rs.meshBatches+rs.spriteBatches,rs.drawCalls,NavigationModeName());
     dl->AddText({origin.x+12,origin.y+10},IM_COL32(202,207,213,205),top);
     if (functionalPlacement_!=FunctionalPlacement::None) {
         dl->AddText({origin.x+12,origin.y+29},IM_COL32(245,184,91,230),
             "FUNCTIONAL GHOST | Space drop | RMB cancel | LMB select / drag after placing");
     } else if (placementActive_) {
-        const std::string hint="GHOST "+std::to_string(placementItems_.size())+" | Space/LMB drop | X rotate | RMB cancel | Z="+std::to_string(static_cast<int>(placementZ_));
+        const std::string hint="GHOST "+std::to_string(placementItems_.size())+" | WASD move | Q/E height | X rotate | Space/LMB drop | RMB cancel | Z="+std::to_string(static_cast<int>(ghostPivot_.z));
         dl->AddText({origin.x+12,origin.y+29},IM_COL32(112,190,244,230),hint.c_str());
     } else if (hovered) {
         dl->AddText({origin.x+12,origin.y+29},IM_COL32(135,143,151,185),
@@ -4117,7 +4160,7 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         for(int k=4;k<8;++k)if(projected[k])
             outline->AddCircleFilled(points[k],5.5f,IM_COL32(255,239,140,255),12);
         if(projected[6])outline->AddText({points[6].x+5,points[6].y-10},IM_COL32(255,219,120,255),
-            functionalResizeActive_?"Resizing volume - live XML":functionalDragActive_?"Moving volume - live XML":"Ctrl + drag a corner to resize");
+            functionalResizeActive_?"Resizing volume - live XML":functionalDragActive_?"Moving volume - live XML":"Ctrl+Shift + drag a corner to resize");
     }
     // A tiny raised tab attached to the viewport's bottom-right corner. It does
     // not allocate a child/footer row or shift the 3D image or its parent dock.
@@ -4382,7 +4425,7 @@ void EditorUi::DrawControlHelp() {
             ImGui::BulletText("Move ghost along grid, X rotates before placing; Space or LMB drops; RMB cancels. Space can stamp repeated copies.");
             ImGui::BulletText("Placement height is in Library > Settings. Tab (Simple mode) opens AX recents; wheel switches asset and Space places.");
             ImGui::SeparatorText("Game modes and editor overlays");
-            ImGui::TextWrapped("Gameplay > Add gameplay element opens a persistent palette (X closes it). Create native flags, spawns, DOM points, bonus/drop regions and kill/kick zones on blank or existing maps; place with Space. Normal dragging moves an existing region; Ctrl + dragging an upper corner handle resizes its X/Y extent. Edit min/max Z, bonus type and modes in Properties. Visibility filters do not change game modes or native XML element types.");
+            ImGui::TextWrapped("Gameplay > Add gameplay element opens a persistent palette (X closes it). Create native flags, spawns, DOM points, bonus/drop regions and kill/kick zones on blank or existing maps; place with Space. Normal dragging moves an existing region; Ctrl+Shift + dragging an upper corner handle resizes its X/Y extent. Edit min/max Z, bonus type and modes in Properties. Visibility filters do not change game modes or native XML element types.");
             ImGui::SeparatorText("Fullscreen, preferences and safety");
             ImGui::TextWrapped("F11 or View > Fullscreen uses borderless fullscreen. Controls > Show shortcuts toggles the optional key labels (off by default). Custom bindings are stored in your LocalAppData GTanksNextEditor/controls.ini. The controls manual does not open automatically on application launch.");
             ImGui::EndChild(); ImGui::EndTabItem();

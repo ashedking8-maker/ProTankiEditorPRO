@@ -1,3 +1,5 @@
+> Historický rozbor prvej opravy. Aktuálne správanie a výsledky druhej opravy sú v `OPRAVY_V2_SK.md`. Najmä pôvodné odmietanie viacerých koreňov 3DS už neplatí; nahradil ho výber prvého použiteľného koreňa s upozornením.
+
 **Oprava kompatibility importu a exportu — ProTanki Editor PRO, 2026-09-29**
 
 Balík obsahuje konkrétne zmeny zdrojového kódu k zaslanému projektu 0.5.28. GPU vykresľovanie zostáva zachované. Opravy sa týkajú toho, ako sa vyberie objekt z knižnice, ako sa prevedú jeho súradnice, ako vzniknú kolízie a čo sa zapíše pri exporte. Nie je potrebné vrátiť editor na technológiu Adobe AIR.

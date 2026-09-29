@@ -129,6 +129,7 @@ inline Model Load(const std::filesystem::path& file,const std::string& objectNam
     auto anchor=std::find_if(nodes.begin(),nodes.end(),[&](const Node& n){return source.name==n.node->mName.C_Str();});
     if(anchor==nodes.end())throw std::runtime_error("Assimp did not preserve the selected native mesh node: "+source.name);
     Model result;
+    if(selected.usedRootFallback)result.warnings.push_back("Multiple 3DS roots: using first declared mesh "+source.name+"; mesh/@object overrides this fallback");
     if(native.migratedFlatGenerated)result.warnings.push_back("Migrated older PTPRO flat helper hierarchy");
     const auto* frame=Native3DSScene::SelectedFrame(native,selected);
     // Match Assimp's vertex space to source vertices, then use the ORIGINAL

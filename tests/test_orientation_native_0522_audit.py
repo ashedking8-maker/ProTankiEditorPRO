@@ -38,7 +38,7 @@ class OrientationNative0522(unittest.TestCase):
         ui=(ROOT/'src/EditorUi.cpp').read_text()
         header=(ROOT/'src/EditorUi.h').read_text()
         self.assertIn('bool edgeSnapEnabled_{}',header)
-        self.assertIn('bool surfaceOffsetEnabled_{true}',header)
+        self.assertIn('bool surfaceOffsetEnabled_{false}',header)
         self.assertIn('float surfaceOffsetZ_{0.5f}',header)
         self.assertIn('if(surfaceOffsetEnabled_ && !clipboardPlacement_) ghostPivot_.z+=surfaceOffsetZ_;',ui)
         self.assertIn('!clipboardPlacement_ && ghostProps_.size()==1',ui)

@@ -1,4 +1,5 @@
 #include "MapDocument.h"
+#include "GameplaySelection.h"
 #include "EditHistory.h"
 #include <pugixml.hpp>
 #include <filesystem>
@@ -239,6 +240,26 @@ int main() {
     pugi::xml_document pastedXml;
     if(!pastedXml.load_file(clipboardOutput.c_str())||
        Count(pastedXml.child("map").child("bonus-regions").last_child(),"game-mode")!=2)return Fail(114);
+    // Mixed gameplay deletion is stable under index shifts and one snapshot undo.
+    MapDocument bulk;bulk.CreateBlank();
+    for(int i=0;i<8;++i){SpawnMarker s;s.type=i%2?"red":"dm";s.position.x=100.f*i;bulk.AddSpawn(s);}
+    SpecialBox volume;volume.action="kick";volume.min={0,0,0};volume.max={100,100,100};bulk.AddSpecialBox(volume);
+    LightMarker light;bulk.AddLight(light);
+    GameplaySelection::Visibility visibility;visibility.gameplay=true;visibility.spawns=true;visibility.mode=1;
+    auto candidates=GameplaySelection::Visible(bulk,visibility);
+    if(candidates.size()!=4)return Fail(115);
+    std::vector<GameplaySelection::Item> selected;
+    for(const auto& c:candidates)selected.push_back(c.item);
+    selected.push_back(selected.front()); // deduplicate before deleting indices
+    MapDocument prior=bulk;
+    if(!GameplaySelection::Delete(bulk,selected)||bulk.Spawns().size()!=4||bulk.SpecialBoxes().size()!=1||bulk.Lights().size()!=1)return Fail(116);
+    for(const auto& s:bulk.Spawns())if(s.type!="red")return Fail(117);
+    EditHistory bulkHistory;bulkHistory.PushSnapshot(prior,bulk);
+    std::vector<size_t> restored;
+    if(!bulkHistory.Undo(bulk,restored)||bulk.Spawns().size()!=8)return Fail(118);
+    if(!bulkHistory.Redo(bulk,restored)||bulk.Spawns().size()!=4)return Fail(119);
+    if(!bulk.SaveLegacyAs(folder/"bulk.xml",error))return Fail(120);
+    MapDocument bulkRead;if(!bulkRead.Load(folder/"bulk.xml",error)||bulkRead.Spawns().size()!=4||bulkRead.SpecialBoxes().size()!=1)return Fail(121);
     std::filesystem::remove_all(folder,ec);
     std::cout<<"Functional XML, compact zone undo/redo, shared-source isolation and blank map regression OK\n";
     return 0;

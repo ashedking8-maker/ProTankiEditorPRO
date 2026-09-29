@@ -727,11 +727,20 @@ bool SceneRenderer::BuildScene(const MapDocument& map, const AssetRegistry& asse
     std::unordered_map<std::string, size_t> spriteLookup;
     size_t warningsStored = 0;
 
+    // Selection belongs to the map document, including unresolved assets.
+    const auto placeholder=[&](size_t index){
+        const auto at=LegacyTransform::Position(map.Props()[index].position);
+        XMFLOAT3 lo{at.x-25,at.y-25,at.z-25},hi{at.x+25,at.y+25,at.z+25};
+        propBindings_[index]={PropBinding::Kind::Placeholder,0,0,pickProxies_.size()};
+        pickProxies_.push_back({static_cast<int>(index),lo,hi});
+        if(!hasBounds_){boundsMin_=lo;boundsMax_=hi;hasBounds_=true;}
+        else{boundsMin_=Min3(boundsMin_,lo);boundsMax_=Max3(boundsMax_,hi);}
+    };
     for (size_t propIndex = 0; propIndex < map.Props().size(); ++propIndex) {
         const auto& prop = map.Props()[propIndex];
         const AssetDefinition* asset = assets.Find(prop.library, prop.group, prop.name);
         if (!asset) {
-            ++stats_.missingAssets;
+            ++stats_.missingAssets;placeholder(propIndex);
             Log::Warning("Unresolved prop[" + std::to_string(propIndex) + "]: " + prop.library + " / " + prop.group + " / " + prop.name);
             continue;
         }
@@ -749,7 +758,7 @@ bool SceneRenderer::BuildScene(const MapDocument& map, const AssetRegistry& asse
 
         if (!asset->mesh.empty()) {
             auto mesh = LoadMesh(asset->mesh, warning,asset->meshObject);
-            if (!mesh) { ++stats_.missingAssets; continue; }
+            if (!mesh) { ++stats_.missingAssets;placeholder(propIndex); continue; }
             std::vector<std::shared_ptr<TextureGpu>> textures;
             std::string key = PathKey(asset->mesh)+"\x1f"+asset->meshObject;
             for (const auto& part : mesh->parts) {
@@ -790,6 +799,8 @@ bool SceneRenderer::BuildScene(const MapDocument& map, const AssetRegistry& asse
             propBindings_[propIndex] = {PropBinding::Kind::Sprite, index, instanceIndex, proxyIndex};
             ++stats_.spriteInstances;
         }
+
+        if(propBindings_[propIndex].kind==PropBinding::Kind::None)placeholder(propIndex);
 
         if (!warning.empty()) { Log::Warning(warning); if (warningsStored < 12) { AppendWarning(lastWarning_, warning); ++warningsStored; } }
     }
@@ -1266,6 +1277,12 @@ bool SceneRenderer::UpdatePropTransform(int propIndex, const PropInstance& prop)
     const auto& binding = propBindings_[static_cast<size_t>(propIndex)];
     if (binding.kind == PropBinding::Kind::None || binding.proxy >= pickProxies_.size()) return false;
 
+    if(binding.kind==PropBinding::Kind::Placeholder){
+        const auto at=LegacyTransform::Position(prop.position);
+        pickProxies_[binding.proxy].boundsMin={at.x-25,at.y-25,at.z-25};
+        pickProxies_[binding.proxy].boundsMax={at.x+25,at.y+25,at.z+25};
+        RecomputeSceneBoundsFromProxies();return true;
+    }
     if (binding.kind == PropBinding::Kind::Mesh) {
         if (binding.batch >= meshBatches_.size()) return false;
         auto& batch = meshBatches_[binding.batch];

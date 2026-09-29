@@ -48,7 +48,7 @@ int main(int argc,char** argv){
     W::Add(body,W::Chunk(0x3d3d,meshes));W::Add(body,W::Chunk(0xb000,frames));
     const auto path=temp/"anything.3ds";PT_REQUIRE(Save(path,W::Chunk(0x4d4d,body)));
     S::Scene scene;S::Selection selection;
-    PT_REQUIRE(S::Read(path,scene,error));PT_REQUIRE(!S::Resolve(scene,"",selection,error));
+    PT_REQUIRE(S::Read(path,scene,error));PT_REQUIRE(S::Resolve(scene,"",selection,error)&&selection.frame==0&&selection.usedRootFallback);
     PT_REQUIRE(S::Resolve(scene,"visual",selection,error)&&selection.frame==0);
     PT_REQUIRE(!S::Resolve(scene,"missing",selection,error));
     const auto helpers=NativeCollisionImport::Read(path,"visual");

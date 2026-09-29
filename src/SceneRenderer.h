@@ -165,7 +165,7 @@ private:
         DirectX::XMFLOAT3 boundsMax{};
     };
     struct PropBinding {
-        enum class Kind { None, Mesh, Sprite } kind{Kind::None};
+        enum class Kind { None, Mesh, Sprite, Placeholder } kind{Kind::None};
         size_t batch{};
         size_t instance{};
         size_t proxy{};

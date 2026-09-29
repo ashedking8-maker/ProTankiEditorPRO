@@ -1,23 +1,44 @@
 {
-  "patch": "native-import-export-2026-09-29",
+  "patch": "native-import-export-selection-v2-2026-09-29",
   "base_project": "ProTankiEditorPRO-main 0.5.28",
   "base_zip_sha256": "d5de22c202b5d8b19132da62cb64909b9a2ddff4fb737752bbe86061e5918167",
   "reference_swf_sha256": "045c9d239364a7fdce31a177ef2ac371ffd3fc100cd1bee748437fe5d2af5226",
-  "note": "This manifest excludes its own checksum. Archive contains changed/new files only; overlay at the existing repository root.",
+  "note": "Cumulative patch. Overlay at existing repository root; contains changed/new files only. Manifest excludes its own checksum.",
   "files": [
     {
       "path": "CMakeLists.txt",
       "operation": "replace",
-      "bytes": 21283,
-      "sha256": "06e36cfb198d6be082aacff57d7707a93f20035f8133f76a4cbf18fc9ebc8d2f",
+      "bytes": 21544,
+      "sha256": "4d666bb55470a54330d8eb77df79426a8593811233da80c9555a91971c17a7e2",
       "original_sha256": "c0fba87d6aa15f5bfda35c7e710de2cee4ccd8f78cffe22d976cbb38b69201e5"
     },
     {
       "path": "EditorUi.cpp",
       "operation": "replace",
-      "bytes": 294270,
-      "sha256": "cbf0c359ec0bd39b4c8c46e7c41036ed5382c67c224a6b8bb5853fb6565ff054",
+      "bytes": 299387,
+      "sha256": "28519d75ac8ea0b5ee9b713464a50a98987af2077c41c8bf69d7ac46da2ce197",
       "original_sha256": "391d3c2f95ef2dbfd63b9143c80978b4fec432ff20194061cdaa4b7770838b09"
+    },
+    {
+      "path": "EditorUi.h",
+      "operation": "replace",
+      "bytes": 18969,
+      "sha256": "f801fca56824d65bbd5cc0c9947a4c5be7b0156651edfc57d594316f69730f64",
+      "original_sha256": "929aaa25ae5e7cd0e2e2bf8ce6d804aab5dfe6b9eb980dfe339210ff65c59f21"
+    },
+    {
+      "path": "GameplaySelection.h",
+      "operation": "add",
+      "bytes": 3800,
+      "sha256": "2923d6bf3fe22003e978fc2c5e56891f5545102cc1a16c15774f4250c9d59359",
+      "original_sha256": null
+    },
+    {
+      "path": "Logger.cpp",
+      "operation": "replace",
+      "bytes": 5671,
+      "sha256": "e3bf576e4c96ce7d9739bd6a26030c7b757c7d76c37d2cf0ea389f2a1944bd84",
+      "original_sha256": "38a91b842b6407f1a948da96c8023b9bc8318cdad93e409f3ac60f8164c5b415"
     },
     {
       "path": "MapDocument.cpp",
@@ -29,8 +50,8 @@
     {
       "path": "Native3DSScene.h",
       "operation": "add",
-      "bytes": 10406,
-      "sha256": "f36c44c0471dc6e057d0538871c7f42809e2b2924b4307f71cac79098de6a9ff",
+      "bytes": 11144,
+      "sha256": "7e9ab8da79ca81043ad8d75364f0ce947413f943240cac795bcff5c57c046ec6",
       "original_sha256": null
     },
     {
@@ -43,36 +64,43 @@
     {
       "path": "PATCH_IMPORT_EXPORT_SK.txt",
       "operation": "add",
-      "bytes": 1697,
-      "sha256": "e9807d61d7bf4d27af62bb991f2b6908c7e6b579ff29633b12df0a556c43b1cb",
+      "bytes": 1636,
+      "sha256": "a7b5ff3ba608dad2f6b7a9f6d0f6570720a090c52f03089cc8aaf5e13e96f16c",
       "original_sha256": null
     },
     {
       "path": "SceneRenderer.cpp",
       "operation": "replace",
-      "bytes": 111605,
-      "sha256": "7451fb36b0406591febac16aa8bac36cded2e238a31bed36c8397f6bd6e9673b",
+      "bytes": 112646,
+      "sha256": "a13597d790d1dc9b8c8702454696221aa92061e7b447ebea377670dc8a321ab5",
       "original_sha256": "b4839368a6befeb232d26849b39b4845e2aa3140d3ac72484ae1639b416e2f9d"
     },
     {
       "path": "check_source_consistency.py",
       "operation": "replace",
-      "bytes": 34172,
-      "sha256": "02b1e5464dbb05f0dcd83ef9126594a128e4f75a87d9306c89b8fee7c3e087b2",
+      "bytes": 34178,
+      "sha256": "70467bf605188df85cd01ba7fd30481741d813f2806bc32e99a8893e06cdc1aa",
       "original_sha256": "8485bd8dc83c58027314260723ad082a2fb7311645a8e5e2450449a7c73bf2af"
     },
     {
       "path": "docs/IMPORT_EXPORT_OPRAVA_SK.md",
       "operation": "add",
-      "bytes": 13617,
-      "sha256": "5c39d5c6ae5540c7e991b738f69080d458e2e723b526b01e1825476423e04c92",
+      "bytes": 13858,
+      "sha256": "6ca8ef6dd8f4fc145a8dea33684720bb2a75fc34b3e5dd6d897c79b17f5b7e6d",
       "original_sha256": null
     },
     {
       "path": "docs/IMPORT_EXPORT_TEST_RESULTS.txt",
       "operation": "add",
-      "bytes": 1099,
-      "sha256": "7e3f0d96200524aefebce9cca69950d9f2406b9332fc64ad23f684b34351194d",
+      "bytes": 1444,
+      "sha256": "b8e8136b9856d6a660f991faf5c559590ac78154892bae68020615774e9e1ab2",
+      "original_sha256": null
+    },
+    {
+      "path": "docs/OPRAVY_V2_SK.md",
+      "operation": "add",
+      "bytes": 8561,
+      "sha256": "ba23afbb557531d7a61837c255ffb50322b19fb3cf37b26ac34590471e493bc6",
       "original_sha256": null
     },
     {
@@ -99,16 +127,37 @@
     {
       "path": "src/EditorUi.cpp",
       "operation": "replace",
-      "bytes": 294270,
-      "sha256": "cbf0c359ec0bd39b4c8c46e7c41036ed5382c67c224a6b8bb5853fb6565ff054",
+      "bytes": 299387,
+      "sha256": "28519d75ac8ea0b5ee9b713464a50a98987af2077c41c8bf69d7ac46da2ce197",
       "original_sha256": "2285b2a8ac7f10ee484c5d227f51015a4fcb36ce4f82765204da6b2054598f6b"
+    },
+    {
+      "path": "src/EditorUi.h",
+      "operation": "replace",
+      "bytes": 18969,
+      "sha256": "f801fca56824d65bbd5cc0c9947a4c5be7b0156651edfc57d594316f69730f64",
+      "original_sha256": "9a1a03d0055d9e1da62499d66752643db7ba0f6b2e135805e5c531547e7bcd20"
+    },
+    {
+      "path": "src/GameplaySelection.h",
+      "operation": "add",
+      "bytes": 3800,
+      "sha256": "2923d6bf3fe22003e978fc2c5e56891f5545102cc1a16c15774f4250c9d59359",
+      "original_sha256": null
     },
     {
       "path": "src/LegacyMeshImport.h",
       "operation": "replace",
-      "bytes": 13503,
-      "sha256": "e2f493a497f779047981d3dfa67d1da4c6b6e8f94b476456b358bda578c08d0f",
+      "bytes": 13666,
+      "sha256": "cb208b7e1ba4d038f0a5303cf5353ec094c8c8bfd26b67a074b33b3c97834ba7",
       "original_sha256": "a7571da275260be4f9388f7ee5f4735a4f10453dd4e433564fb63604d5ffc561"
+    },
+    {
+      "path": "src/Logger.cpp",
+      "operation": "replace",
+      "bytes": 5671,
+      "sha256": "e3bf576e4c96ce7d9739bd6a26030c7b757c7d76c37d2cf0ea389f2a1944bd84",
+      "original_sha256": "3fad68a862b521347a99a7b5622569d20dd5942219f6ea35bff3fa670bbbe102"
     },
     {
       "path": "src/MapDocument.cpp",
@@ -127,8 +176,8 @@
     {
       "path": "src/Native3DSScene.h",
       "operation": "add",
-      "bytes": 10406,
-      "sha256": "f36c44c0471dc6e057d0538871c7f42809e2b2924b4307f71cac79098de6a9ff",
+      "bytes": 11144,
+      "sha256": "7e9ab8da79ca81043ad8d75364f0ce947413f943240cac795bcff5c57c046ec6",
       "original_sha256": null
     },
     {
@@ -169,15 +218,15 @@
     {
       "path": "src/SceneRenderer.cpp",
       "operation": "replace",
-      "bytes": 111605,
-      "sha256": "7451fb36b0406591febac16aa8bac36cded2e238a31bed36c8397f6bd6e9673b",
+      "bytes": 112646,
+      "sha256": "a13597d790d1dc9b8c8702454696221aa92061e7b447ebea377670dc8a321ab5",
       "original_sha256": "ca0cecadb34f6b71813643f776751a58e2733f7d2d3794ec614676b5af84a17b"
     },
     {
       "path": "src/SceneRenderer.h",
       "operation": "replace",
-      "bytes": 15108,
-      "sha256": "077e7509ba0b80348f0ff0d31b23fcc4b676bf288dc8965bbb33e6dea968ad5c",
+      "bytes": 15121,
+      "sha256": "2f17370100d90d37225933c6a14b678ca520972202355f601f5e85de5d68be81",
       "original_sha256": "ae992a116626a26c254da5a6eb66f8866c6f65bb882248c5677b3c3a51520575"
     },
     {
@@ -193,6 +242,34 @@
       "bytes": 5423,
       "sha256": "ba9d6b28a31e04e39a0c77801d749fa6e20a99f49514ccec10e3ce4901101850",
       "original_sha256": "14a3516380d16e963e6094d149e4922577255bfeeab8f7b4c13b00e5154b85a8"
+    },
+    {
+      "path": "tests/fixtures/fabr_tower_user/AAA.xml",
+      "operation": "add",
+      "bytes": 2471,
+      "sha256": "dc38b091ab4b74aea90e778dea9df4e66711abfb448eb7f06896d4ac10e7c7a8",
+      "original_sha256": null
+    },
+    {
+      "path": "tests/fixtures/fabr_tower_user/BBB.xml",
+      "operation": "add",
+      "bytes": 2427,
+      "sha256": "dab4a155b2b3c2e0aabbe68c4aa2357a86c11d26e7d014281ef88862ff160b01",
+      "original_sha256": null
+    },
+    {
+      "path": "tests/functional_map_regression.cpp",
+      "operation": "replace",
+      "bytes": 19979,
+      "sha256": "e3354917665b7899f82b386475ca7052ab85043dfa0f8ceca5dcbbde6415ced8",
+      "original_sha256": "67cbf525dc3b15f95a7418ee89dcfef0bdaf44f1e164cc69ed3104bf5a3adbef"
+    },
+    {
+      "path": "tests/gameplay_selection_regression.cpp",
+      "operation": "add",
+      "bytes": 1360,
+      "sha256": "ebec63a256cc1fd3f930ea094cf22a497ef23f228fe5e7289df29b72d9f6c756",
+      "original_sha256": null
     },
     {
       "path": "tests/library_reload_regression.cpp",
@@ -211,16 +288,30 @@
     {
       "path": "tests/native_swf_compatibility_regression.cpp",
       "operation": "add",
-      "bytes": 5404,
-      "sha256": "3145c9f71c71619dcc6c1135667fd85ddbfc33f315f94d2dfc2a0116e481586f",
+      "bytes": 5451,
+      "sha256": "fa8fbebfece139462ce85492d896733119a681ab8d33fcb6900dd9d15ac26eff",
       "original_sha256": null
     },
     {
       "path": "tests/native_xml_compatibility_regression.cpp",
       "operation": "add",
-      "bytes": 4767,
-      "sha256": "e2a94a68d4f5dd5349231f3fee705a91305d2f4588c79f4aded5b2a0d18a1ab6",
+      "bytes": 5964,
+      "sha256": "8f6116543393b45c44ca41a3effc31695d94f6e4529b0dfab6fcdb00ad7d263e",
       "original_sha256": null
+    },
+    {
+      "path": "tests/test_fabr_tower_compatibility_audit.py",
+      "operation": "add",
+      "bytes": 1249,
+      "sha256": "3340132b0d1cf32467befbe824e2d2ab06b40bca7ffa3b90cbe8f4b184beaa71",
+      "original_sha256": null
+    },
+    {
+      "path": "tests/test_footer_report_0526_audit.py",
+      "operation": "replace",
+      "bytes": 1694,
+      "sha256": "6f91f5b332c368b16638e04f0506b1bf0ed5fed89faec56674b4f7bb3bf2b521",
+      "original_sha256": "237083e9d9e79f18345a21e8226320b01255e09ea413ad246dce54f574770b39"
     },
     {
       "path": "tests/test_library_placement_0521_audit.py",
@@ -251,17 +342,31 @@
       "original_sha256": "15e02adae2af182642462f94d84c19608352a44345dcf63b780ee91d98d1882f"
     },
     {
+      "path": "tests/test_orientation_native_0522_audit.py",
+      "operation": "replace",
+      "bytes": 2695,
+      "sha256": "05e78cf191a948d94752953568629c4627f5e3aada72a5c3cbbc480fb329172b",
+      "original_sha256": "f69df2a24d81064133af65a68518cdb1dc53d0fc65cef316eb4f7377f37a8adf"
+    },
+    {
       "path": "tools/check_source_consistency.py",
       "operation": "replace",
-      "bytes": 34172,
-      "sha256": "02b1e5464dbb05f0dcd83ef9126594a128e4f75a87d9306c89b8fee7c3e087b2",
+      "bytes": 34178,
+      "sha256": "70467bf605188df85cd01ba7fd30481741d813f2806bc32e99a8893e06cdc1aa",
       "original_sha256": "5c408154cc911905283770266765885e3aa5a22f3358de4c578d3d14ec5a9976"
+    },
+    {
+      "path": "tools/compare_single_prop_exports.py",
+      "operation": "add",
+      "bytes": 2747,
+      "sha256": "d63273f10fe37bd011b5c9c78b27bacf9299b90b342840d28b353ea5ac067791",
+      "original_sha256": null
     },
     {
       "path": "tools/run_native_cpu_tests.py",
       "operation": "add",
-      "bytes": 1717,
-      "sha256": "2f1ba575ad2521d0d08c0d07cecf2c0c8ef8524a87c65df42db75b690aaf01ef",
+      "bytes": 1764,
+      "sha256": "df485b7bf29aefb3ad99b7910873be2fc8b390f1038f4068cd4567d3be22b9bc",
       "original_sha256": null
     }
   ]
