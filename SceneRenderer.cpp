@@ -1,6 +1,7 @@
 #include "SceneRenderer.h"
 #include "CollisionPreview.h"
 #include "LegacyTransform.h"
+#include "GeometrySnap.h"
 #include "LegacyMeshImport.h"
 #include "DraftMeshImport.h"
 #include "Logger.h"
@@ -179,7 +180,7 @@ void SceneRenderer::Shutdown() {
     textureCache_.clear();
     fallbackTexture_.reset();
     colorSrv_.Reset(); colorRtv_.Reset(); colorTexture_.Reset(); depthDsv_.Reset(); depthTexture_.Reset();
-    meshVs_.Reset(); meshPs_.Reset(); ghostMeshPs_.Reset(); ghostSpritePs_.Reset(); meshLayout_.Reset();
+    meshVs_.Reset(); meshPs_.Reset(); transparentMeshPs_.Reset(); ghostMeshPs_.Reset(); ghostSpritePs_.Reset(); meshLayout_.Reset();
     spriteVs_.Reset(); spritePs_.Reset(); spriteLayout_.Reset();
     gridVs_.Reset(); gridPs_.Reset(); gridLayout_.Reset();
     cameraBuffer_.Reset(); nativeLightBuffer_.Reset(); spriteVertexBuffer_.Reset(); spriteIndexBuffer_.Reset(); gridVertexBuffer_.Reset(); selectionVertexBuffer_.Reset(); debugVertexBuffer_.Reset(); collisionFaceBuffer_.Reset(); collisionEdgeBuffer_.Reset(); functionalPadBuffer_.Reset(); functionalGhostBuffer_.Reset(); functionalGhostModelBuffer_.Reset();
@@ -234,15 +235,11 @@ VSOut VSMain(VSIn input) {
     output.worldPos = worldPosition.xyz;
     return output;
 }
-float4 PSMain(VSOut input) : SV_TARGET {
+float4 ShadeMesh(VSOut input) {
     float4 albedo = diffuseTexture.Sample(diffuseSampler, input.uv);
-    // Meshes are rendered in an opaque depth-writing pass. Treat transparent
-    // texels as a CUTOUT rather than painting near-zero alpha texels opaquely.
-    // A separate sorted transparent pass is required for true glass materials.
-    clip(albedo.a - 0.5);
     // Diagnostic bypass: exact source texture (no editor lighting or color FX).
     const float mode = lightDirection.w;
-    if (mode > 5.5) return float4(albedo.rgb, 1.0);
+    if (mode > 5.5) return albedo;
     // WIC creates an R8G8B8A8_UNORM SRV; the source JPEG/PNG RGB bytes are
     // sRGB-encoded. Lighting those bytes directly causes very dark materials.
     float3 linearAlbedo = pow(max(albedo.rgb, 0.0), 2.2);
@@ -267,6 +264,16 @@ float4 PSMain(VSOut input) : SV_TARGET {
     if (mode > 3.5 && mode < 4.5) c *= float3(0.92, 1.035, 1.15); // Cool
     if (mode > 4.5 && mode < 5.5) c = (c - 0.5) * 1.35 + 0.5; // High contrast
     return float4(saturate(c), albedo.a);
+}
+float4 PSMain(VSOut input) : SV_TARGET {
+    float4 shaded=ShadeMesh(input);
+    clip(shaded.a - 0.5); // opaque/cutout keeps depth-writing behavior
+    return float4(shaded.rgb, 1.0);
+}
+float4 PSTransparent(VSOut input) : SV_TARGET {
+    float4 shaded=ShadeMesh(input);
+    clip(shaded.a - 0.003); // preserve low-alpha water instead of dotted cutout
+    return shaded;
 }
 float4 PSGhost(VSOut input) : SV_TARGET {
     float4 albedo = diffuseTexture.Sample(diffuseSampler, input.uv);
@@ -347,6 +354,10 @@ float4 PSMain(VSOut input) : SV_TARGET { return input.color; }
     if (FAILED(device_->CreateVertexShader(vs->GetBufferPointer(), vs->GetBufferSize(), nullptr, &meshVs_)) ||
         FAILED(device_->CreatePixelShader(ps->GetBufferPointer(), ps->GetBufferSize(), nullptr, &meshPs_))) {
         error = "Could not create mesh shaders."; return false;
+    }
+    if (!Compile(meshShader, "PSTransparent", "ps_5_0", ps, error) ||
+        FAILED(device_->CreatePixelShader(ps->GetBufferPointer(), ps->GetBufferSize(), nullptr, &transparentMeshPs_))) {
+        error = "Could not create translucent mesh shader."; return false;
     }
     if (!Compile(meshShader, "PSGhost", "ps_5_0", ps, error) ||
         FAILED(device_->CreatePixelShader(ps->GetBufferPointer(), ps->GetBufferSize(), nullptr, &ghostMeshPs_))) {
@@ -523,8 +534,8 @@ std::string SceneRenderer::PathKey(const std::filesystem::path& path) {
     return Lower(normalized.generic_string());
 }
 
-std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::filesystem::path& file, std::string& warning) {
-    const std::string key = PathKey(file);
+std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::filesystem::path& file, std::string& warning,const std::string& objectName) {
+    const std::string key = PathKey(file)+"\x1f"+objectName;
     if (const auto it = meshCache_.find(key); it != meshCache_.end()) return it->second;
     if (!std::filesystem::exists(file)) {
         warning = "Missing mesh: " + Log::PathUtf8(file);
@@ -533,7 +544,7 @@ std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::files
     }
 
     LegacyMeshImport::Model imported;
-    try { imported = Lower(file.extension().string()) == ".glb" ? DraftMeshImport::Load(file) : LegacyMeshImport::Load(file); }
+    try { imported = Lower(file.extension().string()) == ".glb" ? DraftMeshImport::Load(file) : LegacyMeshImport::Load(file,objectName); }
     catch (const std::exception& e) {
         warning = "Mesh import failed: " + Log::PathUtf8(file) + ": " + e.what();
         Log::Error(warning); return {};
@@ -634,7 +645,12 @@ std::shared_ptr<SceneRenderer::TextureGpu> SceneRenderer::LoadTexture(const std:
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
     }
+    // Detect genuinely graded alpha, not binary cutout leaves or opaque JPEGs.
+    // Water in the original Beach library has many low-alpha texels (<0.5).
+    size_t fractionalAlpha=0;
+    for(size_t i=3;i<pixels.size();i+=4)if(pixels[i]>0 && pixels[i]<255)++fractionalAlpha;
     auto gpu = std::make_shared<TextureGpu>(); gpu->width = width; gpu->height = height;
+    gpu->translucent = fractionalAlpha > static_cast<size_t>(width)*height/100;
     if (FAILED(device_->CreateShaderResourceView(texture.Get(), nullptr, &gpu->srv))) {
         warning = "GPU texture view failed: " + file.string();
         textureCache_.insert_or_assign(key, fallbackTexture_);
@@ -732,10 +748,10 @@ bool SceneRenderer::BuildScene(const MapDocument& map, const AssetRegistry& asse
         std::string warning;
 
         if (!asset->mesh.empty()) {
-            auto mesh = LoadMesh(asset->mesh, warning);
+            auto mesh = LoadMesh(asset->mesh, warning,asset->meshObject);
             if (!mesh) { ++stats_.missingAssets; continue; }
             std::vector<std::shared_ptr<TextureGpu>> textures;
-            std::string key = PathKey(asset->mesh);
+            std::string key = PathKey(asset->mesh)+"\x1f"+asset->meshObject;
             for (const auto& part : mesh->parts) {
                 auto texture = ResolveTexture(*asset, prop.texture, part.diffuse, warning);
                 textures.push_back(texture ? texture : SolidTexture(part.color));
@@ -863,7 +879,7 @@ bool SceneRenderer::BuildAssetPreview(const AssetDefinition& asset, const std::s
     propBindings_.resize(1);
 
     if (!asset.mesh.empty()) {
-        auto mesh = LoadMesh(asset.mesh, warning);
+        auto mesh = LoadMesh(asset.mesh, warning,asset.meshObject);
         if (!mesh) { error = warning.empty() ? "Could not load preview mesh." : warning; return false; }
         std::vector<std::shared_ptr<TextureGpu>> textures;
         for (const auto& part : mesh->parts) {
@@ -996,7 +1012,7 @@ void SceneRenderer::BuildDebugGeometry(const MapDocument& map) {
         const XMFLOAT4 c = red ? XMFLOAT4{1.0f,0.38f,0.36f,0.74f} : blue ? XMFLOAT4{0.35f,0.67f,1.0f,0.74f} : XMFLOAT4{0.42f,0.9f,0.65f,0.68f};
         addBox({p.x-90,p.y+15,p.z-120},{p.x+90,p.y+95,p.z+120},c);
         const float angle = spawn.rotationZ;
-        addLine({p.x,p.y+100,p.z},{p.x+std::cos(angle)*180,p.y+100,p.z-std::sin(angle)*180},c);
+        addLine({p.x,p.y+100,p.z},{p.x+std::cos(angle)*180,p.y+100,p.z+std::sin(angle)*180},c);
         finishRange(start,1u,modeOf(spawn.type));
     }
     for (const auto& flag : map.CtfFlags()) {
@@ -1117,6 +1133,17 @@ void SceneRenderer::FrameScene() {
     const float dx=boundsMax_.x-boundsMin_.x, dy=boundsMax_.y-boundsMin_.y, dz=boundsMax_.z-boundsMin_.z;
     const float radius = std::max(500.0f, 0.5f * std::sqrt(dx*dx+dy*dy+dz*dz));
     cameraDistance_ = radius * 1.75f;
+}
+
+void SceneRenderer::ReverseViewDirection() {
+    cameraFocusAnimating_=false;
+    cameraYaw_=std::remainder(cameraYaw_+DirectX::XM_PI,DirectX::XM_2PI);
+}
+
+void SceneRenderer::ResetReferenceViewDirection() {
+    cameraFocusAnimating_=false;
+    cameraYaw_=-0.75f;
+    cameraPitch_=0.55f;
 }
 
 void SceneRenderer::Orbit(float dxPixels, float dyPixels) {
@@ -1365,8 +1392,9 @@ void SceneRenderer::Render(bool showGrid, bool showBounds, bool showGameplay, bo
         // classify gameplay flags, materials, or whether a surface is passable.
         RenderCollisionGeometry();
     } else {
-        RenderMeshes(camera);
+        RenderMeshes(camera,false);
         RenderFunctionalModels(overlayMask,modeMask);
+        RenderMeshes(camera,true); // sorted water/glass, depth test on, depth writes off
         RenderSprites(camera);
         RenderGhost();
         RenderFunctionalPads(overlayMask,modeMask);
@@ -1421,28 +1449,55 @@ void SceneRenderer::RenderGrid(const XMMATRIX&) {
     context_->Draw(gridVertexCount_, 0);
 }
 
-void SceneRenderer::RenderMeshes(const CameraConstants&) {
+void SceneRenderer::RenderMeshes(const CameraConstants&, bool transparentOnly) {
     context_->IASetInputLayout(meshLayout_.Get());
     context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    context_->VSSetShader(meshVs_.Get(), nullptr, 0); context_->PSSetShader(meshPs_.Get(), nullptr, 0);
+    context_->VSSetShader(meshVs_.Get(), nullptr, 0);
+    context_->PSSetShader(transparentOnly?transparentMeshPs_.Get():meshPs_.Get(), nullptr, 0);
     ID3D11Buffer* cb = cameraBuffer_.Get(); context_->VSSetConstantBuffers(0, 1, &cb);
     ID3D11SamplerState* samp = sampler_.Get(); context_->PSSetSamplers(0, 1, &samp);
-    context_->OMSetDepthStencilState(depthState_.Get(), 0);
-    const float blendFactor[4]{}; context_->OMSetBlendState(opaqueBlend_.Get(), blendFactor, 0xFFFFFFFFu);
-
-    for (const auto& batch : meshBatches_) {
-        if (!batch.mesh || !batch.instanceBuffer || batch.instances.empty()) continue;
-        ID3D11Buffer* buffers[2] = {batch.mesh->vertexBuffer.Get(), batch.instanceBuffer.Get()};
-        const UINT strides[2] = {sizeof(Vertex), sizeof(InstanceData)};
-        const UINT offsets[2] = {0,0};
-        context_->IASetVertexBuffers(0, 2, buffers, strides, offsets);
-        context_->IASetIndexBuffer(batch.mesh->indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-        for (size_t i=0; i<batch.mesh->parts.size(); ++i) {
-            const auto& part = batch.mesh->parts[i];
-            context_->RSSetState(part.oppositeFaceAtlas?rasterizerPairedAtlas_.Get():rasterizer_.Get());
-            ID3D11ShaderResourceView* srv = batch.textures[i]->srv.Get();
-            context_->PSSetShaderResources(0, 1, &srv);
-            context_->DrawIndexedInstanced(part.indexCount, static_cast<UINT>(batch.instances.size()), part.firstIndex, 0, 0);
+    context_->OMSetDepthStencilState(transparentOnly?spriteDepthState_.Get():depthState_.Get(), 0);
+    const float blendFactor[4]{};
+    context_->OMSetBlendState(transparentOnly?alphaBlend_.Get():opaqueBlend_.Get(), blendFactor, 0xFFFFFFFFu);
+    const auto bind=[&](const MeshBatch& batch, const MeshPart& part, size_t partIndex){
+        ID3D11Buffer* buffers[2]={batch.mesh->vertexBuffer.Get(),batch.instanceBuffer.Get()};
+        const UINT strides[2]={sizeof(Vertex),sizeof(InstanceData)}, offsets[2]={0,0};
+        context_->IASetVertexBuffers(0,2,buffers,strides,offsets);
+        context_->IASetIndexBuffer(batch.mesh->indexBuffer.Get(),DXGI_FORMAT_R32_UINT,0);
+        context_->RSSetState(part.oppositeFaceAtlas?rasterizerPairedAtlas_.Get():rasterizer_.Get());
+        ID3D11ShaderResourceView* srv=batch.textures[partIndex]->srv.Get();
+        context_->PSSetShaderResources(0,1,&srv);
+    };
+    if(!transparentOnly){
+        for(const auto& batch:meshBatches_){
+            if(!batch.mesh || !batch.instanceBuffer || batch.instances.empty())continue;
+            for(size_t i=0;i<batch.mesh->parts.size();++i){
+                if(batch.textures[i]->translucent)continue;
+                const auto& part=batch.mesh->parts[i];bind(batch,part,i);
+                context_->DrawIndexedInstanced(part.indexCount,static_cast<UINT>(batch.instances.size()),part.firstIndex,0,0);
+            }
+        }
+    }else{
+        struct TransparentDraw {float distanceSquared;size_t batch,part,instance;};
+        std::vector<TransparentDraw> draws;
+        const XMVECTOR eye=CameraEye();XMFLOAT3 cameraPos{};XMStoreFloat3(&cameraPos,eye);
+        for(size_t bi=0;bi<meshBatches_.size();++bi){
+            const auto& batch=meshBatches_[bi];
+            if(!batch.mesh || !batch.instanceBuffer)continue;
+            for(size_t pi=0;pi<batch.mesh->parts.size();++pi){
+                if(!batch.textures[pi]->translucent)continue;
+                for(size_t ii=0;ii<batch.instances.size();++ii){
+                    const auto& t=batch.instances[ii].row3;
+                    const float dx=t.x-cameraPos.x,dy=t.y-cameraPos.y,dz=t.z-cameraPos.z;
+                    draws.push_back({dx*dx+dy*dy+dz*dz,bi,pi,ii});
+                }
+            }
+        }
+        std::stable_sort(draws.begin(),draws.end(),[](const auto& a,const auto& b){return a.distanceSquared>b.distanceSquared;});
+        for(const auto& draw:draws){
+            const auto& batch=meshBatches_[draw.batch];const auto& part=batch.mesh->parts[draw.part];
+            bind(batch,part,draw.part);
+            context_->DrawIndexedInstanced(part.indexCount,1,part.firstIndex,0,static_cast<UINT>(draw.instance));
         }
     }
     context_->RSSetState(rasterizer_.Get());
@@ -1567,6 +1622,31 @@ std::vector<int> SceneRenderer::SelectInScreenRect(float x0, float y0, float x1,
     return result;
 }
 
+bool SceneRenderer::SuggestEdgeSnap(const std::vector<PropInstance>& props,float tolerance,
+                                    float clearance,float& legacyDx,float& legacyDy) const {
+    legacyDx=0.f;legacyDy=0.f;
+    if(props.size()!=1 || ghostItems_.size()!=1 || !ghostItems_[0].mesh ||
+       pickProxies_.empty())return false;
+    const auto& prop=props[0];
+    // Horizontal world AABB is exact for grid-aligned rectangles (including
+    // translated pivots). Non-orthogonal objects are not eligible; an AABB is
+    // not a true rotated polygon edge.
+    const float quarterTurn=DirectX::XM_PIDIV2;
+    if(std::fabs(std::remainder(prop.rotation.z,quarterTurn))>0.0001f)return false;
+    DirectX::XMFLOAT3 lo{},hi{};
+    WorldBounds(*ghostItems_[0].mesh,LegacyTransform::World(prop.position,prop.rotation),lo,hi);
+    const GeometrySnap::Rect moving{lo.x,hi.x,lo.z,hi.z,lo.y};
+    std::vector<GeometrySnap::Rect> others;others.reserve(pickProxies_.size());
+    for(const auto& fixed:pickProxies_) {
+        if(fixed.propIndex<0)continue;
+        const auto& a=fixed.boundsMin;const auto& b=fixed.boundsMax;
+        others.push_back({a.x,b.x,a.z,b.z,a.y});
+    }
+    const auto snap=GeometrySnap::Find(moving,others,tolerance,clearance);
+    legacyDx=snap.x; legacyDy=snap.y; // internal Z = legacy Y in the GTanks left-handed basis
+    return snap.xMatched||snap.yMatched;
+}
+
 void SceneRenderer::SetGhost(const std::vector<PropInstance>& props, const AssetRegistry& assets) {
     if (props.empty()) { ghostItems_.clear(); return; }
     std::vector<std::string> keys;
@@ -1582,7 +1662,7 @@ void SceneRenderer::SetGhost(const std::vector<PropInstance>& props, const Asset
             std::string warning;
             if (asset) {
                 if (!asset->mesh.empty()) {
-                    item.mesh=LoadMesh(asset->mesh,warning);
+                    item.mesh=LoadMesh(asset->mesh,warning,asset->meshObject);
                     if (item.mesh) for (const auto& part:item.mesh->parts) {
                         auto t=ResolveTexture(*asset,props[i].texture,part.diffuse,warning);
                         item.textures.push_back(t?t:SolidTexture(part.color));

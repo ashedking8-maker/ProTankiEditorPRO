@@ -30,6 +30,7 @@ struct PropInstance {
     // even when the editor cannot interpret one of its legacy fields. This is
     // an in-memory provenance marker only; it is never serialized as a game flag.
     bool losslessNativeClone{};
+    bool collisionOwnershipUnresolved{}; // Runtime-only: source helpers could not be matched to XML.
     int nativeCloneBatchId{-1};
     std::shared_ptr<const std::string> originalPropXml; // complete detached source <prop> subtree
     int legacySourceIndex{-1}; // original <static-geometry>/<prop> index, -1 for newly created props
@@ -131,6 +132,15 @@ public:
 
     bool SetPropTransform(size_t index, const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& rotation);
     size_t AddProp(PropInstance prop);
+    void SetCollisionOwnershipUnresolved(size_t index,bool unresolved) {
+        if(index<props_.size())props_[index].collisionOwnershipUnresolved=unresolved;
+    }
+    // Copies actual XML primitives. A subset requires verified owners; a full
+    // static-map selection also carries opaque unowned collision records.
+    bool CopyNativeCollisionForProps(const std::vector<size_t>& indices,
+        std::vector<CollisionPlane>& planes,std::vector<CollisionBox>& boxes,
+        std::vector<CollisionTriangle>& triangles) const;
+
     // Lossless full-static-map clone path used by Ctrl+C/V when every static
     // prop is selected. The collision bundle is copied from the source map as
     // opaque native data instead of being reconstructed from 3DS helpers.

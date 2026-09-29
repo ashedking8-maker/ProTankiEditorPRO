@@ -3,6 +3,7 @@
 // material chunks. This metadata is separate from Assimp's generated normals.
 // Never infer face order: associate faces by ORIGINAL geometry instead.
 #include "Native3DSWriter.h"
+#include "Native3DSScene.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -28,6 +29,7 @@ struct Face {std::array<std::uint16_t,3> indices{};std::uint32_t smoothing{};std
 struct Visual {
     std::string name;
     std::vector<std::array<float,3>> vertices;
+    std::vector<std::array<float,3>> localVertices; // Same normalized space as LegacyMeshImport.
     std::vector<Face> faces;
     std::array<float,12> matrix{};
     bool hasMatrix{},hasSmoothing{};
@@ -168,6 +170,17 @@ inline bool Read(const std::filesystem::path& path,const std::string& anchor,Vis
             error="Source face references an unknown material.";return false;
         }
     }
+    Native3DSScene::Scene scene;Native3DSScene::Selection selection;
+    if(!Native3DSScene::Read(path,scene,error)||!Native3DSScene::Resolve(scene,anchor,selection,error))return false;
+    const auto& node=scene.nodes[selection.node];
+    const auto* frame=Native3DSScene::SelectedFrame(scene,selection);
+    for(auto raw:node.vertices){
+        Native3DSScene::V local{};
+        if(!Native3DSScene::LocalVertex(node,frame,raw,local)){error="Invalid original visual transform.";return false;}
+        if(frame)local=Native3DSScene::Rotate({local.x*frame->scale.x,local.y*frame->scale.y,local.z*frame->scale.z},frame->rotation);
+        if(!Native3DSScene::Finite(local)){error="Invalid transformed visual vertex.";return false;}
+        result.localVertices.push_back({local.x,local.y,local.z});
+    }
     error.clear();return true;
 }
 // Quantized original LOCAL geometry is matched to Assimp's imported vertices.
@@ -185,13 +198,13 @@ inline bool Match(const Visual& raw,const Native3DSWriter::Model& imported,
     if(imported.indices.size()%3||raw.faces.size()!=imported.indices.size()/3){
         error="Original visual triangle topology changed; material/smoothing correspondence is unsafe.";return false;
     }
-    // Native source vertices are in world/local authoring coordinates. Assimp's
-    // 3DS coordinates are made relative to the native object pivot.
+    if(raw.localVertices.size()!=raw.vertices.size()){error="Missing normalized visual coordinates.";return false;}
+    // Match in the same inverse-matrix/pivot/rotation/scale space as the viewport.
     std::map<Key,std::vector<size_t>> keys;
     for(size_t i=0;i<raw.faces.size();++i){
         const auto& f=raw.faces[i];std::array<std::array<float,3>,3> p{};
         for(size_t k=0;k<3;++k)for(size_t c=0;c<3;++c)
-            p[k][c]=raw.vertices[f.indices[k]][c]-raw.matrix[9+c];
+            p[k][c]=raw.localVertices[f.indices[k]][c];
         const auto key=FaceKey(p);
         const auto& existing=keys[key];
         for(const auto duplicate:existing)if(raw.faces[duplicate].smoothing!=f.smoothing ||

@@ -96,9 +96,10 @@ class OriginalNativeGeometryAudit(unittest.TestCase):
         self.assertIn('Native helper collision refused',ui)
         self.assertIn('GLB: collision draft',ui)
         self.assertIn('Edit solid/trigger boxes below.',ui)
-        self.assertIn('There is no native 3DS or ProTLVK game export yet.',ui)
-        self.assertIn('Unverified nonidentity 3DS visual pivot',importer)
-        self.assertIn('Missing box corners:',importer)
+        self.assertIn('GLB native conversion is not implemented',ui)
+        self.assertIn('NativeObjectExport::Export(toExport,assets,exported,error)',ui)
+        self.assertIn('Invalid 3DS helper local frame:',importer)
+        self.assertIn('Degenerate 3DS box helper:',importer)
         self.assertIn('result.boxes.push_back(out)',importer)
 
 if __name__=='__main__':unittest.main()

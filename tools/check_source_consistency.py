@@ -111,7 +111,7 @@ def main() -> int:
                 'clipboardHasNativeStaticBundle_' in ui and
                 '3DS reinterpretation bypassed' in ui and
                 'originalXml' in text('src/MapDocument.h') and
-                'stem=="tunnel_2"' in text('src/NativeCollisionImport.h') and
+                'Native3DSScene::Resolve' in text('src/NativeCollisionImport.h') and
                 'LosslessFullStaticMapClone' in cmake,
                 '0.5.28 lossless full-map native clipboard / Tunnel 2 regression missing')
         require('Native3DSMaterialSmoothingRoundTrip' in cmake and
@@ -177,11 +177,11 @@ def main() -> int:
                 'BindImportedCollisionForProp' in doc and
                 'AuthorCollisionForPlacement(map,assets,index,info,' in ui and
                 'Allow visual-only props' in ui and
-                'inspectedHelpers=NativeCollisionImport::Read(inspectedSource)' in ui and
+                'inspectedHelpers=NativeCollisionImport::Read(inspectedSource,draftMeshObject)' in ui and
                 'Placement settings##tools' in ui and 'HoverHelp(' in ui,
                 'Shared 3DS helper/Obj. Editor authoring and native roundtrip tests incomplete')
-        require('const auto toLocal=' in text('src/NativeCollisionImport.h') and
-                'out.rotation=Euler(bx,by,bz)' in text('src/NativeCollisionImport.h') and
+        require('Native3DSScene::LocalVertex' in text('src/NativeCollisionImport.h') and
+                'out.rotation=frame.rotation' in text('src/NativeCollisionImport.h') and
                 'sameBoxCorners' in doc and
                 'NativeCollisionImport::NoNativeHelpersError' in ui and
                 all((ROOT/'tests/fixtures/native_helpers'/f).is_file() for f in (

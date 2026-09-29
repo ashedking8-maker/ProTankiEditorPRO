@@ -192,7 +192,7 @@ private:
     bool CreateSpriteQuad(std::string& error);
     void CreateTargets();
 
-    std::shared_ptr<MeshGpu> LoadMesh(const std::filesystem::path& file, std::string& warning);
+    std::shared_ptr<MeshGpu> LoadMesh(const std::filesystem::path& file, std::string& warning,const std::string& objectName={});
     std::shared_ptr<TextureGpu> SolidTexture(const DirectX::XMFLOAT4& color);
     std::shared_ptr<TextureGpu> LoadTexture(const std::filesystem::path& file, std::string& warning);
     std::shared_ptr<TextureGpu> ResolveTexture(const AssetDefinition& asset, const std::string& variant, const std::filesystem::path& materialTexture, std::string& warning);

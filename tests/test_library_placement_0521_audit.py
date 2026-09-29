@@ -35,8 +35,8 @@ class LibraryPlacement0521(unittest.TestCase):
                                            points[other[0]][k]+points[other[1]][k],delta=.1)
     def test_source_uses_world_geometry_for_scaled_planes_and_still_guards_boxes(self):
         s=(ROOT/'src/NativeCollisionImport.h').read_text()
-        self.assertIn('if((box && !scaledBox) || !n.hasMatrix',s)
-        self.assertIn('if(i1<0) {result.error="Nonrectangular 3DS plane helper:',s)
+        self.assertIn('Native3DSScene::LocalVertex',s)
+        self.assertIn('Nonrectangular 3DS plane helper:',s)
         self.assertIn('fab_tow.3ds', (ROOT/'tests/native_3ds_helper_regression.cpp').read_text())
     def test_mousewheel_requires_tab_and_no_global_placement_capture(self):
         s=(ROOT/'src/EditorUi.cpp').read_text()

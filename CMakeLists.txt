@@ -83,7 +83,7 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
+  src/Native3DSScene.h src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
   src/EditorUi.cpp src/EditorUi.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -161,6 +161,19 @@ set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(NativeXmlCompatibilityRegression tests/native_xml_compatibility_regression.cpp
+    src/MapDocument.cpp src/Logger.cpp)
+  target_include_directories(NativeXmlCompatibilityRegression PRIVATE src tests)
+  target_link_libraries(NativeXmlCompatibilityRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(NativeXmlCompatibilityRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(MSVC)
+    target_compile_options(NativeXmlCompatibilityRegression PRIVATE /W4 /permissive- /utf-8)
+  endif()
+  add_test(NAME NativeXmlRotationAndOwnedClipboard COMMAND NativeXmlCompatibilityRegression)
+  add_executable(NativeSwfCompatibilityRegression tests/native_swf_compatibility_regression.cpp)
+  target_include_directories(NativeSwfCompatibilityRegression PRIVATE src tests)
+  add_test(NAME OriginalSwf3DSCompatibility COMMAND NativeSwfCompatibilityRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
   add_executable(LibraryReloadRegression
     tests/library_reload_regression.cpp
     src/AssetRegistry.cpp src/AssetRegistry.h

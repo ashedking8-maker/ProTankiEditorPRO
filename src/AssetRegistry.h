@@ -12,6 +12,7 @@ struct AssetDefinition {
     std::string name;
     std::filesystem::path sourceDir;
     std::filesystem::path mesh;
+    std::string meshObject; // library.xml mesh/@object: exact native node name
     std::filesystem::path sprite;
     float spriteOriginY = 0.5f;
     float spriteScale = 1.0f;

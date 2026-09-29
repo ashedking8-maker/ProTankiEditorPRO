@@ -1,5 +1,6 @@
 #pragma once
 // CPU-only import shared by the renderer and regression checks.
+#include "Native3DSScene.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/material.h>
@@ -99,7 +100,10 @@ inline bool HasOppositeFaceAtlas(const std::vector<Vertex>& vertices,
     return true;
 }
 
-inline Model Load(const std::filesystem::path& file) {
+inline Model Load(const std::filesystem::path& file,const std::string& objectName={}) {
+    Native3DSScene::Scene native;Native3DSScene::Selection selected;std::string nativeError;
+    if(!Native3DSScene::Read(file,native,nativeError)||!Native3DSScene::Resolve(native,objectName,selected,nativeError))
+        throw std::runtime_error(nativeError);
     // Read via filesystem::path so Windows Unicode paths do not depend on ACP.
     std::ifstream stream(file, std::ios::binary);
     if (!stream) throw std::runtime_error("Cannot open mesh");
@@ -121,46 +125,48 @@ inline Model Load(const std::filesystem::path& file) {
     visit(scene->mRootNode, aiMatrix4x4());
     if (nodes.empty()) throw std::runtime_error("No mesh nodes");
 
-    const std::string stem = Lower(file.stem().string());
-    auto anchor = std::find_if(nodes.begin(), nodes.end(), [&](const Node& n){return Lower(n.node->mName.C_Str()) == stem;});
+    const auto& source=native.nodes[selected.node];
+    auto anchor=std::find_if(nodes.begin(),nodes.end(),[&](const Node& n){return source.name==n.node->mName.C_Str();});
+    if(anchor==nodes.end())throw std::runtime_error("Assimp did not preserve the selected native mesh node: "+source.name);
     Model result;
-
-    // Legacy prop 3DS files commonly contain one visible mesh plus helper nodes
-    // named Box/Plane/Tri/Occl. Those helpers describe collision/occlusion and
-    // must NOT be rendered. When the filename and visible-node name differ,
-    // prefer the node that actually carries a non-default material/texture.
-    if (anchor == nodes.end()) {
-        long long bestScore = std::numeric_limits<long long>::min();
-        auto best = nodes.begin();
-        for (auto it = nodes.begin(); it != nodes.end(); ++it) {
-            long long score = 0;
-            size_t faceCount = 0;
-            bool textured = false;
-            bool nonDefaultMaterial = false;
-            for (unsigned j=0; j<it->node->mNumMeshes; ++j) {
-                const auto* mesh = scene->mMeshes[it->node->mMeshes[j]];
-                faceCount += mesh->mNumFaces;
-                if (mesh->mMaterialIndex < scene->mNumMaterials) {
-                    const auto* material = scene->mMaterials[mesh->mMaterialIndex];
-                    aiString tex;
-                    if (material->GetTexture(aiTextureType_DIFFUSE,0,&tex) == AI_SUCCESS && tex.length) textured = true;
-                    aiString matName;
-                    if (material->Get(AI_MATKEY_NAME, matName) == AI_SUCCESS) {
-                        const auto n = Lower(matName.C_Str());
-                        if (!n.empty() && n != "default") nonDefaultMaterial = true;
-                    }
-                }
-            }
-            score += static_cast<long long>(faceCount);
-            if (textured) score += 1'000'000;
-            if (nonDefaultMaterial) score += 100'000;
-            if (HelperLikeName(it->node->mName.C_Str())) score -= 10'000;
-            if (score > bestScore) { bestScore = score; best = it; }
-        }
-        anchor = best;
-        result.warnings.push_back("No node matching filename; selected visual mesh node by material/face score");
+    if(native.migratedFlatGenerated)result.warnings.push_back("Migrated older PTPRO flat helper hierarchy");
+    const auto* frame=Native3DSScene::SelectedFrame(native,selected);
+    // Match Assimp's vertex space to source vertices, then use the ORIGINAL
+    // Parser3DS local coordinates. Assimp versions differ in pivot baking.
+    // Every vertex must match; no inferred bounds-based recentering is allowed.
+    struct NativeVertex {aiVector3D unpivoted,local,placed;};
+    std::vector<NativeVertex> sourceVertices;sourceVertices.reserve(source.vertices.size());
+    using GridKey=std::array<long long,3>;
+    std::array<std::map<GridKey,std::vector<size_t>>,3> grids;
+    const auto gridKey=[](aiVector3D v){return GridKey{static_cast<long long>(std::floor(v.x/.05)),
+        static_cast<long long>(std::floor(v.y/.05)),static_cast<long long>(std::floor(v.z/.05))};};
+    for(auto raw:source.vertices){
+        Native3DSScene::V local{};
+        if(!Native3DSScene::LocalVertex(source,frame,raw,local))throw std::runtime_error("Invalid native visual transform");
+        auto unpivoted=frame?Native3DSScene::Add(local,frame->pivot):local;
+        auto placed=local;
+        if(frame)placed=Native3DSScene::Rotate({local.x*frame->scale.x,local.y*frame->scale.y,local.z*frame->scale.z},frame->rotation);
+        if(!Native3DSScene::Finite(placed))throw std::runtime_error("Non-finite native visual vertex");
+        sourceVertices.push_back({{unpivoted.x,unpivoted.y,unpivoted.z},{local.x,local.y,local.z},{placed.x,placed.y,placed.z}});
+        const auto i=sourceVertices.size()-1;const auto& v=sourceVertices.back();
+        grids[0][gridKey(v.unpivoted)].push_back(i);grids[1][gridKey(v.local)].push_back(i);grids[2][gridKey(v.placed)].push_back(i);
     }
-
+    const auto match=[&](aiVector3D p,int mode)->size_t {
+        const auto key=gridKey(p);float best=.011f;size_t found=sourceVertices.size();
+        for(int x=-2;x<=2;++x)for(int y=-2;y<=2;++y)for(int z=-2;z<=2;++z){
+            auto it=grids[static_cast<size_t>(mode)].find({key[0]+x,key[1]+y,key[2]+z});if(it==grids[static_cast<size_t>(mode)].end())continue;
+            for(size_t i:it->second){const auto& v=sourceVertices[i];const auto candidate=mode==0?v.unpivoted:mode==1?v.local:v.placed;
+                const auto distance=(p-candidate).SquareLength();if(distance<best){best=distance;found=i;}}
+        }
+        return found;
+    };
+    int vertexMode=-1;
+    for(int mode=0;mode<3&&vertexMode<0;++mode){bool all=true;
+        for(unsigned j=0;j<anchor->node->mNumMeshes && all;++j){const auto* mesh=scene->mMeshes[anchor->node->mMeshes[j]];
+            for(unsigned i=0;i<mesh->mNumVertices;++i)if(match(mesh->mVertices[i],mode)==sourceVertices.size()){all=false;break;}}
+        if(all)vertexMode=mode;
+    }
+    if(vertexMode<0)throw std::runtime_error("Assimp/native 3DS vertex-space mismatch; import stopped");
     result.anchor = anchor->node->mName.C_Str();
     result.ignoredMeshNodes = nodes.size() > 0 ? nodes.size() - 1 : 0;
     if (std::abs(anchor->world.Determinant()) < 1e-12f) throw std::runtime_error("Singular mesh anchor transform");
@@ -177,7 +183,8 @@ inline Model Load(const std::filesystem::path& file) {
     aiMatrix3x3 normals(transform);
     if (std::abs(normals.Determinant()) < 1e-12f) throw std::runtime_error("Singular visual transform");
     normals.Inverse().Transpose();
-    const bool mirrored = transform.Determinant() < 0;
+    const bool visualMirrored=frame && frame->scale.x*frame->scale.y*frame->scale.z<0;
+    const bool mirrored = (transform.Determinant() < 0) != visualMirrored;
 
     const auto* node = anchor->node;
     for (unsigned j=0; j<node->mNumMeshes; ++j) {
@@ -192,8 +199,17 @@ inline Model Load(const std::filesystem::path& file) {
             material->Get(AI_MATKEY_COLOR_DIFFUSE, part.color);
         }
         for (unsigned i=0; i<mesh->mNumVertices; ++i) {
-            const auto p = transform * mesh->mVertices[i];
-            auto n = normals * (mesh->HasNormals() ? mesh->mNormals[i] : aiVector3D(0,0,1));
+            const auto nativeIndex=match(mesh->mVertices[i],vertexMode);
+            if(nativeIndex==sourceVertices.size())throw std::runtime_error("Native visual vertex match lost");
+            const auto p = transform * sourceVertices[nativeIndex].placed;
+            auto sourceNormal=mesh->HasNormals()?mesh->mNormals[i]:aiVector3D(0,0,1);
+            if(frame && vertexMode!=2){
+                if(std::fabs(frame->scale.x)<1.e-8f||std::fabs(frame->scale.y)<1.e-8f||std::fabs(frame->scale.z)<1.e-8f)
+                    throw std::runtime_error("Singular native visual scale");
+                auto rotated=Native3DSScene::Rotate({sourceNormal.x/frame->scale.x,sourceNormal.y/frame->scale.y,sourceNormal.z/frame->scale.z},frame->rotation);
+                sourceNormal={rotated.x,rotated.y,rotated.z};
+            }
+            auto n = normals * sourceNormal;
             n.NormalizeSafe();
             const auto uv = mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0][i] : aiVector3D();
             if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)) throw std::runtime_error("Non-finite mesh vertex");

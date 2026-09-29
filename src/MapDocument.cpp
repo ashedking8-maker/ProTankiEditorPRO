@@ -98,6 +98,11 @@ bool MapDocument::Load(const std::filesystem::path& file, std::string& error) {
 
     path_ = file;
     version_ = map.attribute("version").as_string();
+    if(!version_.empty() && version_!="1.0" && version_!="1.0.Light") {
+        error="Unsupported map version '"+version_+"'. This editor reads flat 1.0 / 1.0.Light XML; convert with the original editor first.";
+        Log::Error(error);Clear();return false;
+    }
+
 
     auto geometry = map.child("static-geometry");
     props_.reserve(childCount(geometry, "prop"));
@@ -348,6 +353,15 @@ bool MapDocument::SetPropTransform(size_t index, const DirectX::XMFLOAT3& positi
     const bool changed = p.position.x != position.x || p.position.y != position.y || p.position.z != position.z ||
         p.rotation.x != rotation.x || p.rotation.y != rotation.y || p.rotation.z != rotation.z;
     if (!changed) return true;
+    const auto unownedBatch=[&](const auto& items){return p.nativeCloneBatchId>=0 &&
+        std::any_of(items.begin(),items.end(),[&](const auto& c){return c.nativeCloneBatchId==p.nativeCloneBatchId && c.authoredOwnerIndex<0;});};
+    if(p.collisionOwnershipUnresolved || unownedBatch(collisionPlanes_) || unownedBatch(collisionBoxes_) || unownedBatch(collisionTriangles_)) {
+        Log::Warning("Transform refused: collision ownership is unresolved; use a lossless full-map copy or resolve the source library.");return false;
+    }
+    if((rotation.x!=p.rotation.x || rotation.y!=p.rotation.y) && HasNativeCollisionForProp(index)) {
+        Log::Warning("Transform refused: bound native props support Z rotation only.");return false;
+    }
+
     if(VerifiedGroundCollision::Find(p.library,p.group,p.name) &&
        HasVerifiedGroundSurfaceForProp(index) && !HasNativeCollisionForProp(index)) {
         Log::Warning("Ground transform refused: original XML plane has ambiguous/unbound ownership.");
@@ -481,7 +495,9 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
         for(size_t i=0;i<props_.size();++i)if(props_[i].nativeCloneBatchId==batch) {
             ++total;if(std::binary_search(indices.begin(),indices.end(),i))++selected;
         }
-        if(selected!=total) {
+        const auto opaque=[&](const auto& items){return std::any_of(items.begin(),items.end(),
+            [&](const auto& c){return c.nativeCloneBatchId==batch && c.authoredOwnerIndex<0;});};
+        if(selected!=total && (opaque(collisionPlanes_)||opaque(collisionBoxes_)||opaque(collisionTriangles_))) {
             reason="Deletion blocked: lossless native clone batch "+std::to_string(batch)+
                 " is only partially selected ("+std::to_string(selected)+"/"+
                 std::to_string(total)+"). Select the whole copied group so opaque collision data cannot be orphaned.";
@@ -491,6 +507,10 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
     auto same=[&](const DirectX::XMFLOAT3& a,const DirectX::XMFLOAT3& b) {
         return std::fabs(a.x-b.x)<=0.1f && std::fabs(a.y-b.y)<=0.1f && std::fabs(a.z-b.z)<=0.1f;
     };
+    for(const auto i:indices)if(props_[i].collisionOwnershipUnresolved){
+        reason="Deletion blocked: source collision ownership is unresolved. Resolve the original library or select the full static map.";
+        Log::Warning(reason);return false;
+    }
     // Refuse partial deletion when a source floor has ambiguous ownership.
     // It could otherwise leave a ghost plane or erase a shared floor.
     for(const auto i:indices) {
@@ -544,7 +564,8 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
     const auto eraseCloneBatch=[&](auto& items) {
         const auto old=items.size();
         items.erase(std::remove_if(items.begin(),items.end(),[&](const auto& c){
-            return c.nativeCloneBatchId>=0 && selectedCloneBatches.count(c.nativeCloneBatchId)!=0;
+            return c.nativeCloneBatchId>=0 && selectedCloneBatches.count(c.nativeCloneBatchId)!=0 &&
+                (c.authoredOwnerIndex<0 || std::binary_search(indices.begin(),indices.end(),static_cast<size_t>(c.authoredOwnerIndex)));
         }),items.end());
         batchColliderRemoved+=old-items.size();
     };
@@ -574,6 +595,25 @@ size_t MapDocument::AddProp(PropInstance prop) {
     const size_t index = props_.size() - 1;
     Log::Info("Prop added index=" + std::to_string(index) + " identity=" + props_[index].library + "/" + props_[index].group + "/" + props_[index].name);
     return index;
+}
+
+bool MapDocument::CopyNativeCollisionForProps(const std::vector<size_t>& indices,
+    std::vector<CollisionPlane>& planes,std::vector<CollisionBox>& boxes,
+    std::vector<CollisionTriangle>& triangles) const {
+    planes.clear();boxes.clear();triangles.clear();
+    if(indices.empty()||!std::is_sorted(indices.begin(),indices.end())||
+       std::adjacent_find(indices.begin(),indices.end())!=indices.end()||indices.back()>=props_.size())return false;
+    const bool full=indices.size()==props_.size();
+    if(!full)for(auto i:indices)if(props_[i].collisionOwnershipUnresolved||!HasNativeCollisionForProp(i))return false;
+    const auto copy=[&](const auto& source,auto& dest){
+        for(auto c:source){
+            if(c.authoredOwnerIndex<0){if(full)dest.push_back(std::move(c));continue;}
+            const auto it=std::lower_bound(indices.begin(),indices.end(),static_cast<size_t>(c.authoredOwnerIndex));
+            if(it==indices.end()||*it!=static_cast<size_t>(c.authoredOwnerIndex))continue;
+            c.authoredOwnerIndex=static_cast<int>(it-indices.begin());dest.push_back(std::move(c));
+        }
+    };
+    copy(collisionPlanes_,planes);copy(collisionBoxes_,boxes);copy(collisionTriangles_,triangles);return true;
 }
 
 bool MapDocument::AppendLosslessNativeStaticClone(std::vector<PropInstance> props,
@@ -1472,14 +1512,14 @@ bool MapDocument::SerializeLegacy(std::string& xml, std::string& error) const {
             return collision.append_copy(source);
         };
         const auto updateTransform=[&](pugi::xml_node n,const DirectX::XMFLOAT3& position,
-                                       const DirectX::XMFLOAT3& rotation) {
+                                       const DirectX::XMFLOAT3& rotation,bool copiedOriginal) {
             auto pos=n.child("position");if(!pos)pos=n.append_child("position");
             putVec(pos,position,3);
             auto rot=n.child("rotation");if(!rot)rot=n.append_child("rotation");
             // Preserve whether legacy x/y fields existed. Full-map clipboard
             // applies only a world-Z yaw delta; x/y values are source data.
-            if(rot.child("x"))setExisting(rot,"x",rotation.x,6);
-            if(rot.child("y"))setExisting(rot,"y",rotation.y,6);
+            if(!copiedOriginal || rot.child("x"))setOrAppend(rot,"x",rotation.x,6);
+            if(!copiedOriginal || rot.child("y"))setOrAppend(rot,"y",rotation.y,6);
             setOrAppend(rot,"z",rotation.z,6);
         };
         for(const auto& p:collisionPlanes_)if(p.legacySourceIndex<0) {
@@ -1489,7 +1529,7 @@ bool MapDocument::SerializeLegacy(std::string& xml, std::string& error) const {
                 n=collision.append_child("collision-plane");
                 setOrAppend(n,"width",p.width,3);setOrAppend(n,"length",p.length,3);
             }
-            appendId(n);updateTransform(n,p.position,p.rotation);
+            appendId(n);updateTransform(n,p.position,p.rotation,p.originalXml && !p.originalXml->empty());
         }
         for(const auto& b:collisionBoxes_)if(b.legacySourceIndex<0) {
             auto n=appendRaw(b.originalXml,"collision-box");
@@ -1498,7 +1538,7 @@ bool MapDocument::SerializeLegacy(std::string& xml, std::string& error) const {
                 n=collision.append_child("collision-box");
                 putVec(n.append_child("size"),b.size,3);
             }
-            appendId(n);updateTransform(n,b.position,b.rotation);
+            appendId(n);updateTransform(n,b.position,b.rotation,b.originalXml && !b.originalXml->empty());
         }
         for(const auto& t:collisionTriangles_)if(t.legacySourceIndex<0) {
             auto n=appendRaw(t.originalXml,"collision-triangle");
@@ -1508,7 +1548,7 @@ bool MapDocument::SerializeLegacy(std::string& xml, std::string& error) const {
                 putVec(n.append_child("v0"),t.v0,3);putVec(n.append_child("v1"),t.v1,3);
                 putVec(n.append_child("v2"),t.v2,3);
             }
-            appendId(n);updateTransform(n,t.position,t.rotation);
+            appendId(n);updateTransform(n,t.position,t.rotation,t.originalXml && !t.originalXml->empty());
         }
     }
 

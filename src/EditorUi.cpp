@@ -593,7 +593,9 @@ bool EditorUi::GestureActive(MouseGesture gesture, bool dragging) const {
 
 void EditorUi::ApplyLiveTransform(MapDocument& map, SceneRenderer& scene, int propIndex, const PropTransformState& state) {
     if (propIndex < 0) return;
-    if (!map.SetPropTransform(static_cast<size_t>(propIndex), state.position, state.rotation)) return;
+    if (!map.SetPropTransform(static_cast<size_t>(propIndex), state.position, state.rotation)) {
+        SetMessage("Transform blocked: collision ownership or rotation is unsupported. Resolve the source Library before moving this object.",true);return;
+    }
     if (static_cast<size_t>(propIndex) < map.Props().size()) scene.UpdatePropTransform(propIndex, map.Props()[static_cast<size_t>(propIndex)]);
 }
 
@@ -851,7 +853,7 @@ void EditorUi::StartClipboardPlacement() {
     // Clipboard positions are relative to their shared pivot. Caller keeps placementZ_.
     placementActive_=true; ghostValid_=false;
     if(clipboardHasNativeStaticBundle_)
-        SetMessage("Full static map follows the cursor with its complete native collision bundle. Space drops it; RMB cancels.");
+        SetMessage("Native selection follows the cursor with its source collision bundle. Space drops it; RMB cancels.");
     else
         SetMessage("Copied group follows the cursor. Space drops it; RMB cancels.");
 }
@@ -907,7 +909,7 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         explanation="Original Fogtown verified ground XML: one owned native collision plane.";
         return true;
     }
-    const auto imported=NativeCollisionImport::Read(asset->mesh);
+    const auto imported=NativeCollisionImport::Read(asset->mesh,asset->meshObject);
     if(!imported.Valid()) {
         // General protection: helperless rectangular 3DS might be a floor or
         // a deliberate roof/decal. Never silently turn it into pass-through
@@ -972,7 +974,7 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
             " (3DS reinterpretation bypassed)");
         selectedItems_=inserted;selected_=inserted.empty()?-1:inserted.back();scene.SetSelection(selectedItems_);
         history_.PushSnapshot(std::move(before),map);RequestSceneRebuild(true);
-        SetMessage("Lossless full-map paste: "+std::to_string(inserted.size())+" props + complete native collision copied without reinterpreting unknown 3DS objects.");
+        SetMessage("Lossless native selection paste: "+std::to_string(inserted.size())+" props + complete native collision copied without reinterpreting unknown 3DS objects.");
         return;
     }
     MapDocument before=map;
@@ -1005,7 +1007,7 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
         if(exactSourceProps<2)return false;
         const auto* asset=assets.Find(original.library,original.group,original.name);
         if(!asset||asset->mesh.empty())return false;
-        const auto imported=NativeCollisionImport::Read(asset->mesh);
+        const auto imported=NativeCollisionImport::Read(asset->mesh,asset->meshObject);
         if(!imported.Valid()||imported.planes.size()!=1||
            !imported.boxes.empty()||!imported.triangles.empty())return false;
         const auto& shape=imported.planes.front();
@@ -1341,19 +1343,18 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
         bool completeIndexSet=copyIndices.size()==map.Props().size();
         if(completeIndexSet)for(size_t i=0;i<copyIndices.size();++i)
             if(copyIndices[i]!=static_cast<int>(i)){completeIndexSet=false;break;}
+        if(!completeIndexSet && std::any_of(copyIndices.begin(),copyIndices.end(),[&](int i){return map.Props()[static_cast<size_t>(i)].collisionOwnershipUnresolved;})) {
+            SetMessage("Copy blocked: selected objects have unresolved source collision ownership. Resolve the Library or copy the full static map.",true);return;
+        }
         for(int index:copyIndices)clipboard_.push_back(map.Props()[static_cast<size_t>(index)]);
         if (!clipboard_.empty()) {
             const DirectX::XMFLOAT3 center=clipboard_.front().position;
             clipboardAnchor_=center;
             for (auto& p:clipboard_) { p.position.x-=center.x; p.position.y-=center.y; p.position.z-=center.z; }
-            if(completeIndexSet) {
-                // Full static-map copy is deliberately OPAQUE: do not ask the
-                // 3DS importer to reinterpret every legacy object. Copy the
-                // map's actual native collision records as the authoritative data.
+            std::vector<size_t> nativeSelection(copyIndices.begin(),copyIndices.end());
+            if(map.CopyNativeCollisionForProps(nativeSelection,clipboardCollisionPlanes_,clipboardCollisionBoxes_,clipboardCollisionTriangles_)) {
+                // Copy source XML primitives for full maps AND verified subsets.
                 clipboardHasNativeStaticBundle_=true;
-                clipboardCollisionPlanes_=map.CollisionPlanes();
-                clipboardCollisionBoxes_=map.CollisionBoxes();
-                clipboardCollisionTriangles_=map.CollisionTriangles();
                 auto relative=[&](auto& c){c.position.x-=center.x;c.position.y-=center.y;c.position.z-=center.z;};
                 for(auto& c:clipboardCollisionPlanes_)relative(c);
                 for(auto& c:clipboardCollisionBoxes_)relative(c);
@@ -1363,7 +1364,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
             placementZ_=center.z;
             RememberCopiedAssets(assets); // identical original library assets appear in AX recents
             if(clipboardHasNativeStaticBundle_)
-                SetMessage("Copied FULL static map losslessly: "+std::to_string(clipboard_.size())+" props + "+
+                SetMessage("Copied native selection losslessly: "+std::to_string(clipboard_.size())+" props + "+
                     std::to_string(clipboardCollisionPlanes_.size())+" planes + "+
                     std::to_string(clipboardCollisionBoxes_.size())+" boxes + "+
                     std::to_string(clipboardCollisionTriangles_.size())+" triangles. Ctrl+V follows cursor.");
@@ -1543,10 +1544,15 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
             if(map.HasNativeCollisionForProp(i))continue;
             const auto* asset=assets.Find(prop.library,prop.group,prop.name);
             if(!asset||asset->mesh.empty())continue;
-            const auto key=asset->mesh.string();
+            const auto key=asset->mesh.string()+"\x1f"+asset->meshObject;
             auto it=meshCache.find(key);
-            if(it==meshCache.end())it=meshCache.emplace(key,NativeCollisionImport::Read(asset->mesh)).first;
-            if(it->second.Valid()&&map.BindImportedCollisionForProp(i,it->second))++bound;
+            if(it==meshCache.end())it=meshCache.emplace(key,NativeCollisionImport::Read(asset->mesh,asset->meshObject)).first;
+            const bool matched=it->second.Valid()&&map.BindImportedCollisionForProp(i,it->second);
+            if(matched)++bound;
+            // No-helper decorative models are valid. A recognized helper set
+            // that cannot bind must not move away from its source XML geometry.
+            map.SetCollisionOwnershipUnresolved(i,!matched && it->second.error!=NativeCollisionImport::NoNativeHelpersError &&
+                (!map.CollisionPlanes().empty()||!map.CollisionBoxes().empty()||!map.CollisionTriangles().empty()));
         }
         if(bound)Log::Info("Native 3DS helper collision ownership rebound: "+std::to_string(bound)+" props.");
     }
@@ -2457,13 +2463,17 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     }
     // Shared native helper inspector. Draft boxes remain independently editable;
     // GLB-to-game 3DS export is intentionally NOT claimed or silently performed.
+    const auto* draftTemplate=assets.Find(objectDraft_.templateLibrary,objectDraft_.templateGroup,objectDraft_.templateName);
+    const std::string draftMeshObject=draftTemplate?draftTemplate->meshObject:std::string{};
+    static std::string inspectedObject;
     static std::filesystem::path inspectedSource;
     static NativeCollisionImport::Result inspectedHelpers;
-    if(objectDraft_.model!=inspectedSource) {
+    if(objectDraft_.model!=inspectedSource || inspectedObject!=draftMeshObject) {
+        inspectedObject=draftMeshObject;
         inspectedSource=objectDraft_.model;
         inspectedHelpers={};
         if(!inspectedSource.empty()&&LegacyMeshImport::Lower(inspectedSource.extension().string())==".3ds")
-            inspectedHelpers=NativeCollisionImport::Read(inspectedSource);
+            inspectedHelpers=NativeCollisionImport::Read(inspectedSource,draftMeshObject);
     }
     if(LegacyMeshImport::Lower(objectDraft_.model.extension().string())==".3ds") {
         if(inspectedHelpers.Valid())
@@ -2484,12 +2494,14 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     if(ImGui::CollapsingHeader("Materials & Shading (native 3DS)",ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::TextWrapped("3DS source values are preserved automatically by default. Draft tint is preview-only; changes below apply on NEW 3DS export, not to the original library.");
         static std::filesystem::path visualMetaSource;
+        static std::string visualMetaObject;
         static Native3DSVisualMetadata::Visual visualMeta;
         static std::string visualMetaError;
-        if(objectDraft_.model!=visualMetaSource){
+        if(objectDraft_.model!=visualMetaSource || visualMetaObject!=draftMeshObject){
+            visualMetaObject=draftMeshObject;
             visualMetaSource=objectDraft_.model;visualMeta={};visualMetaError.clear();
             if(!visualMetaSource.empty()&&LegacyMeshImport::Lower(visualMetaSource.extension().string())==".3ds"){
-                const auto sourceInfo=NativeCollisionImport::Read(visualMetaSource);
+                const auto sourceInfo=NativeCollisionImport::Read(visualMetaSource,draftMeshObject);
                 if(!sourceInfo.visualAnchor.empty())
                     Native3DSVisualMetadata::Read(visualMetaSource,sourceInfo.visualAnchor,visualMeta,visualMetaError);
                 else visualMetaError="Visual node was not resolved.";
@@ -2741,7 +2753,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         objectMeshEditable_=false;objectSelectedVertex_=-1;objectVertexDragActive_=false;objectFacePointCount_=0;
         objectScene_.ReleasePreviewResources();
         if(!objectDraft_.model.empty()) {
-            AssetDefinition preview;preview.name=objectDraft_.name;preview.mesh=objectDraft_.model;
+            AssetDefinition preview;preview.name=objectDraft_.name;preview.mesh=objectDraft_.model;preview.meshObject=draftMeshObject;
             // Draft/source.3ds is intentionally isolated and has no JPGs next
             // to it. Use VERIFIED texture sidecars from its selected Library
             // template for PREVIEW only; do not mutate/copy original assets.
@@ -2755,7 +2767,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
                 objectScene_.ApplyDraftPreviewTint(objectDraft_.tint);
                 try {
                     const auto imported=LegacyMeshImport::Lower(objectDraft_.model.extension().string())==".glb" ?
-                        DraftMeshImport::Load(objectDraft_.model) : LegacyMeshImport::Load(objectDraft_.model);
+                        DraftMeshImport::Load(objectDraft_.model) : LegacyMeshImport::Load(objectDraft_.model,draftMeshObject);
                     objectVisualVertices_.reserve(imported.vertices.size());
                     for(const auto& v:imported.vertices)objectVisualVertices_.push_back({v.position.x,v.position.y,v.position.z});
                     objectVisualIndices_=imported.indices;
@@ -3448,15 +3460,17 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
     // Collision source inspection is file I/O. Cache per selected mesh and
     // re-check modification time instead of re-parsing a 3DS every UI frame.
     static std::filesystem::path inspectedCollisionMesh;
+    static std::string inspectedCollisionObject;
     static std::filesystem::file_time_type inspectedCollisionTimestamp{};
     static NativeCollisionImport::Result inspectedCollisionInfo;
     if(asset && !asset->mesh.empty()) {
         std::error_code ec;
         const auto timestamp=std::filesystem::last_write_time(asset->mesh,ec);
-        if(asset->mesh!=inspectedCollisionMesh || (ec ? false : timestamp!=inspectedCollisionTimestamp)) {
+        if(asset->mesh!=inspectedCollisionMesh || asset->meshObject!=inspectedCollisionObject || (ec ? false : timestamp!=inspectedCollisionTimestamp)) {
+            inspectedCollisionObject=asset->meshObject;
             inspectedCollisionMesh=asset->mesh;
             if(!ec)inspectedCollisionTimestamp=timestamp;
-            inspectedCollisionInfo=NativeCollisionImport::Read(asset->mesh);
+            inspectedCollisionInfo=NativeCollisionImport::Read(asset->mesh,asset->meshObject);
         }
     }
     if(!p.texture.empty()) {
@@ -3469,11 +3483,13 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
         // Material references are embedded in the 3DS, not in this prop's XML.
         // Cache the selected source file: never re-import the mesh on every frame.
         static std::filesystem::path inspectedMaterialMesh;
+        static std::string inspectedMaterialObject;
         static std::string inspectedMaterialName;
-        if(inspectedMaterialMesh!=asset->mesh) {
+        if(inspectedMaterialMesh!=asset->mesh || inspectedMaterialObject!=asset->meshObject) {
+            inspectedMaterialObject=asset->meshObject;
             inspectedMaterialMesh=asset->mesh; inspectedMaterialName="3DS material";
             try {
-                const auto imported=LegacyMeshImport::Load(asset->mesh);
+                const auto imported=LegacyMeshImport::Load(asset->mesh,asset->meshObject);
                 for(const auto& part:imported.parts) if(!part.diffuse.empty()) {
                     inspectedMaterialName=part.diffuse.filename().string(); break;
                 }

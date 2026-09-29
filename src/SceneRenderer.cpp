@@ -534,8 +534,8 @@ std::string SceneRenderer::PathKey(const std::filesystem::path& path) {
     return Lower(normalized.generic_string());
 }
 
-std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::filesystem::path& file, std::string& warning) {
-    const std::string key = PathKey(file);
+std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::filesystem::path& file, std::string& warning,const std::string& objectName) {
+    const std::string key = PathKey(file)+"\x1f"+objectName;
     if (const auto it = meshCache_.find(key); it != meshCache_.end()) return it->second;
     if (!std::filesystem::exists(file)) {
         warning = "Missing mesh: " + Log::PathUtf8(file);
@@ -544,7 +544,7 @@ std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::files
     }
 
     LegacyMeshImport::Model imported;
-    try { imported = Lower(file.extension().string()) == ".glb" ? DraftMeshImport::Load(file) : LegacyMeshImport::Load(file); }
+    try { imported = Lower(file.extension().string()) == ".glb" ? DraftMeshImport::Load(file) : LegacyMeshImport::Load(file,objectName); }
     catch (const std::exception& e) {
         warning = "Mesh import failed: " + Log::PathUtf8(file) + ": " + e.what();
         Log::Error(warning); return {};
@@ -748,10 +748,10 @@ bool SceneRenderer::BuildScene(const MapDocument& map, const AssetRegistry& asse
         std::string warning;
 
         if (!asset->mesh.empty()) {
-            auto mesh = LoadMesh(asset->mesh, warning);
+            auto mesh = LoadMesh(asset->mesh, warning,asset->meshObject);
             if (!mesh) { ++stats_.missingAssets; continue; }
             std::vector<std::shared_ptr<TextureGpu>> textures;
-            std::string key = PathKey(asset->mesh);
+            std::string key = PathKey(asset->mesh)+"\x1f"+asset->meshObject;
             for (const auto& part : mesh->parts) {
                 auto texture = ResolveTexture(*asset, prop.texture, part.diffuse, warning);
                 textures.push_back(texture ? texture : SolidTexture(part.color));
@@ -879,7 +879,7 @@ bool SceneRenderer::BuildAssetPreview(const AssetDefinition& asset, const std::s
     propBindings_.resize(1);
 
     if (!asset.mesh.empty()) {
-        auto mesh = LoadMesh(asset.mesh, warning);
+        auto mesh = LoadMesh(asset.mesh, warning,asset.meshObject);
         if (!mesh) { error = warning.empty() ? "Could not load preview mesh." : warning; return false; }
         std::vector<std::shared_ptr<TextureGpu>> textures;
         for (const auto& part : mesh->parts) {
@@ -1662,7 +1662,7 @@ void SceneRenderer::SetGhost(const std::vector<PropInstance>& props, const Asset
             std::string warning;
             if (asset) {
                 if (!asset->mesh.empty()) {
-                    item.mesh=LoadMesh(asset->mesh,warning);
+                    item.mesh=LoadMesh(asset->mesh,warning,asset->meshObject);
                     if (item.mesh) for (const auto& part:item.mesh->parts) {
                         auto t=ResolveTexture(*asset,props[i].texture,part.diffuse,warning);
                         item.textures.push_back(t?t:SolidTexture(part.color));

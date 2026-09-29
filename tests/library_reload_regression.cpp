@@ -24,7 +24,7 @@ int main() {
     const auto damaged=scratch/"damaged";
     const auto replacement=scratch/"replacement";
     write(first/"Tiles"/"library.xml",
-        "<library name=\"Tiles\"><prop-group name=\"ground\"><prop name=\"Tile\"><mesh file=\"tile.3ds\"/></prop></prop-group></library>");
+        "<library name=\"Tiles\"><prop-group name=\"ground\"><prop name=\"Tile\"><mesh file=\"tile.3ds\" object=\"BoxVisual\"/></prop></prop-group></library>");
     write(damaged/"Broken"/"library.xml","<library><broken");
     write(replacement/"Walls"/"library.xml",
         "<library name=\"Walls\"><prop-group name=\"solid\"><prop name=\"Wall\"><mesh file=\"wall.3ds\"/></prop></prop-group></library>");
@@ -34,10 +34,11 @@ int main() {
     const auto* initial=registry.Find("Tiles","ground","Tile");
     if(!require(initial!=nullptr,"initial asset lookup"))return 3;
     if(!require(initial->originalLibraryXml && *initial->originalLibraryXml==
-        "<library name=\"Tiles\"><prop-group name=\"ground\"><prop name=\"Tile\"><mesh file=\"tile.3ds\"/></prop></prop-group></library>",
+        "<library name=\"Tiles\"><prop-group name=\"ground\"><prop name=\"Tile\"><mesh file=\"tile.3ds\" object=\"BoxVisual\"/></prop></prop-group></library>",
         "full library source bytes missing"))return 12;
     if(!require(initial->originalPropXml.find("<mesh file=\"tile.3ds\"")!=std::string::npos,
         "complete prop definition missing"))return 13;
+    if(!require(initial->meshObject=="BoxVisual","mesh object selector lost"))return 16;
     auto persistentSource=initial->originalLibraryXml;
     // Failed scans must not mutate the usable old library or its root.
     if(!require(!registry.Scan(scratch/"missing",error),"missing folder fails"))return 4;

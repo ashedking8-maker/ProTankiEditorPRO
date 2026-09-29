@@ -1,0 +1,29 @@
+KOMPATIBILITNÝ PATCH IMPORTU/EXPORTU — 2026-09-29
+Pre zaslaný projekt ProTankiEditorPRO-main, verzia 0.5.28.
+
+1. Rozbaľ tento ZIP.
+2. Skopíruj CELÝ jeho obsah do koreňa svojho existujúceho projektu.
+   Zachovaj adresáre src/, tests/, tools/ a docs/; potvrď prepísanie súborov.
+   Archív obsahuje iba nové a zmenené súbory, nie celý projekt.
+3. Nahraj tieto rozbalené súbory do GitHub repozitára na rovnaké cesty.
+   Samotné nahratie ZIP-u ako jedného súboru zdrojový kód nezmení.
+4. Spusť svoj existujúci Windows build workflow (alebo nechaj prebehnúť
+   workflow spúšťaný commitom). Existujúce workflow už spúšťajú CTest.
+   Aktualizovaný CMake pridáva aj nové kompatibilitné regresné testy.
+5. Použi .exe až zo zostavenia, v ktorom prešli build aj testy.
+
+Podrobné vysvetlenie: docs/IMPORT_EXPORT_OPRAVA_SK.md
+Prehľad súborov a SHA-256: PATCH_IMPORT_EXPORT_MANIFEST.json
+
+CMake kompiluje src/. Koreňové kópie zmenených .cpp/.h sú priložené tiež,
+pretože ich obsahoval tvoj ZIP. V tomto balíku sú zhodné s aktívnymi src/.
+Nenahrádzaj projekt iba koreňovými .cpp/.h bez adresára src/.
+
+Lokálne prešlo: 77 Python kontrol, kontrola integrity zdrojov, 4 samostatné
+C++ testovacie programy; čítač spracoval všetkých 30 priložených 3DS vzoriek.
+Úplný Windows/MSVC/Assimp build, nový XML CTest a beh .exe/hry tu neboli
+vykonané. Preto výsledok nie je tvrdením o bezchybnosti všetkých máp.
+
+Tento ZIP neobsahuje novú .exe ani celé pôvodné knižnice. Nevyžaduje
+nahradiť tvoje originálne 3DS objekty alebo mapy. Existujúce označenie
+verzie 0.5.28 a balenie zostávajú zachované; ide o opravu jej zdrojov.

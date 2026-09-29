@@ -57,8 +57,10 @@ class OriginalNativeFramesAudit(unittest.TestCase):
         self.check_original('promotion_bilboard.3ds','bilboard','billboard_original_map.xml')
     def test_source_has_frame_validation_and_world_local_conversion(self):
         src=(DIR.parents[2]/'src/NativeCollisionImport.h').read_text(encoding='utf8')
-        for token in ('const auto toLocal=', 'const auto dirToLocal=',
-                      'Dot(v,axes[at])', 'out.rotation=Euler(bx,by,bz)',
-                      'Unverified scale/shear/mirror'):
+        for token in ('Native3DSScene::LocalVertex', 'frame.position', 'frame.rotation',
+                      'frame.parent!=visual.frame', 'out.rotation=frame.rotation'):
             self.assertIn(token,src)
+        scene=(DIR.parents[2]/'src/Native3DSScene.h').read_text(encoding='utf8')
+        self.assertIn('std::fabs(det)<1.e-9',scene)
+        self.assertIn('Sub(local,frame->pivot)',scene)
 if __name__=='__main__':unittest.main()

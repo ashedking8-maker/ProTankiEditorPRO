@@ -1,0 +1,20 @@
+LOKÁLNE OVERENIE — kompatibilitný patch 2026-09-29
+
+C++ scalar tests (-std=c++20 -O2 -DNDEBUG; only XMFLOAT3 type shim):
+Native3DSWriter: visual mesh, winding, two native-read boxes, materials, keyframes, invalid inputs PASS
+Native visual smoothing masks, source material preservation, face mapping and opt-in overrides PASS
+PASS: game-verified 136->138 terrain helper match, 3DS readback, fail-closed multi-edit, TARA roundtrip
+SWF compatibility: inverse matrices, pivots, angle-axis, explicit selection, direct children, cycle rejection, filename independence, original box scale and old PTPRO migration PASS
+PASS: 4 scalar C++ regression programs; Windows/Assimp/XML tests are separate.
+
+Existing Python audits:
+.............................................................................
+----------------------------------------------------------------------
+Ran 77 tests in 0.034s
+
+OK
+
+Source preflight: PASS
+3DS samples: 30 parsed and selected; 21 with helpers, 9 helperless.
+
+NOT RUN HERE: Windows/MSVC full build, Assimp integration, XML/MapDocument CTests, GPU application, AIR, game.

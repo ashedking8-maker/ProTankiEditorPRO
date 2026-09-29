@@ -1,0 +1,268 @@
+{
+  "patch": "native-import-export-2026-09-29",
+  "base_project": "ProTankiEditorPRO-main 0.5.28",
+  "base_zip_sha256": "d5de22c202b5d8b19132da62cb64909b9a2ddff4fb737752bbe86061e5918167",
+  "reference_swf_sha256": "045c9d239364a7fdce31a177ef2ac371ffd3fc100cd1bee748437fe5d2af5226",
+  "note": "This manifest excludes its own checksum. Archive contains changed/new files only; overlay at the existing repository root.",
+  "files": [
+    {
+      "path": "CMakeLists.txt",
+      "operation": "replace",
+      "bytes": 21283,
+      "sha256": "06e36cfb198d6be082aacff57d7707a93f20035f8133f76a4cbf18fc9ebc8d2f",
+      "original_sha256": "c0fba87d6aa15f5bfda35c7e710de2cee4ccd8f78cffe22d976cbb38b69201e5"
+    },
+    {
+      "path": "EditorUi.cpp",
+      "operation": "replace",
+      "bytes": 294270,
+      "sha256": "cbf0c359ec0bd39b4c8c46e7c41036ed5382c67c224a6b8bb5853fb6565ff054",
+      "original_sha256": "391d3c2f95ef2dbfd63b9143c80978b4fec432ff20194061cdaa4b7770838b09"
+    },
+    {
+      "path": "MapDocument.cpp",
+      "operation": "replace",
+      "bytes": 103867,
+      "sha256": "76001da77f85ff5d8c7607929c0d63e9c6d8ca613f01e5c2bc3e514b48c37f21",
+      "original_sha256": "cb4a2db70d1af054a35e93e28d3c421de0748b1d560c52d4ee1465d8004fcaa7"
+    },
+    {
+      "path": "Native3DSScene.h",
+      "operation": "add",
+      "bytes": 10406,
+      "sha256": "f36c44c0471dc6e057d0538871c7f42809e2b2924b4307f71cac79098de6a9ff",
+      "original_sha256": null
+    },
+    {
+      "path": "NativeCollisionImport.h",
+      "operation": "replace",
+      "bytes": 7400,
+      "sha256": "d7f2f2db86ba8ce1d66d6a7903f724d1d624614e689e7f10d917f0496984013c",
+      "original_sha256": "e42085f6dbad699535b723b6762ede077a69fd0a0f0b7865c9940bc54fe2c4e5"
+    },
+    {
+      "path": "PATCH_IMPORT_EXPORT_SK.txt",
+      "operation": "add",
+      "bytes": 1697,
+      "sha256": "e9807d61d7bf4d27af62bb991f2b6908c7e6b579ff29633b12df0a556c43b1cb",
+      "original_sha256": null
+    },
+    {
+      "path": "SceneRenderer.cpp",
+      "operation": "replace",
+      "bytes": 111605,
+      "sha256": "7451fb36b0406591febac16aa8bac36cded2e238a31bed36c8397f6bd6e9673b",
+      "original_sha256": "b4839368a6befeb232d26849b39b4845e2aa3140d3ac72484ae1639b416e2f9d"
+    },
+    {
+      "path": "check_source_consistency.py",
+      "operation": "replace",
+      "bytes": 34172,
+      "sha256": "02b1e5464dbb05f0dcd83ef9126594a128e4f75a87d9306c89b8fee7c3e087b2",
+      "original_sha256": "8485bd8dc83c58027314260723ad082a2fb7311645a8e5e2450449a7c73bf2af"
+    },
+    {
+      "path": "docs/IMPORT_EXPORT_OPRAVA_SK.md",
+      "operation": "add",
+      "bytes": 13617,
+      "sha256": "5c39d5c6ae5540c7e991b738f69080d458e2e723b526b01e1825476423e04c92",
+      "original_sha256": null
+    },
+    {
+      "path": "docs/IMPORT_EXPORT_TEST_RESULTS.txt",
+      "operation": "add",
+      "bytes": 1099,
+      "sha256": "7e3f0d96200524aefebce9cca69950d9f2406b9332fc64ad23f684b34351194d",
+      "original_sha256": null
+    },
+    {
+      "path": "native_3ds_helper_regression.cpp",
+      "operation": "replace",
+      "bytes": 11615,
+      "sha256": "306b9270f0f57016c4aa082f7520d521de32db08f0afdac784539855a0e05fee",
+      "original_sha256": "f8d08efd615452ea717af860235b1b7569519a4104cea3952b14fc22f23bedba"
+    },
+    {
+      "path": "src/AssetRegistry.cpp",
+      "operation": "replace",
+      "bytes": 5260,
+      "sha256": "2763b274a2558a5e5d07cae5e865028a2205e7cfa3de10e82b94ee712fb6f08f",
+      "original_sha256": "c6dfea52acec6177ac3a95a10be91cb4dfd660c671c3f6a119f469097dc74d9e"
+    },
+    {
+      "path": "src/AssetRegistry.h",
+      "operation": "replace",
+      "bytes": 1664,
+      "sha256": "ca7d6bdca0928bdd847c8c4b06f23b9441bc32fd2184b9663a12489df8935d35",
+      "original_sha256": "ba108c2720f810100047a406be068b56cc3044c6f0fd014048c45974db75e5d4"
+    },
+    {
+      "path": "src/EditorUi.cpp",
+      "operation": "replace",
+      "bytes": 294270,
+      "sha256": "cbf0c359ec0bd39b4c8c46e7c41036ed5382c67c224a6b8bb5853fb6565ff054",
+      "original_sha256": "2285b2a8ac7f10ee484c5d227f51015a4fcb36ce4f82765204da6b2054598f6b"
+    },
+    {
+      "path": "src/LegacyMeshImport.h",
+      "operation": "replace",
+      "bytes": 13503,
+      "sha256": "e2f493a497f779047981d3dfa67d1da4c6b6e8f94b476456b358bda578c08d0f",
+      "original_sha256": "a7571da275260be4f9388f7ee5f4735a4f10453dd4e433564fb63604d5ffc561"
+    },
+    {
+      "path": "src/MapDocument.cpp",
+      "operation": "replace",
+      "bytes": 103867,
+      "sha256": "76001da77f85ff5d8c7607929c0d63e9c6d8ca613f01e5c2bc3e514b48c37f21",
+      "original_sha256": "f35156c3bf2148e5d0b43d758b2c92f02c86e7c74f99cc29fa61b119ae8b874f"
+    },
+    {
+      "path": "src/MapDocument.h",
+      "operation": "replace",
+      "bytes": 12099,
+      "sha256": "2ad32513cd063595d4ca6ad25b96e78a38be52961e56630738bc884dd4a547d1",
+      "original_sha256": "2595f0e3add22f0b601d0748a05f813892414c2d0248ae189a39fda55ebe89d1"
+    },
+    {
+      "path": "src/Native3DSScene.h",
+      "operation": "add",
+      "bytes": 10406,
+      "sha256": "f36c44c0471dc6e057d0538871c7f42809e2b2924b4307f71cac79098de6a9ff",
+      "original_sha256": null
+    },
+    {
+      "path": "src/Native3DSVisualMetadata.h",
+      "operation": "replace",
+      "bytes": 11749,
+      "sha256": "e6f5548777856fb07274942e2afa3df7e28db10404673da1e3ca3f9f35587fce",
+      "original_sha256": "6c592d43f5f55b573b0e54be7b6c2173424f4eac4653b96bb678d4070f3323b6"
+    },
+    {
+      "path": "src/Native3DSWriter.h",
+      "operation": "replace",
+      "bytes": 12620,
+      "sha256": "79481a8be1ea67e5aef73f20dd2b124ce3ef12b09a0f5464a2e5d8d3f89ccaa6",
+      "original_sha256": "71468d97c0681af1383c93dc7e0e0f81c2e8bcf0a9d38cdf6d23d27ac54c2e2f"
+    },
+    {
+      "path": "src/NativeCollisionImport.h",
+      "operation": "replace",
+      "bytes": 7400,
+      "sha256": "d7f2f2db86ba8ce1d66d6a7903f724d1d624614e689e7f10d917f0496984013c",
+      "original_sha256": "faaf541ce85289a2a46bed671ce8ec75b84abc5bbe092509e3b30fb5ffb1fa7c"
+    },
+    {
+      "path": "src/NativeObjectExport.h",
+      "operation": "replace",
+      "bytes": 22257,
+      "sha256": "15e9bdc909adc9ef0285fe90e669ec19086d75ed995f0946106f6cee82ae83b1",
+      "original_sha256": "c2e24699e7fff23f7343a88d8509b86593db1cf40c26881451bbf0e62af8d239"
+    },
+    {
+      "path": "src/NativeTerrainDelta.h",
+      "operation": "replace",
+      "bytes": 8938,
+      "sha256": "0174036ee3aa75ef4c32f6ea3f2aadd4657680d6d8ac75781497f627b5fe6a0c",
+      "original_sha256": "651e40d49bd4a1bb8b0d06b84bc625d754b4067441657f0c22108f875f8152ee"
+    },
+    {
+      "path": "src/SceneRenderer.cpp",
+      "operation": "replace",
+      "bytes": 111605,
+      "sha256": "7451fb36b0406591febac16aa8bac36cded2e238a31bed36c8397f6bd6e9673b",
+      "original_sha256": "ca0cecadb34f6b71813643f776751a58e2733f7d2d3794ec614676b5af84a17b"
+    },
+    {
+      "path": "src/SceneRenderer.h",
+      "operation": "replace",
+      "bytes": 15108,
+      "sha256": "077e7509ba0b80348f0ff0d31b23fcc4b676bf288dc8965bbb33e6dea968ad5c",
+      "original_sha256": "ae992a116626a26c254da5a6eb66f8866c6f65bb882248c5677b3c3a51520575"
+    },
+    {
+      "path": "test_native_box_0519_audit.py",
+      "operation": "replace",
+      "bytes": 3106,
+      "sha256": "7571bdbbee0a5bc5e370dc46d7bc24502eceba2010de8de949e82603466d4326",
+      "original_sha256": "b718a92d1674b5d29d393ab842d81d14e4cc51c6ffa0117187e72ff88e92e716"
+    },
+    {
+      "path": "test_native_helper_0515_audit.py",
+      "operation": "replace",
+      "bytes": 5423,
+      "sha256": "ba9d6b28a31e04e39a0c77801d749fa6e20a99f49514ccec10e3ce4901101850",
+      "original_sha256": "14a3516380d16e963e6094d149e4922577255bfeeab8f7b4c13b00e5154b85a8"
+    },
+    {
+      "path": "tests/library_reload_regression.cpp",
+      "operation": "replace",
+      "bytes": 3688,
+      "sha256": "f8dd2b69a6c9ac23aff01d869069375aeefb1a4b467d611d1c4f8cdf3cf86cdc",
+      "original_sha256": "4a41e0c361dafc3682d04114fab2743848c66e913fcd94db1c67ab615213f3d1"
+    },
+    {
+      "path": "tests/native_3ds_helper_regression.cpp",
+      "operation": "replace",
+      "bytes": 11615,
+      "sha256": "306b9270f0f57016c4aa082f7520d521de32db08f0afdac784539855a0e05fee",
+      "original_sha256": "471beda5bf2fa8e79b8ab591a7385e36c100669520566f882af8dcb80c075806"
+    },
+    {
+      "path": "tests/native_swf_compatibility_regression.cpp",
+      "operation": "add",
+      "bytes": 5404,
+      "sha256": "3145c9f71c71619dcc6c1135667fd85ddbfc33f315f94d2dfc2a0116e481586f",
+      "original_sha256": null
+    },
+    {
+      "path": "tests/native_xml_compatibility_regression.cpp",
+      "operation": "add",
+      "bytes": 4767,
+      "sha256": "e2a94a68d4f5dd5349231f3fee705a91305d2f4588c79f4aded5b2a0d18a1ab6",
+      "original_sha256": null
+    },
+    {
+      "path": "tests/test_library_placement_0521_audit.py",
+      "operation": "replace",
+      "bytes": 3531,
+      "sha256": "7ccd556558ace497507ee9c42f3a833890d73c9b2d1c440612e0a0ec2de3077f",
+      "original_sha256": "96e367ab4af590930127196c7f48029a39d8fe4c5bf34e07b97f8a5df2f4bef7"
+    },
+    {
+      "path": "tests/test_native_box_0519_audit.py",
+      "operation": "replace",
+      "bytes": 3106,
+      "sha256": "7571bdbbee0a5bc5e370dc46d7bc24502eceba2010de8de949e82603466d4326",
+      "original_sha256": "b718a92d1674b5d29d393ab842d81d14e4cc51c6ffa0117187e72ff88e92e716"
+    },
+    {
+      "path": "tests/test_native_frames_0520_audit.py",
+      "operation": "replace",
+      "bytes": 3562,
+      "sha256": "44fa7064923ee6394cf6e099efdde807ae694657bd705bca345d3c08568523c7",
+      "original_sha256": "29589e428d8199545d9a65cce21d7b80b4a79277dd629d7a8a082743c3d39720"
+    },
+    {
+      "path": "tests/test_native_helper_0515_audit.py",
+      "operation": "replace",
+      "bytes": 5423,
+      "sha256": "ba9d6b28a31e04e39a0c77801d749fa6e20a99f49514ccec10e3ce4901101850",
+      "original_sha256": "15e02adae2af182642462f94d84c19608352a44345dcf63b780ee91d98d1882f"
+    },
+    {
+      "path": "tools/check_source_consistency.py",
+      "operation": "replace",
+      "bytes": 34172,
+      "sha256": "02b1e5464dbb05f0dcd83ef9126594a128e4f75a87d9306c89b8fee7c3e087b2",
+      "original_sha256": "5c408154cc911905283770266765885e3aa5a22f3358de4c578d3d14ec5a9976"
+    },
+    {
+      "path": "tools/run_native_cpu_tests.py",
+      "operation": "add",
+      "bytes": 1717,
+      "sha256": "2f1ba575ad2521d0d08c0d07cecf2c0c8ef8524a87c65df42db75b690aaf01ef",
+      "original_sha256": null
+    }
+  ]
+}

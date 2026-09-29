@@ -133,7 +133,7 @@ inline Bytes KeyTrack(const std::vector<float>& values){
 inline Bytes KeyNode(const std::string& name,std::uint16_t index){
     Bytes node,id,header,pivot;
     U16(id,index);Add(node,Chunk(0xB030,id));
-    CStr(header,name);U16(header,0);U16(header,0);U16(header,0xffff);Add(node,Chunk(0xB010,header));
+    CStr(header,name);U16(header,0);U16(header,0);U16(header,index==0?0xffff:0);Add(node,Chunk(0xB010,header));
     for(int i=0;i<3;++i)Float(pivot,0.f);
     Add(node,Chunk(0xB013,pivot));
     Add(node,Chunk(0xB020,KeyTrack({0.f,0.f,0.f})));

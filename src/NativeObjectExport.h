@@ -56,6 +56,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     const auto prop=templateDoc.child("prop"),meshNode=prop.child("mesh");
     if(!parse||!prop||!meshNode||!prop.attribute("name")||!meshNode.attribute("file")||
        std::string(prop.attribute("name").value())!=d.templateName||
+       std::string(meshNode.attribute("object").value())!=source->meshObject||
        Lower(fs::path(meshNode.attribute("file").value()).filename().string())!=Lower(source->mesh.filename().string())){
         error="The selected library prop and 3DS source do not agree.";return false;
     }
@@ -67,7 +68,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     for(auto n:prop.children())if(n!=meshNode){
         error="The template contains extra gameplay nodes; native conversion is not verified.";return false;
     }
-    for(auto a:meshNode.attributes())if(std::string(a.name())!="file"){
+    for(auto a:meshNode.attributes())if(std::string(a.name())!="file" && std::string(a.name())!="object"){
         error="The source mesh has extra attributes requiring separate conversion.";return false;
     }
     size_t listedTextures=0;for(auto ignored:meshNode.children("texture")){(void)ignored;++listedTextures;}
@@ -88,7 +89,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     const auto final=root/library;
     if(fs::exists(final,ec)||ec||fs::exists(root/(library+".tara"),ec)){error="Custom library or TARA already exists. Rename the draft; nothing was overwritten.";return false;}
     LegacyMeshImport::Model imported;
-    try{imported=LegacyMeshImport::Load(d.model);}
+    try{imported=LegacyMeshImport::Load(d.model,source->meshObject);}
     catch(const std::exception& ex){error=std::string("Source 3DS import failed: ")+ex.what();return false;}
     if(imported.vertices.empty()||imported.indices.empty()||imported.parts.empty()||
        imported.vertices.size()>65535||imported.indices.size()/3>65535){
@@ -96,7 +97,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     }
     // Read the SOURCE 3DS metadata, not Assimp's generated preview normals:
     // preserve per-face smoothing masks and complete original material chunks.
-    const auto sourceCollision=NativeCollisionImport::Read(source->mesh);
+    const auto sourceCollision=NativeCollisionImport::Read(source->mesh,source->meshObject);
     if(sourceCollision.visualAnchor.empty()){
         error="Original 3DS visual anchor could not be resolved.";return false;
     }
@@ -172,7 +173,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     // constrained heightfield case use original authored helpers, conform them
     // to the edited visual surface and split the peak-containing source face.
     // Unsupported multi-vertex edits fail closed instead of releasing a wall.
-    const auto originalCollision=NativeCollisionImport::Read(source->mesh);
+    const auto originalCollision=NativeCollisionImport::Read(source->mesh,source->meshObject);
     // A malformed/unsupported original collision helper must never be silently
     // replaced by plausible-looking authored boxes. Only a genuinely helperless
     // source can start with explicitly authored draft boxes.
@@ -194,7 +195,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
         d.boxes.size(),error))return false;
     if(d.purpose!=ObjectDraft::Purpose::Decorative){
         if(terrain){
-            if(!NativeTerrainDelta::Build(source->mesh,output,output.triangles,error))return false;
+            if(!NativeTerrainDelta::Build(source->mesh,output,output.triangles,error,source->meshObject))return false;
         }else{
             for(const auto& b:d.boxes)output.boxes.push_back({b.min,b.max});
         }
@@ -260,6 +261,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     auto group=lib.append_child("prop-group");group.append_attribute("name").set_value("default");
     auto item=group.append_child("prop");item.append_attribute("name").set_value(d.name.c_str());
     auto model=item.append_child("mesh");model.append_attribute("file").set_value("ptpro_mesh.3ds");
+    model.append_attribute("object").set_value("ptpro_mesh");
     for(const auto& variant:source->textures){
         auto t=model.append_child("texture");t.append_attribute("name").set_value(variant.name.c_str());
         t.append_attribute("diffuse-map").set_value(variant.diffuse.filename().string().c_str());

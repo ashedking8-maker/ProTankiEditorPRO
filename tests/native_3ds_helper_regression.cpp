@@ -27,7 +27,7 @@ int main(int argc,char** argv) {
     if(!outerWall.Valid() || outerWall.planes.size()!=2 || !outerWall.boxes.empty() || !outerWall.triangles.empty())
         return Fail(42,"original Outer Wall 1 has two near-rectangular native plane helpers: "+outerWall.error);
     if(!scaledBox.Valid() || scaledBox.boxes.size()!=1 || !scaledBox.planes.empty() || !scaledBox.triangles.empty() ||
-       !Eq(scaledBox.boxes[0].size.x,500.f,.05f) || !Eq(scaledBox.boxes[0].size.y,60.f,.05f) ||
+       !Eq(scaledBox.boxes[0].size.x,500.f,.05f) || !Eq(scaledBox.boxes[0].size.y,30.f,.05f) ||
        !Eq(scaledBox.boxes[0].size.z,150.f,.05f))
         return Fail(43,"original ComBuild box with orthogonal scaled frame: "+scaledBox.error);
     if (!tower.Valid() || tower.planes.size()!=6 || !tower.boxes.empty() || !tower.triangles.empty())
@@ -61,8 +61,8 @@ int main(int argc,char** argv) {
     const auto missing=NativeCollisionImport::Read(dir/"missing.3ds");
     if(missing.Valid())return Fail(5,"missing model must be rejected");
     const auto scaled=NativeCollisionImport::Read(dir/"invalid_scaled_visual_frame.3ds");
-    if(scaled.Valid()||scaled.error.find("scale/shear/mirror")==std::string::npos)
-        return Fail(39,"non-rigid original 3DS frame must fail closed");
+    if(!scaled.Valid()||scaled.boxes.size()!=2)
+        return Fail(39,"invertible scaled visual frame must use original Parser3DS inverse matrix");
     // Independent GTanks Editor / ProTLVK native XML (not authored by this writer).
     // Equivalent plane orientations and triangle-local vertex orderings must bind
     // via transformed world geometry without ever fabricating new colliders.

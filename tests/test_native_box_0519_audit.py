@@ -46,7 +46,7 @@ class NativeBox0519Audit(unittest.TestCase):
         imp=(ROOT/'src/NativeCollisionImport.h').read_text()
         doc=(ROOT/'src/MapDocument.cpp').read_text()
         ui=(ROOT/'src/EditorUi.cpp').read_text()
-        for token in ('result.boxes.push_back(out)','Missing box corners:','No native plane/box/triangle helpers'):
+        for token in ('result.boxes.push_back(out)','out.size=Sub(hi,lo)','No native plane/box/triangle helpers'):
             self.assertIn(token,imp)
         for token in ('for(const auto& shape:source.boxes)','collisionBoxes_.push_back(c)','for(const auto i:boxes)collisionBoxes_[i].authoredOwnerIndex=owner'):
             self.assertIn(token,doc)

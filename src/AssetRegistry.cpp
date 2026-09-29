@@ -67,6 +67,7 @@ bool AssetRegistry::Scan(const std::filesystem::path& libraryRoot, std::string& 
                 a.originalPropXml=rawProp.str();
                 if (auto mesh = prop.child("mesh")) {
                     a.mesh = entry.path() / mesh.attribute("file").as_string();
+                    a.meshObject = mesh.attribute("object").as_string();
                     for (auto tex : mesh.children("texture")) {
                         a.textures.push_back({tex.attribute("name").as_string(), entry.path() / tex.attribute("diffuse-map").as_string()});
                     }

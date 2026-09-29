@@ -98,8 +98,8 @@ class OriginalNativeGeometryAudit(unittest.TestCase):
         self.assertIn('Edit solid/trigger boxes below.',ui)
         self.assertIn('GLB native conversion is not implemented',ui)
         self.assertIn('NativeObjectExport::Export(toExport,assets,exported,error)',ui)
-        self.assertIn('Unverified scale/shear/mirror in 3DS visual pivot',importer)
-        self.assertIn('Missing box corners:',importer)
+        self.assertIn('Invalid 3DS helper local frame:',importer)
+        self.assertIn('Degenerate 3DS box helper:',importer)
         self.assertIn('result.boxes.push_back(out)',importer)
 
 if __name__=='__main__':unittest.main()

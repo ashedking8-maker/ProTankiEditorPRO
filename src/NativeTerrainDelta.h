@@ -39,11 +39,24 @@ inline bool Sample(float x,float y,const std::vector<V>& points,const std::vecto
     return hit;
 }
 inline bool Build(const std::filesystem::path& source,const Native3DSWriter::Model& updated,
-                  std::vector<Tri>& tris,std::string& error){
+                  std::vector<Tri>& tris,std::string& error,const std::string& objectName={}){
     tris.clear();
-    const auto native=NativeCollisionImport::Read(source);
+    const auto native=NativeCollisionImport::Read(source,objectName);
     if(!native.Valid()||native.triangles.empty()||!native.planes.empty()||!native.boxes.empty()||native.triangles.size()>1024){
         error="Terrain conversion requires a verified triangle-only original 3DS helper mesh.";return false;
+    }
+    Native3DSScene::Scene hierarchy;Native3DSScene::Selection selected;
+    if(!Native3DSScene::Read(source,hierarchy,error)||!Native3DSScene::Resolve(hierarchy,objectName,selected,error))return false;
+    // This deliberately narrow terrain editor only supports identity keyframes.
+    // A general terrain converter would have to transform helper frames as well.
+    for(const auto& frame:hierarchy.frames){
+        const auto scaleDelta=Native3DSScene::Sub(frame.scale,{1,1,1});
+        if(Native3DSScene::Dot(frame.pivot,frame.pivot)>.000001f||
+           (&frame!=Native3DSScene::SelectedFrame(hierarchy,selected) && Native3DSScene::Dot(frame.position,frame.position)>.000001f)||
+           Native3DSScene::Dot(frame.rotation,frame.rotation)>.000001f||
+           Native3DSScene::Dot(scaleDelta,scaleDelta)>.000001f){
+            error="Terrain conversion requires identity keyframes; source remains unchanged.";return false;
+        }
     }
     std::string parseError;const auto nodes=NativeCollisionImport::ReadNodes(source,parseError);
     if(!parseError.empty()){error=parseError;return false;}
