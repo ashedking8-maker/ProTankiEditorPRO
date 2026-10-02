@@ -37,9 +37,11 @@ jobs:
         shell: powershell
         run: node report_gateway/discord/test_gateway.mjs
 
-      - name: Install NSIS installer compiler
+      - name: Install packaging tools
         shell: powershell
-        run: choco install nsis -y --no-progress
+        run: |
+          choco install nsis -y --no-progress
+          choco install 7zip -y --no-progress
 
       - name: Configure x64 Release
         shell: powershell
@@ -80,14 +82,37 @@ jobs:
             throw "ProTankiEditorPRO-0.5.28-Portable.zip was not created"
           }
 
-      - name: Upload Windows packages
+      - name: Create AES-256 encrypted Windows package
+        shell: powershell
+        env:
+          ARCHIVE_PASSWORD: ${{ secrets.ARCHIVE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:ARCHIVE_PASSWORD)) {
+            throw "Repository secret ARCHIVE_PASSWORD is missing or empty"
+          }
+          $sevenZip = Join-Path $env:ProgramFiles "7-Zip\7z.exe"
+          if (!(Test-Path $sevenZip)) { throw "7-Zip was not found at $sevenZip" }
+
+          $archive = "build/ProTankiEditorPRO-0.5.28-Windows-Encrypted.7z"
+          if (Test-Path $archive) { Remove-Item $archive -Force }
+
+          & $sevenZip a -t7z -mx=9 -mhe=on "-p$env:ARCHIVE_PASSWORD" $archive `
+            "build/ProTankiEditorPRO-0.5.28-Setup.exe" `
+            "build/ProTankiEditorPRO-0.5.28-Portable.zip" `
+            "build/ProTankiEditorPRO-0.5.28-SHA256.txt"
+          if ($LASTEXITCODE -ne 0) { throw "AES-256 archive creation failed" }
+          if (!(Test-Path $archive)) { throw "Encrypted archive was not created" }
+
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($archive))" | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.28-Encrypted-SHA256.txt"
+
+      - name: Upload encrypted Windows package
         uses: actions/upload-artifact@v6
         with:
-          name: ProTankiEditorPRO-Windows-0.5.28
+          name: ProTankiEditorPRO-Windows-0.5.28-Encrypted
           path: |
-            build/ProTankiEditorPRO-0.5.28-Setup.exe
-            build/ProTankiEditorPRO-0.5.28-Portable.zip
-            build/ProTankiEditorPRO-0.5.28-SHA256.txt
+            build/ProTankiEditorPRO-0.5.28-Windows-Encrypted.7z
+            build/ProTankiEditorPRO-0.5.28-Encrypted-SHA256.txt
           if-no-files-found: error
 
       - name: Publish direct download in Releases
@@ -106,13 +131,28 @@ jobs:
             gh release create $tag `
               --target "${{ github.sha }}" `
               --title "ProTanki Editor PRO - Latest Build" `
-              --notes "Automatic Windows x64 development build. Download ProTankiEditorPRO-0.5.28-Setup.exe for the normal installer." `
+              --notes "Automatic Windows x64 development build. The downloadable 7z package is AES-256 encrypted and requires the separately shared password." `
               --prerelease
             if ($LASTEXITCODE -ne 0) { throw "Cannot create latest-build release" }
           }
+          # Remove plaintext assets left by older workflows, if present.
+          $release = gh release view $tag --json assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "Cannot inspect latest-build release assets" }
+          $assetNames = @($release.assets | ForEach-Object { $_.name })
+          $plaintextAssets = @(
+            "ProTankiEditorPRO-0.5.28-Setup.exe",
+            "ProTankiEditorPRO-0.5.28-Portable.zip",
+            "ProTankiEditorPRO-0.5.28-SHA256.txt"
+          )
+          foreach ($asset in $plaintextAssets) {
+            if ($assetNames -contains $asset) {
+              gh release delete-asset $tag $asset -y
+              if ($LASTEXITCODE -ne 0) { throw "Cannot remove old plaintext release asset: $asset" }
+            }
+          }
+
           gh release upload $tag `
-            "build/ProTankiEditorPRO-0.5.28-Setup.exe#ProTankiEditorPRO-0.5.28-Setup.exe" `
-            "build/ProTankiEditorPRO-0.5.28-Portable.zip#ProTankiEditorPRO-0.5.28-Portable.zip" `
-            "build/ProTankiEditorPRO-0.5.28-SHA256.txt#ProTankiEditorPRO-0.5.28-SHA256.txt" `
+            "build/ProTankiEditorPRO-0.5.28-Windows-Encrypted.7z#ProTankiEditorPRO-0.5.28-Windows-Encrypted.7z" `
+            "build/ProTankiEditorPRO-0.5.28-Encrypted-SHA256.txt#ProTankiEditorPRO-0.5.28-Encrypted-SHA256.txt" `
             --clobber
-          if ($LASTEXITCODE -ne 0) { throw "Cannot upload release assets" }
+          if ($LASTEXITCODE -ne 0) { throw "Cannot upload encrypted release assets" }
