@@ -709,7 +709,7 @@ void SceneRenderer::ReleasePreviewResources() {
 }
 
 void SceneRenderer::ClearScene() {
-    movingSnapCache_={};fixedSnapCaches_.clear();
+    movingSnapCaches_.clear();fixedSnapCaches_.clear();
     meshBatches_.clear(); spriteBatches_.clear(); functionalModelBatches_ = {}; ghostItems_.clear(); pickProxies_.clear(); propBindings_.clear(); selectedProps_.clear(); selectedProp_ = -1; stats_ = {}; lastWarning_.clear(); hasBounds_ = false;
     debugVertices_.clear(); functionalPadBuffer_.Reset(); functionalPadVertices_=functionalFlagVertices_=functionalPointVertices_=0; functionalSpawnStarts_.fill(0);functionalSpawnCounts_.fill(0); functionalGhostActive_=false; boundsVertexCount_ = 0; gameplayVertexCount_ = 0; zoneVertexCount_ = 0; debugVertexBuffer_.Reset();
     collisionFaceBuffer_.Reset(); collisionEdgeBuffer_.Reset(); collisionFaceVertices_=collisionEdgeVertices_=0; collisionPreviewCounts_.fill(0);
@@ -1684,15 +1684,26 @@ PlacementSnap::Shape SceneRenderer::SnapShape(const std::shared_ptr<MeshGpu>& me
     }
     return PlacementSnap::Translate(cache.shape,prop.position.x,prop.position.y,prop.position.z);
 }
-PlacementSnap::Match SceneRenderer::SuggestPlacementSnap(const PropInstance& moving,const MapDocument& map,
-        float tolerance,float clearance) {
-    if(ghostItems_.size()!=1 || !ghostItems_[0].mesh)return {};
-    const auto movingShape=SnapShape(ghostItems_[0].mesh,moving,movingSnapCache_);
+PlacementSnap::Match SceneRenderer::SuggestPlacementSnap(const std::vector<PropInstance>& moving,const MapDocument& map,
+        float cell,PlacementSnap::Point cursorDelta,float clearance) {
+    if(moving.empty() || ghostItems_.size()!=moving.size() || cell<=0)return {};
+    movingSnapCaches_.resize(moving.size());
+    std::vector<PlacementSnap::Shape> shapes;shapes.reserve(moving.size());
+    for(size_t i=0;i<moving.size();++i){
+        const auto& item=ghostItems_[i];
+        if(item.mesh)shapes.push_back(SnapShape(item.mesh,moving[i],movingSnapCaches_[i]));
+        else if(item.sprite){
+            const auto p=moving[i].position;
+            const double hw=.5*item.sprite->width*item.spriteScale,h=item.sprite->height*item.spriteScale;
+            shapes.push_back({{{p.x-hw,p.y-hw},{p.x+hw,p.y-hw},{p.x+hw,p.y+hw},{p.x-hw,p.y+hw}},p.z-h*.05,p.z+h});
+        }else return {}; // missing geometry: preserve ordinary grid, do not invent a group boundary
+    }
+    const auto movingShape=PlacementSnap::Merge(shapes);
+    const double tolerance=cell*1.5;
     double minX,maxX,minY,maxY;
     PlacementSnap::Project(movingShape,{1,0},minX,maxX);PlacementSnap::Project(movingShape,{0,1},minY,maxY);
     PlacementSnap::Match best;
-    // Cheap bounds pass over the scene; load/cache hulls only for nearby meshes.
-    // Compare every result against the SAME raw probe, never the prior match.
+    double bestDistanceSquared=PlacementSnap::Dot(cursorDelta,cursorDelta);
     for(const auto& proxy:pickProxies_){
         const int index=proxy.propIndex;
         if(index<0 || static_cast<size_t>(index)>=map.Props().size() || static_cast<size_t>(index)>=propBindings_.size())continue;
@@ -1702,8 +1713,8 @@ PlacementSnap::Match SceneRenderer::SuggestPlacementSnap(const PropInstance& mov
         const auto& binding=propBindings_[static_cast<size_t>(index)];
         if(binding.kind!=PropBinding::Kind::Mesh || binding.batch>=meshBatches_.size() || !meshBatches_[binding.batch].mesh)continue;
         const auto fixed=SnapShape(meshBatches_[binding.batch].mesh,map.Props()[static_cast<size_t>(index)],fixedSnapCaches_[index]);
-        const auto match=PlacementSnap::Find(movingShape,fixed,tolerance,clearance);
-        PlacementSnap::Consider(best,match);
+        const auto match=PlacementSnap::FindDiscrete(movingShape,fixed,tolerance,clearance,cursorDelta,bestDistanceSquared);
+        if(match.matched)best=match;
     }
     return best;
 }

@@ -50,6 +50,34 @@ inline Match Find(const Shape& moving,const Shape& fixed,double tolerance,double
     }
     return result;
 }
+// Additional DISCRETE nodes are generated from the regular lattice position.
+// The raw cursor ranks nodes only; it never supplies their tangential position.
+inline Match FindDiscrete(const Shape& moving,const Shape& fixed,double reach,double clearance,
+                          Point cursorDelta,double& bestDistanceSquared) {
+    Match result;
+    if(moving.hull.size()<3||fixed.hull.size()<3||reach<=0||!std::isfinite(reach))return result;
+    if(moving.maxZ<fixed.minZ-.01||fixed.maxZ<moving.minZ-.01)return result;
+    for(size_t i=0;i<fixed.hull.size();++i){
+        const auto a=fixed.hull[i],b=fixed.hull[(i+1)%fixed.hull.size()];
+        const double len=std::hypot(b.x-a.x,b.y-a.y);if(len<1e-8)continue;
+        const Point tangent{(b.x-a.x)/len,(b.y-a.y)/len},normal{tangent.y,-tangent.x};
+        double lo,hi;Project(moving,normal,lo,hi);
+        const double delta=Dot(a,normal)+clearance-lo;if(std::fabs(delta)>reach)continue;
+        double tl=std::numeric_limits<double>::infinity(),th=-tl;
+        for(auto p:moving.hull)if(std::fabs(Dot(p,normal)-lo)<1e-5){const double t=Dot(p,tangent);tl=std::min(tl,t);th=std::max(th,t);}
+        if(std::min(th,Dot(b,tangent))-std::max(tl,Dot(a,tangent))< -1e-5)continue;
+        const double dx=normal.x*delta,dy=normal.y*delta;
+        const double distance=(dx-cursorDelta.x)*(dx-cursorDelta.x)+(dy-cursorDelta.y)*(dy-cursorDelta.y);
+        if(distance+1e-6>=bestDistanceSquared)continue; // regular grid wins ties
+        bestDistanceSquared=distance;result={true,dx,dy,a,b};
+    }
+    return result;
+}
+inline Shape Merge(const std::vector<Shape>& shapes){
+    Shape result;result.minZ=std::numeric_limits<double>::infinity();result.maxZ=-result.minZ;
+    for(const auto& s:shapes){result.hull.insert(result.hull.end(),s.hull.begin(),s.hull.end());result.minZ=std::min(result.minZ,s.minZ);result.maxZ=std::max(result.maxZ,s.maxZ);}
+    result.hull=Hull(std::move(result.hull));return result;
+}
 inline float Coordinate(float value,float step,bool enabled,float anchor=0.f){return enabled&&std::isfinite(step)&&step>.0001f?anchor+std::round((value-anchor)/step)*step:value;}
 inline float Height(float current,float direction,float step,bool snap,float anchor=0.f){return direction==0?current:Coordinate(current+direction*step,step,snap,anchor);}
 }

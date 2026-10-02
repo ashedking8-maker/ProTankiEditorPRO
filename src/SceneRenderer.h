@@ -101,8 +101,8 @@ public:
     // changes XML or ghost until caller explicitly applies the returned delta.
     bool SuggestEdgeSnap(const std::vector<PropInstance>& props,float tolerance,
                          float clearance,float& legacyDx,float& legacyDy) const;
-    PlacementSnap::Match SuggestPlacementSnap(const PropInstance& moving,const MapDocument& map,
-        float tolerance,float clearance);
+    PlacementSnap::Match SuggestPlacementSnap(const std::vector<PropInstance>& moving,const MapDocument& map,
+        float cell,PlacementSnap::Point cursorDelta,float clearance);
     int Selected() const { return selectedProp_; }
 
 private:
@@ -142,7 +142,7 @@ private:
         DirectX::XMFLOAT3 rotation{};
         PlacementSnap::Shape shape;
     };
-    SnapShapeCache movingSnapCache_;
+    std::vector<SnapShapeCache> movingSnapCaches_;
     std::unordered_map<int,SnapShapeCache> fixedSnapCaches_;
     static PlacementSnap::Shape SnapShape(const std::shared_ptr<MeshGpu>& mesh,
         const PropInstance& prop,SnapShapeCache& cache);

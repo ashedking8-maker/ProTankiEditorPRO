@@ -1,18 +1,15 @@
-KUMULATÍVNY PATCH V4 — 2026-10-02
-Pre zaslaný ProTankiEditorPRO-main 0.5.28, obsahuje V1/V2/V3/V4.
+KUMULATÍVNY PATCH V5 — 2026-10-02
+Obsahuje predchádzajúce opravy V1 až V4 a nový diskrétny Grid snap.
 
 Rozbaľ ZIP a nahraj CELÝ obsah do koreňa existujúceho GitHub projektu.
-Zachovaj adresáre src/, tests/, tools/, docs/ a prepíš rovnomenné súbory.
-Nevymaž zvyšok projektu. Nenahrávaj iba samotný ZIP ako jeden súbor.
-GitHub workflow musí vykonať Windows build a CTest pred vytvorením EXE.
+Zachovaj src/, tests/, tools/, docs/. Prepíš súbory, nevymaž zvyšok projektu.
+Samotné nahratie ZIP-u ako súboru kód nezmení.
+GitHub workflow musí vykonať Windows build a CTest pred vydaním EXE.
 
-V4: samostatný Grid snap a Total grid snap, okolité objekty namiesto
-posledného vloženého, obmedzený výpočet z polohy kurzora bez akumulácie,
-pravý klik v Library/Browse pridá objekt do AX aj pri Only used,
-zelené potvrdenie na 1 sekundu a plynulé vyblednutie.
-
-Návod a hranice geometrie: docs/OPRAVY_V4_SK.md
+Jediný Grid snap: bežné kroky + ďalšie pevné polohy pri hranách.
+Bez plynulého kĺzania pozdĺž hrany. Platí aj pre schránku a skupiny.
+Podrobnosti/hranice: docs/OPRAVY_V5_SK.md
 Testy: docs/IMPORT_EXPORT_TEST_RESULTS.txt
-Log novej verzie: 0.5.28-scene-snap-ax-v4
-Lokálne PASS: 79 Python kontrol + 7 CPU C++ testovacích programov.
-Kompletný Windows build, GUI a hra tu neboli spustené.
+Log: 0.5.28-discrete-grid-v5
+Lokálne PASS: 79 Python kontrol + 7 C++ CPU regresných programov.
+Windows build a GUI tu neboli spustené.

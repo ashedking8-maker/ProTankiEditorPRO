@@ -68,6 +68,38 @@ int main(){try{
         check(best.matched&&near(best.dx,expected.dx)&&near(best.dy,expected.dy),"stable non-accumulating scene search");
         check(std::hypot(best.dx,best.dy)<=275,"correction bounded by capture radius");
     }
+    // Live V5 solver: regular 400/500 remain selectable, with one extra edge node.
+    const auto edge444=box(0,-2000,444.57,2000);
+    auto discrete=[&](double rawX,double rawY,double step,const Shape& local){
+        const double gx=Coordinate(static_cast<float>(rawX),static_cast<float>(step),true);
+        const double gy=Coordinate(static_cast<float>(rawY),static_cast<float>(step),true);
+        const Point cursor{rawX-gx,rawY-gy};double score=Dot(cursor,cursor);
+        auto m=FindDiscrete(Translate(local,gx,gy,0),edge444,1.5*step,.02,cursor,score);
+        return Point{gx+(m.matched?m.dx:0),gy+(m.matched?m.dy:0)};
+    };
+    const auto local=box(0,-20,100,20);
+    check(near(discrete(400,0,100,local).x,400),"ordinary node 400 remains available");
+    check(near(discrete(444.57,0,100,local).x,444.59),"extra edge node 444.57 plus clearance");
+    check(near(discrete(500,0,100,local).x,500),"ordinary node 500 remains available");
+    for(int y=-240;y<=240;++y){
+        const auto at=discrete(444.57,y,500,local);
+        check(near(at.x,444.59)&&near(at.y,0),"500 grid cannot slide continuously along edge");
+    }
+    check(near(discrete(444.57,300,500,local).y,500),"tangent moves by full 500 step");
+    auto grouped=Merge({box(-200,-20,-100,20),box(100,-20,200,20)});
+    auto placed=discrete(644.57,0,100,grouped);
+    check(near(placed.x,644.59),"copied group outer boundary supplies edge node");
+    const double memberA=placed.x-200,memberB=placed.x+100;
+    check(near(memberB-memberA,300),"shared group translation preserves spacing");
+    const auto diag=rotate(edge444,.43);
+    const auto stableShape=rotate(Translate(local,400,0,0),.43);
+    Match first;bool captured=false;
+    for(int i=0;i<20;++i){
+        const Point cursor{40+i*.1,20};double score=Dot(cursor,cursor);
+        const auto hit=FindDiscrete(stableShape,diag,150,.02,cursor,score);
+        if(hit.matched){if(captured)check(near(hit.dx,first.dx)&&near(hit.dy,first.dy),"diagonal candidate stays discrete inside grid cell");first=hit;captured=true;}
+    }
+    check(captured,"rotated discrete edge test must exercise a match");
     std::cout<<"Placement snap: fractional/all-side/rotated edges, separation, floors, XYZ grid and retained height PASS\n";
     return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

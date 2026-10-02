@@ -1216,17 +1216,15 @@ void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& a
     }
     ghostValid_=true;
     scene.SetGhost(ghostProps_,assets);
-    if((totalGridSnapEnabled_ || gridSnapEnabled_) && !clipboardPlacement_ && ghostProps_.size()==1) {
-        auto probe=ghostProps_[0];
-        // Total mode searches from the raw cursor, BEFORE lattice quantization.
-        // Never feed the snapped position from the previous frame back into the solver.
-        if(totalGridSnapEnabled_){probe.position.x=target.x+placementKeyboardOffset_.x;probe.position.y=target.y+placementKeyboardOffset_.y;}
-        const float tolerance=PlacementSnap::Tolerance(cell,totalGridSnapEnabled_);
-        const auto match=scene.SuggestPlacementSnap(probe,map,tolerance,edgeSnapClearance_);
+    if(absoluteGridSnap_) {
+        const PlacementSnap::Point cursorDelta{target.x+placementKeyboardOffset_.x-ghostPivot_.x,
+                                               target.y+placementKeyboardOffset_.y-ghostPivot_.y};
+        const auto match=scene.SuggestPlacementSnap(ghostProps_,map,cell,cursorDelta,edgeSnapClearance_);
         if(match.matched){
-            ghostPivot_.x=probe.position.x+static_cast<float>(match.dx);
-            ghostPivot_.y=probe.position.y+static_cast<float>(match.dy);
-            ghostProps_[0].position.x=ghostPivot_.x;ghostProps_[0].position.y=ghostPivot_.y;
+            const float dx=static_cast<float>(match.dx),dy=static_cast<float>(match.dy);
+            ghostPivot_.x+=dx;ghostPivot_.y+=dy;
+            for(auto& prop:ghostProps_){prop.position.x+=dx;prop.position.y+=dy;}
+            // The SAME group translation goes into native clipboard collision at commit.
             scene.SetGhost(ghostProps_,assets);edgeGuideActive_=true;
             edgeGuideA_={static_cast<float>(match.guideA.x),static_cast<float>(match.guideA.y),ghostPivot_.z};
             edgeGuideB_={static_cast<float>(match.guideB.x),static_cast<float>(match.guideB.y),ghostPivot_.z};
@@ -1806,11 +1804,8 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
     }
     if (ImGui::BeginMenu("Tools")) {
         if(ImGui::MenuItem("Placement settings...")) showPlacementSettings_=true;
-        ImGui::BeginDisabled(totalGridSnapEnabled_);
-        ImGui::MenuItem("Grid snap",nullptr,&gridSnapEnabled_);
-        ImGui::EndDisabled();
-        if(ImGui::MenuItem("Total grid snap",nullptr,&totalGridSnapEnabled_))gridSnapEnabled_=!totalGridSnapEnabled_;
-        if(ImGui::IsItemHovered()) ImGui::SetTooltip("Capture nearby scene edges between grid steps. Overrides Grid snap.");
+        ImGui::MenuItem("Grid snap",nullptr,&absoluteGridSnap_);
+        if(ImGui::IsItemHovered())ImGui::SetTooltip("Regular grid steps plus discrete nearby edge positions. Works for new props and copied groups.");
         ImGui::Separator();
         ImGui::BeginDisabled(); ImGui::MenuItem("Map validator (not implemented)"); ImGui::MenuItem("Profiler (not implemented)"); ImGui::EndDisabled(); ImGui::Separator();
         if (ImGui::MenuItem("Open logs folder")) { Log::Flush(); launchWindowsPath(Log::LogDirectory(),false); }
@@ -1828,15 +1823,9 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         ImGui::SetNextWindowSize({445.f,0.f},ImGuiCond_FirstUseEver);
         if(ImGui::Begin("Placement settings##tools",&showPlacementSettings_,
                         ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoDocking)) {
-            ImGui::BeginDisabled(totalGridSnapEnabled_);
-            ImGui::Checkbox("Grid snap",&gridSnapEnabled_);
-            ImGui::EndDisabled();
-            HoverHelp("Fine edge correction after regular grid positioning (up to 10 units). Total grid snap overrides this mode.");
-            if(ImGui::Checkbox("Total grid snap",&totalGridSnapEnabled_))gridSnapEnabled_=!totalGridSnapEnabled_;
-            HoverHelp("Captures nearby edges directly from the cursor, including positions between coarse grid steps. Searches all nearby scene meshes.");
-            ImGui::Checkbox("Coordinate grid (XYZ)",&absoluteGridSnap_);
-            HoverHelp("Regular lattice positioning and keyboard movement. Edge snap can override its position; switching assets keeps the height.");
-            if(gridSnapEnabled_ || totalGridSnapEnabled_) {
+            ImGui::Checkbox("Grid snap",&absoluteGridSnap_);
+            HoverHelp("Regular XYZ grid plus extra discrete edge positions between grid nodes. No continuous sliding along edges. Applies to new props and clipboard groups.");
+            if(absoluteGridSnap_) {
                 ImGui::SetNextItemWidth(125.f);ImGui::InputFloat("Edge clearance (units)",&edgeSnapClearance_,0,0,"%.3f");
                 edgeSnapClearance_=std::clamp(edgeSnapClearance_,0.002f,1.f);
                 HoverHelp("Small separation between adjacent mesh edges prevents coincident faces. Default 0.020; does not raise the object.");
@@ -3830,12 +3819,12 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         }
         draw->PopClipRect();
     }
-    if(edgeGuideActive_ && placementActive_ && (gridSnapEnabled_ || totalGridSnapEnabled_) && !showCollision_) {
+    if(edgeGuideActive_ && placementActive_ && absoluteGridSnap_ && !showCollision_) {
         float ax{},ay{},bx{},by{};
         if(scene.ProjectLegacy(edgeGuideA_,ax,ay)&&scene.ProjectLegacy(edgeGuideB_,bx,by)){
             auto* draw=ImGui::GetWindowDrawList();draw->PushClipRect(origin,{origin.x+size.x,origin.y+size.y},true);
             draw->AddLine({origin.x+ax,origin.y+ay},{origin.x+bx,origin.y+by},IM_COL32(70,245,205,255),3.f);
-            draw->AddText({origin.x+ax+6,origin.y+ay+6},IM_COL32(70,245,205,255),totalGridSnapEnabled_?"Total grid snap: edge":"Grid snap: edge");draw->PopClipRect();
+            draw->AddText({origin.x+ax+6,origin.y+ay+6},IM_COL32(70,245,205,255),"Grid snap: extra position");draw->PopClipRect();
         }
     }
     if (showCollision_) {

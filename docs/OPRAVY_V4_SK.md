@@ -1,3 +1,5 @@
+> Historický popis V4. Dva snap režimy nahrádza jediný Grid snap v `OPRAVY_V5_SK.md`.
+
 # Opravy V4 — dva režimy snapu a ručné pridanie do AX
 
 Kumulatívny patch k zaslanému ProTankiEditorPRO-main 0.5.28, 2. 10. 2026. Obsahuje V1–V3 aj nové zmeny. Log zostavený z tohto zdroja má označenie `0.5.28-scene-snap-ax-v4`.

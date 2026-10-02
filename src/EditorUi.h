@@ -292,9 +292,7 @@ private:
     bool browsePreviewNeedsRestore_{};
     bool showZones_ = false;
     bool snap_ = true;
-    bool absoluteGridSnap_ = true; // coordinate lattice
-    bool gridSnapEnabled_{false};
-    bool totalGridSnapEnabled_{true}; // overrides fine edge snap
+    bool absoluteGridSnap_ = true; // one Grid snap: lattice + discrete edge nodes
     float edgeSnapClearance_{0.02f}; // horizontal separation; NOT vertical surface offset
     bool surfaceOffsetEnabled_{false}; // default for newly placed props; existing props never move
     float surfaceOffsetZ_{0.5f};

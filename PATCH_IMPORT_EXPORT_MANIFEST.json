@@ -1,8 +1,8 @@
 {
-  "patch": "scene-snap-ax-v4-2026-10-02",
+  "patch": "discrete-grid-v5-2026-10-02",
   "base_project": "ProTankiEditorPRO-main 0.5.28",
   "base_zip_sha256": "d5de22c202b5d8b19132da62cb64909b9a2ddff4fb737752bbe86061e5918167",
-  "note": "Cumulative V1-V4 overlay at existing repository root. Excludes own checksum.",
+  "note": "Cumulative V1-V5. Overlay existing project root. Manifest excludes own hash.",
   "files": [
     {
       "path": "CMakeLists.txt",
@@ -14,15 +14,15 @@
     {
       "path": "EditorUi.cpp",
       "operation": "replace",
-      "bytes": 305565,
-      "sha256": "0a5a5db7670f388e5c2b1da620a7bc669886fe5f5cb728a73429f31712f370f8",
+      "bytes": 304542,
+      "sha256": "efb7726ffa415d2626426e9032892ab8b2f4bd95cb6f950800c51bf02b2b860d",
       "original_sha256": "391d3c2f95ef2dbfd63b9143c80978b4fec432ff20194061cdaa4b7770838b09"
     },
     {
       "path": "EditorUi.h",
       "operation": "replace",
-      "bytes": 19497,
-      "sha256": "96bfe1a8483476455ad6a0a5d82a49f8e71f9e6ac867cb160082f4eb5675318a",
+      "bytes": 19423,
+      "sha256": "17f77cc863bbee0362af891521fd93ab345a0da4223d692d7e0b5ce2fce150fa",
       "original_sha256": "929aaa25ae5e7cd0e2e2bf8ce6d804aab5dfe6b9eb980dfe339210ff65c59f21"
     },
     {
@@ -36,7 +36,7 @@
       "path": "Logger.cpp",
       "operation": "replace",
       "bytes": 5661,
-      "sha256": "a5ca9dcb6caef5f25984f5b2dc2b0cff921be8429109bda68584074c69c758ae",
+      "sha256": "2d4f5579c41de393fb9cc0edfd198a9a8ca15632a04d4a460f15050fb6c0d36e",
       "original_sha256": "38a91b842b6407f1a948da96c8023b9bc8318cdad93e409f3ac60f8164c5b415"
     },
     {
@@ -63,29 +63,29 @@
     {
       "path": "PATCH_IMPORT_EXPORT_SK.txt",
       "operation": "add",
-      "bytes": 943,
-      "sha256": "41a83b5ae1dfef8e33ec12dde70a1646f5e0c3e260422d2ec8d1ed31cf660233",
+      "bytes": 763,
+      "sha256": "bca306f93b10d380b7b79c30ddc82f374ffb419fba7670e381511257256e27bf",
       "original_sha256": null
     },
     {
       "path": "PlacementSnap.h",
       "operation": "add",
-      "bytes": 3807,
-      "sha256": "3b9fc1f7e938f4bf00a9efe2f959830e8acd2151cd30bc4d5ad9f583c405b8ae",
+      "bytes": 5764,
+      "sha256": "ffda79ddfbdf4cbdb51cf1beda2868e9ef22fe45c45c8f8468dfbe37faf70431",
       "original_sha256": null
     },
     {
       "path": "SceneRenderer.cpp",
       "operation": "replace",
-      "bytes": 115496,
-      "sha256": "c5ba08306f9e0114f5a896f6717e658ad0c2d2258f19cfd777a7e0ecb4da8969",
+      "bytes": 116217,
+      "sha256": "5950a1ce07ff59f2da8eec8464e8add63b670ede4596ad5a16a0b136a4be23d3",
       "original_sha256": "b4839368a6befeb232d26849b39b4845e2aa3140d3ac72484ae1639b416e2f9d"
     },
     {
       "path": "check_source_consistency.py",
       "operation": "replace",
       "bytes": 34290,
-      "sha256": "0f0eaaffdeb75c68fbe4a9cb435b9e9f0865e69a88aa66c8e47eb9460fb95c41",
+      "sha256": "15881b255a816c532f6c64419da5813176bf536bfb0908731640a56a8372fe24",
       "original_sha256": "8485bd8dc83c58027314260723ad082a2fb7311645a8e5e2450449a7c73bf2af"
     },
     {
@@ -98,8 +98,8 @@
     {
       "path": "docs/IMPORT_EXPORT_TEST_RESULTS.txt",
       "operation": "add",
-      "bytes": 1240,
-      "sha256": "468c77f0f39b9141f318ce1d95c6eb97157933b18c92cc37d88b49e762817d49",
+      "bytes": 1217,
+      "sha256": "30a6df0c479f0ba43500e20a64ac2dca4430c5ec0083a1e8a352df8e4bbabada",
       "original_sha256": null
     },
     {
@@ -119,8 +119,15 @@
     {
       "path": "docs/OPRAVY_V4_SK.md",
       "operation": "add",
-      "bytes": 6151,
-      "sha256": "95e85784de733f84476dd15ee29b1ac3df12b2d5c44552599de7e9a3d5600c4d",
+      "bytes": 6242,
+      "sha256": "f351fc8feefcab76922f179b3ba15692882339249394ee28f9b5ebb011645456",
+      "original_sha256": null
+    },
+    {
+      "path": "docs/OPRAVY_V5_SK.md",
+      "operation": "add",
+      "bytes": 4475,
+      "sha256": "3aec00cf56bed7c9096cdf6e74eded70f2d55c5db1c034c3e901c457fd8ce177",
       "original_sha256": null
     },
     {
@@ -154,15 +161,15 @@
     {
       "path": "src/EditorUi.cpp",
       "operation": "replace",
-      "bytes": 305565,
-      "sha256": "0a5a5db7670f388e5c2b1da620a7bc669886fe5f5cb728a73429f31712f370f8",
+      "bytes": 304542,
+      "sha256": "efb7726ffa415d2626426e9032892ab8b2f4bd95cb6f950800c51bf02b2b860d",
       "original_sha256": "2285b2a8ac7f10ee484c5d227f51015a4fcb36ce4f82765204da6b2054598f6b"
     },
     {
       "path": "src/EditorUi.h",
       "operation": "replace",
-      "bytes": 19497,
-      "sha256": "96bfe1a8483476455ad6a0a5d82a49f8e71f9e6ac867cb160082f4eb5675318a",
+      "bytes": 19423,
+      "sha256": "17f77cc863bbee0362af891521fd93ab345a0da4223d692d7e0b5ce2fce150fa",
       "original_sha256": "9a1a03d0055d9e1da62499d66752643db7ba0f6b2e135805e5c531547e7bcd20"
     },
     {
@@ -183,7 +190,7 @@
       "path": "src/Logger.cpp",
       "operation": "replace",
       "bytes": 5661,
-      "sha256": "a5ca9dcb6caef5f25984f5b2dc2b0cff921be8429109bda68584074c69c758ae",
+      "sha256": "2d4f5579c41de393fb9cc0edfd198a9a8ca15632a04d4a460f15050fb6c0d36e",
       "original_sha256": "3fad68a862b521347a99a7b5622569d20dd5942219f6ea35bff3fa670bbbe102"
     },
     {
@@ -245,22 +252,22 @@
     {
       "path": "src/PlacementSnap.h",
       "operation": "add",
-      "bytes": 3807,
-      "sha256": "3b9fc1f7e938f4bf00a9efe2f959830e8acd2151cd30bc4d5ad9f583c405b8ae",
+      "bytes": 5764,
+      "sha256": "ffda79ddfbdf4cbdb51cf1beda2868e9ef22fe45c45c8f8468dfbe37faf70431",
       "original_sha256": null
     },
     {
       "path": "src/SceneRenderer.cpp",
       "operation": "replace",
-      "bytes": 115496,
-      "sha256": "c5ba08306f9e0114f5a896f6717e658ad0c2d2258f19cfd777a7e0ecb4da8969",
+      "bytes": 116217,
+      "sha256": "5950a1ce07ff59f2da8eec8464e8add63b670ede4596ad5a16a0b136a4be23d3",
       "original_sha256": "ca0cecadb34f6b71813643f776751a58e2733f7d2d3794ec614676b5af84a17b"
     },
     {
       "path": "src/SceneRenderer.h",
       "operation": "replace",
-      "bytes": 15670,
-      "sha256": "b9a98993c1670bae3c4a8277f824f98ad7a878cfeedd781465a4f3569f69cb88",
+      "bytes": 15725,
+      "sha256": "75f5b5cc93c3f8f8e808b96359d296637dc79466ab761f40456f025e752a65d8",
       "original_sha256": "ae992a116626a26c254da5a6eb66f8866c6f65bb882248c5677b3c3a51520575"
     },
     {
@@ -343,8 +350,8 @@
     {
       "path": "tests/placement_snap_regression.cpp",
       "operation": "add",
-      "bytes": 5029,
-      "sha256": "b483d148b60a4f45965e103b7e346272995145c9c2ddb3c723c5f3510184869f",
+      "bytes": 7157,
+      "sha256": "bf59977fe4dce8b313b3cf0ed7d56f8341ec29f5051b2ef3d891c75d7da45862",
       "original_sha256": null
     },
     {
@@ -392,8 +399,8 @@
     {
       "path": "tests/test_orientation_native_0522_audit.py",
       "operation": "replace",
-      "bytes": 2757,
-      "sha256": "99330ed0b4e8835e4b6eb41f36e32c57b84a4d7e5f6ae3422bd5dc1e5df180bb",
+      "bytes": 2869,
+      "sha256": "77511dbb50f989c4b172b22c1e24fcedd68371eb1753a403d5c2ace10e7db5e4",
       "original_sha256": "f69df2a24d81064133af65a68518cdb1dc53d0fc65cef316eb4f7377f37a8adf"
     },
     {
@@ -407,7 +414,7 @@
       "path": "tools/check_source_consistency.py",
       "operation": "replace",
       "bytes": 34290,
-      "sha256": "0f0eaaffdeb75c68fbe4a9cb435b9e9f0865e69a88aa66c8e47eb9460fb95c41",
+      "sha256": "15881b255a816c532f6c64419da5813176bf536bfb0908731640a56a8372fe24",
       "original_sha256": "5c408154cc911905283770266765885e3aa5a22f3358de4c578d3d14ec5a9976"
     },
     {
