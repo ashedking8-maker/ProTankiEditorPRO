@@ -292,7 +292,9 @@ private:
     bool browsePreviewNeedsRestore_{};
     bool showZones_ = false;
     bool snap_ = true;
-    bool absoluteGridSnap_ = true;
+    bool absoluteGridSnap_ = true; // coordinate lattice
+    bool gridSnapEnabled_{false};
+    bool totalGridSnapEnabled_{true}; // overrides fine edge snap
     float edgeSnapClearance_{0.02f}; // horizontal separation; NOT vertical surface offset
     bool surfaceOffsetEnabled_{false}; // default for newly placed props; existing props never move
     float surfaceOffsetZ_{0.5f};
@@ -333,8 +335,12 @@ private:
     float selectionStartX_{}, selectionStartY_{}, selectionEndX_{}, selectionEndY_{};
     std::vector<PropTransformState> dragBefore_;
     std::vector<int> dragIndices_;
-    struct RecentAsset { size_t index{}; Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> thumbnail; int textureVariant{}; };
+    struct RecentAsset { size_t index{}; Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> thumbnail; int textureVariant{}; bool manuallyAdded{}; };
     std::vector<RecentAsset> recentAssets_;
+    std::unordered_map<uint64_t,double> axAddedAt_;
+    void AddAssetToAx(const AssetRegistry&,size_t index,int variant,SceneRenderer&);
+    void HandleAxLibraryItem(const AssetRegistry&,size_t index,int variant,SceneRenderer&);
+    void TrimRecentAssets();
     bool axPinned_{}, axOnlyUsed_{true}, axConfirmRemove_{};
     int axRemovalIndex_{-1};
     int axCurrent_{0};
@@ -359,8 +365,6 @@ private:
     PropInstance placementTemplate_{};
     float placementZ_{};
     float placementRayZ_{};
-    int lastPlacedProp_{-1};
-    PropInstance lastPlacedSnapshot_{};
     bool edgeGuideActive_{};
     DirectX::XMFLOAT3 edgeGuideA_{},edgeGuideB_{};
     DirectX::XMFLOAT3 placementKeyboardOffset_{};

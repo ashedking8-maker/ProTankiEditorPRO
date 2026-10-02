@@ -5,9 +5,13 @@
 #include <limits>
 #include <vector>
 namespace PlacementSnap {
+inline float Tolerance(float cell,bool total){return total?std::clamp(cell*.55f,2.f,275.f):std::clamp(cell*.55f,.01f,10.f);}
 struct Point { double x{},y{}; bool operator==(const Point&)const=default; };
 struct Shape { std::vector<Point> hull; double minZ{},maxZ{}; };
 struct Match { bool matched{}; double dx{},dy{}; Point guideA{},guideB{}; };
+inline void Consider(Match& best,const Match& candidate){
+    if(candidate.matched && (!best.matched || std::hypot(candidate.dx,candidate.dy)<std::hypot(best.dx,best.dy)-1e-6))best=candidate;
+}
 inline double Dot(Point a,Point b){return a.x*b.x+a.y*b.y;}
 inline double Cross(Point a,Point b,Point c){return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);}
 inline std::vector<Point> Hull(std::vector<Point> p){
@@ -35,9 +39,12 @@ inline Match Find(const Shape& moving,const Shape& fixed,double tolerance,double
         double ml,mh;Project(moving,normal,ml,mh);
         const double delta=Dot(a,normal)+clearance-ml;
         if(std::fabs(delta)>best)continue;
-        double tl,th;Project(moving,tangent,tl,th);
+        // Only the contacting support vertices can touch this finite edge.
+        // Using the whole hull's tangent interval snaps to infinite edge extensions.
+        double tl=std::numeric_limits<double>::infinity(),th=-tl;
+        for(auto p:moving.hull)if(std::fabs(Dot(p,normal)-ml)<1e-5){const double t=Dot(p,tangent);tl=std::min(tl,t);th=std::max(th,t);}
         const double edgeA=Dot(a,tangent),edgeB=Dot(b,tangent);
-        if(std::min(th,std::max(edgeA,edgeB))-std::max(tl,std::min(edgeA,edgeB))<=.001)continue;
+        if(std::min(th,std::max(edgeA,edgeB))-std::max(tl,std::min(edgeA,edgeB))< -1e-5)continue;
         // All moving vertices end outside this supporting plane: no overlapping interiors.
         best=std::fabs(delta);result={true,normal.x*delta,normal.y*delta,a,b};
     }

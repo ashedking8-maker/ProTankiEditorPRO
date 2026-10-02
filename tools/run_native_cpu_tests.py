@@ -11,6 +11,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS = (
+    ('ax_only_used_wheel_regression.cpp', ()),
     ('placement_snap_regression.cpp', ()),
     ('gameplay_selection_regression.cpp', ()),
     ('native_3ds_writer_regression.cpp', ()),

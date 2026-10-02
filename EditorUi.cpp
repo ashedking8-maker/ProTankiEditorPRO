@@ -16,6 +16,7 @@
 #include "DraftMeshImport.h"
 #include "VolumePicking.h"
 #include "GameplayAuthoring.h"
+#include <iterator>
 #include "GridStep.h"
 #include <pugixml.hpp>
 #include <imgui.h>
@@ -269,7 +270,7 @@ const char* EditorUi::EffectName(int mode) {
 }
 
 void EditorUi::OnMapLoaded(const std::filesystem::path& successfulMapPath) {
-    lastPlacedProp_=-1;edgeGuideActive_=false;placementZ_=placementRayZ_=0;placementKeyboardOffset_={};
+    edgeGuideActive_=false;placementZ_=placementRayZ_=0;placementKeyboardOffset_={};
     collisionBindingsPending_=true;
     history_.Clear(); drag_ = {}; propertyEditActive_ = false; propertyEditIndex_ = -1; selected_ = -1; selectedItems_.clear();
     clipboard_.clear(); clipboardHasNativeStaticBundle_=false;
@@ -352,7 +353,7 @@ void EditorUi::OnLibraryLoaded(SceneRenderer& previewScene, const std::filesyste
         SaveControls();
     }
     selectedAsset_ = -1; selectedTextureVariant_ = 0; assetPreviewReady_ = false; placementActive_ = false;
-    recentAssets_.clear(); axCurrent_=0; axPinned_=false; axConfirmRemove_=false; ghostProps_.clear();
+    axAddedAt_.clear();recentAssets_.clear(); axCurrent_=0; axPinned_=false; axConfirmRemove_=false; ghostProps_.clear();
     browseLibraryOpen_=false; browseWasOpen_=false; browseThumbnails_.clear(); browseCpuThumbnails_.clear(); browseFrame_=0;
     previewScene.ClearScene();
 }
@@ -812,7 +813,7 @@ void EditorUi::PruneFunctionalSelection(const MapDocument& map){
 void EditorUi::DeleteFunctional(MapDocument& map, SceneRenderer& scene) { DeleteSelected(map,scene); }
 
 void EditorUi::Undo(MapDocument& map, SceneRenderer& scene) {
-    lastPlacedProp_=-1;edgeGuideActive_=false;
+    edgeGuideActive_=false;
     std::vector<size_t> changed;
     if (!history_.Undo(map,changed)) {Log::Info("Undo requested with no available history entry.");return;}
     Log::Info("Map Undo applied; affected prop transforms="+std::to_string(changed.size())+
@@ -825,7 +826,7 @@ void EditorUi::Undo(MapDocument& map, SceneRenderer& scene) {
 }
 
 void EditorUi::Redo(MapDocument& map, SceneRenderer& scene) {
-    lastPlacedProp_=-1;edgeGuideActive_=false;
+    edgeGuideActive_=false;
     std::vector<size_t> changed;
     if (!history_.Redo(map,changed)) return;
     for (size_t i:changed) if (i<map.Props().size()) scene.UpdatePropTransform(static_cast<int>(i),map.Props()[i]);
@@ -834,7 +835,7 @@ void EditorUi::Redo(MapDocument& map, SceneRenderer& scene) {
 }
 
 void EditorUi::DeleteSelected(MapDocument& map, SceneRenderer& scene) {
-    lastPlacedProp_=-1;edgeGuideActive_=false;
+    edgeGuideActive_=false;
     PruneFunctionalSelection(map);
     auto gameplay=functionalSelection_;
     if(gameplay.empty()&&functionalSelected_!=FunctionalType::None)gameplay.push_back({functionalSelected_,functionalIndex_});
@@ -869,7 +870,7 @@ void EditorUi::RememberCopiedAssets(const AssetRegistry& assets) {
             const auto variant=std::find_if(asset->textures.begin(),asset->textures.end(),[&](const TextureVariant& v){return v.name==prop.texture;});
             recentAssets_.front().textureVariant=variant==asset->textures.end()?0:static_cast<int>(variant-asset->textures.begin());
         }
-        if(recentAssets_.size()>24)recentAssets_.resize(24);
+        TrimRecentAssets();
     }
     axCurrent_=0;
 }
@@ -1004,8 +1005,6 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
             " boxes="+std::to_string(clipboardCollisionBoxes_.size())+
             " triangles="+std::to_string(clipboardCollisionTriangles_.size())+
             " (3DS reinterpretation bypassed)");
-        lastPlacedProp_=inserted.empty()?-1:inserted.back();
-        if(lastPlacedProp_>=0)lastPlacedSnapshot_=map.Props()[static_cast<size_t>(lastPlacedProp_)];
         selectedItems_=inserted;selected_=inserted.empty()?-1:inserted.back();scene.SetSelection(selectedItems_);
         history_.PushSnapshot(std::move(before),map);RequestSceneRebuild(true);
         SetMessage("Lossless native selection paste: "+std::to_string(inserted.size())+" props + complete native collision copied without reinterpreting unknown 3DS objects.");
@@ -1186,7 +1185,6 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     Log::Info("Placement committed: "+std::to_string(inserted.size())+
         " props, native="+std::to_string(nativeCount)+
         " visualOnly="+std::to_string(visualOnly));
-    lastPlacedProp_=inserted.back();lastPlacedSnapshot_=map.Props()[static_cast<size_t>(lastPlacedProp_)];
     selectedItems_=inserted; selected_=inserted.back(); scene.SetSelection(selectedItems_);
     history_.PushSnapshot(std::move(before),map); RequestSceneRebuild(true);
     if(visualOnly)SetMessage("Placed "+std::to_string(inserted.size())+" props; "+
@@ -1218,22 +1216,20 @@ void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& a
     }
     ghostValid_=true;
     scene.SetGhost(ghostProps_,assets);
-    if(absoluteGridSnap_ && !clipboardPlacement_ && ghostProps_.size()==1 &&
-       lastPlacedProp_>=0 && static_cast<size_t>(lastPlacedProp_)<map.Props().size()) {
-        const auto& reference=map.Props()[static_cast<size_t>(lastPlacedProp_)];
-        // Deleted/reindexed or externally changed references must never target another prop.
-        if(reference.library==lastPlacedSnapshot_.library && reference.group==lastPlacedSnapshot_.group &&
-           reference.name==lastPlacedSnapshot_.name && Same3(reference.position,lastPlacedSnapshot_.position) &&
-           Same3(reference.rotation,lastPlacedSnapshot_.rotation)) {
-            const auto match=scene.SuggestPlacementSnap(ghostProps_[0],lastPlacedProp_,reference,
-                std::clamp(cell*.55f,2.f,275.f),edgeSnapClearance_);
-            if(match.matched){
-                const float dx=static_cast<float>(match.dx),dy=static_cast<float>(match.dy);
-                ghostPivot_.x+=dx;ghostPivot_.y+=dy;ghostProps_[0].position.x+=dx;ghostProps_[0].position.y+=dy;
-                scene.SetGhost(ghostProps_,assets);edgeGuideActive_=true;
-                edgeGuideA_={static_cast<float>(match.guideA.x),static_cast<float>(match.guideA.y),ghostPivot_.z};
-                edgeGuideB_={static_cast<float>(match.guideB.x),static_cast<float>(match.guideB.y),ghostPivot_.z};
-            }
+    if((totalGridSnapEnabled_ || gridSnapEnabled_) && !clipboardPlacement_ && ghostProps_.size()==1) {
+        auto probe=ghostProps_[0];
+        // Total mode searches from the raw cursor, BEFORE lattice quantization.
+        // Never feed the snapped position from the previous frame back into the solver.
+        if(totalGridSnapEnabled_){probe.position.x=target.x+placementKeyboardOffset_.x;probe.position.y=target.y+placementKeyboardOffset_.y;}
+        const float tolerance=PlacementSnap::Tolerance(cell,totalGridSnapEnabled_);
+        const auto match=scene.SuggestPlacementSnap(probe,map,tolerance,edgeSnapClearance_);
+        if(match.matched){
+            ghostPivot_.x=probe.position.x+static_cast<float>(match.dx);
+            ghostPivot_.y=probe.position.y+static_cast<float>(match.dy);
+            ghostProps_[0].position.x=ghostPivot_.x;ghostProps_[0].position.y=ghostPivot_.y;
+            scene.SetGhost(ghostProps_,assets);edgeGuideActive_=true;
+            edgeGuideA_={static_cast<float>(match.guideA.x),static_cast<float>(match.guideA.y),ghostPivot_.z};
+            edgeGuideB_={static_cast<float>(match.guideB.x),static_cast<float>(match.guideB.y),ghostPivot_.z};
         }
     }
 }
@@ -1810,8 +1806,11 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
     }
     if (ImGui::BeginMenu("Tools")) {
         if(ImGui::MenuItem("Placement settings...")) showPlacementSettings_=true;
-        if(ImGui::MenuItem("Grid snap",nullptr,absoluteGridSnap_)) absoluteGridSnap_=!absoluteGridSnap_;
-        if(ImGui::IsItemHovered()) ImGui::SetTooltip("Snap XYZ movement and placement to the grid; magnet to the last placed mesh edge at any rotation.");
+        ImGui::BeginDisabled(totalGridSnapEnabled_);
+        ImGui::MenuItem("Grid snap",nullptr,&gridSnapEnabled_);
+        ImGui::EndDisabled();
+        if(ImGui::MenuItem("Total grid snap",nullptr,&totalGridSnapEnabled_))gridSnapEnabled_=!totalGridSnapEnabled_;
+        if(ImGui::IsItemHovered()) ImGui::SetTooltip("Capture nearby scene edges between grid steps. Overrides Grid snap.");
         ImGui::Separator();
         ImGui::BeginDisabled(); ImGui::MenuItem("Map validator (not implemented)"); ImGui::MenuItem("Profiler (not implemented)"); ImGui::EndDisabled(); ImGui::Separator();
         if (ImGui::MenuItem("Open logs folder")) { Log::Flush(); launchWindowsPath(Log::LogDirectory(),false); }
@@ -1829,9 +1828,15 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         ImGui::SetNextWindowSize({445.f,0.f},ImGuiCond_FirstUseEver);
         if(ImGui::Begin("Placement settings##tools",&showPlacementSettings_,
                         ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoDocking)) {
-            ImGui::Checkbox("Grid snap",&absoluteGridSnap_);
-            HoverHelp("Snap movement on X/Y/Z; Shift uses one tenth step. Near the last placed mesh, its edge adds a temporary grid guide. Switching assets retains placement height.");
-            if(absoluteGridSnap_) {
+            ImGui::BeginDisabled(totalGridSnapEnabled_);
+            ImGui::Checkbox("Grid snap",&gridSnapEnabled_);
+            ImGui::EndDisabled();
+            HoverHelp("Fine edge correction after regular grid positioning (up to 10 units). Total grid snap overrides this mode.");
+            if(ImGui::Checkbox("Total grid snap",&totalGridSnapEnabled_))gridSnapEnabled_=!totalGridSnapEnabled_;
+            HoverHelp("Captures nearby edges directly from the cursor, including positions between coarse grid steps. Searches all nearby scene meshes.");
+            ImGui::Checkbox("Coordinate grid (XYZ)",&absoluteGridSnap_);
+            HoverHelp("Regular lattice positioning and keyboard movement. Edge snap can override its position; switching assets keeps the height.");
+            if(gridSnapEnabled_ || totalGridSnapEnabled_) {
                 ImGui::SetNextItemWidth(125.f);ImGui::InputFloat("Edge clearance (units)",&edgeSnapClearance_,0,0,"%.3f");
                 edgeSnapClearance_=std::clamp(edgeSnapClearance_,0.002f,1.f);
                 HoverHelp("Small separation between adjacent mesh edges prevents coincident faces. Default 0.020; does not raise the object.");
@@ -1968,6 +1973,41 @@ void EditorUi::DrawScene(MapDocument& map, SceneRenderer& scene) {
     ImGui::End();
 }
 
+void EditorUi::TrimRecentAssets() {
+    while(recentAssets_.size()>24){
+        const auto it=std::find_if(recentAssets_.rbegin(),recentAssets_.rend(),[](const RecentAsset& r){return !r.manuallyAdded;});
+        if(it==recentAssets_.rend())break;
+        recentAssets_.erase(std::next(it).base());
+    }
+}
+void EditorUi::AddAssetToAx(const AssetRegistry& assets,size_t index,int variant,SceneRenderer& previewScene) {
+    if(index>=assets.Assets().size())return;
+    const auto found=std::find_if(recentAssets_.begin(),recentAssets_.end(),[&](const RecentAsset& r){return r.index==index;});
+    if(found!=recentAssets_.end())found->manuallyAdded=true;
+    else recentAssets_.insert(recentAssets_.begin(),RecentAsset{index,{},variant,true});
+    SelectAsset(assets,index,previewScene);
+    selectedTextureVariant_=variant;
+    if(!recentAssets_.empty() && recentAssets_.front().index==index){
+        auto& recent=recentAssets_.front();recent.manuallyAdded=true;recent.textureVariant=variant;recent.thumbnail.Reset();
+    }
+    RebuildAssetPreview(assets,previewScene);BeginPlacement(assets);
+    const uint64_t key=(static_cast<uint64_t>(index)<<32)|static_cast<uint32_t>(variant);
+    axAddedAt_[key]=ImGui::GetTime();axCurrent_=0;
+    Log::Info("Manually added to AX: "+assets.Assets()[index].name);
+}
+void EditorUi::HandleAxLibraryItem(const AssetRegistry& assets,size_t index,int variant,SceneRenderer& previewScene) {
+    // Capture the item rect before selection/preview code changes any state.
+    const auto lo=ImGui::GetItemRectMin(),hi=ImGui::GetItemRectMax();
+    if(ImGui::IsItemClicked(ImGuiMouseButton_Right))AddAssetToAx(assets,index,variant,previewScene);
+    const uint64_t key=(static_cast<uint64_t>(index)<<32)|static_cast<uint32_t>(variant);
+    const auto it=axAddedAt_.find(key);
+    if(it!=axAddedAt_.end()){
+        const float alpha=AxRecentFilter::FeedbackAlpha(ImGui::GetTime()-it->second);
+        if(alpha>0)ImGui::GetWindowDrawList()->AddRectFilled(lo,hi,IM_COL32(45,210,100,static_cast<int>(100*alpha)),3.f);
+        else axAddedAt_.erase(it);
+    }
+}
+
 void EditorUi::SelectAsset(const AssetRegistry& assets, size_t index, SceneRenderer& previewScene) {
     if (index >= assets.Assets().size()) return;
     selectedAsset_ = static_cast<int>(index); selectedTextureVariant_ = 0;
@@ -1975,7 +2015,7 @@ void EditorUi::SelectAsset(const AssetRegistry& assets, size_t index, SceneRende
     const auto old=std::find_if(recentAssets_.begin(),recentAssets_.end(),[&](const RecentAsset& item){return item.index==index;});
     if (old!=recentAssets_.end()) { RecentAsset entry=*old; recentAssets_.erase(old); recentAssets_.insert(recentAssets_.begin(),std::move(entry)); }
     else recentAssets_.insert(recentAssets_.begin(),RecentAsset{index,{}});
-    if (recentAssets_.size()>24) recentAssets_.resize(24);
+    TrimRecentAssets();
     axCurrent_=0; BeginPlacement(assets);
 }
 
@@ -2037,6 +2077,7 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
             const std::string full=a.library+" / "+a.group+" / "+a.name;
             if (!ContainsInsensitive(full, search)) continue;
             if (ImGui::Selectable((full+"##asset"+std::to_string(i)).c_str(), selectedAsset_==static_cast<int>(i))) SelectAsset(assets,i,previewScene);
+                            HandleAxLibraryItem(assets,i,0,previewScene);
         }
     } else {
         size_t i=0;
@@ -2051,6 +2092,7 @@ void EditorUi::DrawLibrary(MapDocument& map, const AssetRegistry& assets, SceneR
                     if (ImGui::TreeNodeEx(group.empty()?"default":group.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
                         for (size_t k=groupStart;k<g;++k) {
                             if (ImGui::Selectable((all[k].name+"##asset"+std::to_string(k)).c_str(), selectedAsset_==static_cast<int>(k))) SelectAsset(assets,k,previewScene);
+                            HandleAxLibraryItem(assets,k,0,previewScene);
                         }
                         ImGui::TreePop();
                     }
@@ -2327,6 +2369,9 @@ void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
                             BeginPlacement(assets);
                             browseLibraryOpen_=false; browsePreviewNeedsRestore_=false;
                         }
+                        HandleAxLibraryItem(assets,index,static_cast<int>(tile.variant),previewScene);
+                        if(selectedAsset_==static_cast<int>(index) && selectedTextureVariant_==static_cast<int>(tile.variant))
+                            ImGui::GetWindowDrawList()->AddRect(startPos,{startPos.x+thumbnailSize.x,startPos.y+189.f*browseThumbnailScale_},IM_COL32(95,165,235,220),3.f,0,2.f);
                         ImGui::SetCursorScreenPos({startPos.x,startPos.y+150.f*browseThumbnailScale_});
                         const std::string caption=a.name+(a.textures.empty()?std::string{}:" / "+a.textures[tile.variant].name);
                         ImGui::TextUnformatted(caption.c_str());
@@ -3785,12 +3830,12 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         }
         draw->PopClipRect();
     }
-    if(edgeGuideActive_ && placementActive_ && absoluteGridSnap_ && !showCollision_) {
+    if(edgeGuideActive_ && placementActive_ && (gridSnapEnabled_ || totalGridSnapEnabled_) && !showCollision_) {
         float ax{},ay{},bx{},by{};
         if(scene.ProjectLegacy(edgeGuideA_,ax,ay)&&scene.ProjectLegacy(edgeGuideB_,bx,by)){
             auto* draw=ImGui::GetWindowDrawList();draw->PushClipRect(origin,{origin.x+size.x,origin.y+size.y},true);
             draw->AddLine({origin.x+ax,origin.y+ay},{origin.x+bx,origin.y+by},IM_COL32(70,245,205,255),3.f);
-            draw->AddText({origin.x+ax+6,origin.y+ay+6},IM_COL32(70,245,205,255),"Grid snap: edge");draw->PopClipRect();
+            draw->AddText({origin.x+ax+6,origin.y+ay+6},IM_COL32(70,245,205,255),totalGridSnapEnabled_?"Total grid snap: edge":"Grid snap: edge");draw->PopClipRect();
         }
     }
     if (showCollision_) {
@@ -4460,7 +4505,7 @@ void EditorUi::DrawControlHelp() {
             ImGui::BulletText("In the preview, each LMB click rotates 45 degrees: eight clicks = 360 degrees.");
             ImGui::BulletText("RMB drags the preview freely; wheel zooms; the dropdown selects a texture variant.");
             ImGui::BulletText("Move ghost along grid, X rotates before placing; Space or LMB drops; RMB cancels. Space can stamp repeated copies.");
-            ImGui::BulletText("Q/E changes ghost height; switching assets retains it. Tools > Grid snap controls XYZ and last-placed edge guides. Tab + wheel switches AX assets; Space places.");
+            ImGui::BulletText("Q/E changes ghost height; switching assets retains it. Tools > Grid snap controls XYZ and nearby scene edge guides. Tab + wheel switches AX assets; Space places.");
             ImGui::SeparatorText("Game modes and editor overlays");
             ImGui::TextWrapped("Gameplay > Add gameplay element opens a persistent palette (X closes it). Create native flags, spawns, DOM points, bonus/drop regions and kill/kick zones on blank or existing maps; place with Space. Normal dragging moves an existing region; Ctrl+Shift + dragging an upper corner handle resizes its X/Y extent. Edit min/max Z, bonus type and modes in Properties. Visibility filters do not change game modes or native XML element types.");
             ImGui::SeparatorText("Fullscreen, preferences and safety");

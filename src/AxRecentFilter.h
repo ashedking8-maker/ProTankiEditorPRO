@@ -7,6 +7,11 @@
 #include <vector>
 
 namespace AxRecentFilter {
+inline float FeedbackAlpha(double elapsed){return elapsed<0?0.f:elapsed<=1.0?1.f:static_cast<float>(std::clamp((1.6-elapsed)/.6,0.0,1.0));}
+template<class Recent> bool ManuallyAdded(const Recent& r){
+    if constexpr(requires { r.manuallyAdded; })return r.manuallyAdded;
+    else return false;
+}
 template <class Recent, class Asset, class Prop>
 std::vector<std::size_t> VisiblePositions(const std::vector<Recent>& recent,
                                           const std::vector<Asset>& assets,
@@ -17,7 +22,7 @@ std::vector<std::size_t> VisiblePositions(const std::vector<Recent>& recent,
     for (std::size_t i=0; i<recent.size(); ++i) {
         const std::size_t id=recent[i].index;
         if (id>=assets.size()) continue;
-        if (onlyUsed) {
+        if (onlyUsed && !ManuallyAdded(recent[i])) {
             const auto& asset=assets[id];
             if (std::none_of(placed.begin(),placed.end(),[&](const Prop& prop) {
                 return prop.library==asset.library && prop.group==asset.group && prop.name==asset.name;

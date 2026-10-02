@@ -1,3 +1,5 @@
+> Historický popis V3. V4 zavádza dva snap režimy, okolité referencie a ručné AX položky; pozri `OPRAVY_V4_SK.md`.
+
 # Opravy V3 — umiestňovanie, Grid snap a gameplay overlays
 
 Balík pre zaslaný projekt ProTankiEditorPRO-main 0.5.28, pripravený 2. 10. 2026. Je kumulatívny: zahŕňa aj opravy V1/V2. Aktuálny log obsahuje označenie `0.5.28-placement-grid-v3`; názvy inštalátora ostávajú 0.5.28.

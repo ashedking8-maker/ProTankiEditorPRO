@@ -1,20 +1,19 @@
-V3 executed locally, 2026-10-02
-Source consistency preflight: PASS
+V4 executed locally, 2026-10-02
+Source consistency: PASS
 
-Python audit suite:
 ...............................................................................
 ----------------------------------------------------------------------
-Ran 79 tests in 0.046s
+Ran 79 tests in 0.054s
 
 OK
 
-Scalar C++ regressions:
+PASS: manual AX pins survive used-only filter; feedback hold/fade; PASS: AX used-only list, Tab+wheel wrap, exact identity and empty filter
 Placement snap: fractional/all-side/rotated edges, separation, floors, XYZ grid and retained height PASS
 Gameplay selection: visibility modes, 1000-item set, additive/toggle selection and projected volume rectangles PASS
 Native3DSWriter: visual mesh, winding, two native-read boxes, materials, keyframes, invalid inputs PASS
 Native visual smoothing masks, source material preservation, face mapping and opt-in overrides PASS
 PASS: game-verified 136->138 terrain helper match, 3DS readback, fail-closed multi-edit, TARA roundtrip
 SWF compatibility: inverse matrices, pivots, angle-axis, explicit selection, direct children, cycle rejection, filename independence, original box scale and old PTPRO migration PASS
-PASS: 6 scalar C++ regression programs; Windows/Assimp/XML tests are separate.
+PASS: 7 scalar C++ regression programs; Windows/Assimp/XML tests are separate.
 
-Full Windows/MSVC/D3D/Assimp build, Windows XML CTests, GUI and gameplay NOT run here.
+Full Windows/MSVC/Direct3D/Assimp build, GUI and gameplay NOT run here.

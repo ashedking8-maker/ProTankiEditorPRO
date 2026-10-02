@@ -1,21 +1,18 @@
-KUMULATÍVNY PATCH V3 — 2026-10-02
-Pre zaslaný projekt ProTankiEditorPRO-main 0.5.28.
+KUMULATÍVNY PATCH V4 — 2026-10-02
+Pre zaslaný ProTankiEditorPRO-main 0.5.28, obsahuje V1/V2/V3/V4.
 
 Rozbaľ ZIP a nahraj CELÝ obsah do koreňa existujúceho GitHub projektu.
-Zachovaj src/, tests/, tools/, docs/ a prepíš rovnomenné súbory.
-Neodstraňuj zvyšok projektu: balík obsahuje len nové/zmenené súbory.
-Nenahrávaj iba ZIP ako jeden súbor. CMake kompiluje zdroje v src/.
-Nechaj GitHub workflow vykonať Windows build a CTest pred vytvorením EXE.
+Zachovaj adresáre src/, tests/, tools/, docs/ a prepíš rovnomenné súbory.
+Nevymaž zvyšok projektu. Nenahrávaj iba samotný ZIP ako jeden súbor.
+GitHub workflow musí vykonať Windows build a CTest pred vytvorením EXE.
 
-Balík zahŕňa V1/V2 aj nové opravy:
-- Q/E pri Quick add mení gameplay ghost a nie starý vybraný objekt.
-- Only used AX library je predvolene zapnuté.
-- Grid snap: XYZ, zachovaná výška, prisúvanie k poslednej vloženej hrane.
-- Show gameplay overlays zapína/vypína všetkých 5 podvolieb.
+V4: samostatný Grid snap a Total grid snap, okolité objekty namiesto
+posledného vloženého, obmedzený výpočet z polohy kurzora bez akumulácie,
+pravý klik v Library/Browse pridá objekt do AX aj pri Only used,
+zelené potvrdenie na 1 sekundu a plynulé vyblednutie.
 
-Vysvetlenie, geometrické hranice a návod: docs/OPRAVY_V3_SK.md
-Výsledky overenia: docs/IMPORT_EXPORT_TEST_RESULTS.txt
-Log novej verzie: 0.5.28-placement-grid-v3
-
-Lokálne: 79 Python kontrol + 6 CPU C++ programov + zdrojová kontrola PASS.
+Návod a hranice geometrie: docs/OPRAVY_V4_SK.md
+Testy: docs/IMPORT_EXPORT_TEST_RESULTS.txt
+Log novej verzie: 0.5.28-scene-snap-ax-v4
+Lokálne PASS: 79 Python kontrol + 7 CPU C++ testovacích programov.
 Kompletný Windows build, GUI a hra tu neboli spustené.

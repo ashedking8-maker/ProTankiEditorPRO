@@ -40,6 +40,17 @@ int main() {
     const auto wrong=VisiblePositions(recent,assets,
                                       std::vector<Prop>{{"Elsewhere","default","Concrete 2x2"}},true);
     PT_REQUIRE(wrong.empty());
+    struct PinnedRecent {size_t index;bool manuallyAdded{};};
+    const std::vector<PinnedRecent> pins{{0,true},{1,false},{2,false},{99,true}};
+    const auto withPins=VisiblePositions(pins,assets,placed,true);
+    PT_REQUIRE((withPins==std::vector<size_t>{0,1}));
+    const auto pinsOnEmptyMap=VisiblePositions(pins,assets,std::vector<Prop>{},true);
+    PT_REQUIRE((pinsOnEmptyMap==std::vector<size_t>{0}));
+    PT_REQUIRE(NextRow(0,withPins.size(),-1)==1);
+    PT_REQUIRE(FeedbackAlpha(0)==1 && FeedbackAlpha(1)==1);
+    PT_REQUIRE(FeedbackAlpha(1.3)>.49f && FeedbackAlpha(1.3)<.51f);
+    PT_REQUIRE(FeedbackAlpha(1.6)==0 && FeedbackAlpha(5)==0);
+    std::cout << "PASS: manual AX pins survive used-only filter; feedback hold/fade; ";
     std::cout << "PASS: AX used-only list, Tab+wheel wrap, exact identity and empty filter\n";
     return 0;
 }

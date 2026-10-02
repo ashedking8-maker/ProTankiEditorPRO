@@ -54,6 +54,20 @@ int main(){try{
     // Repeat switches/rotations do not accumulate a hidden offset.
     for(int i=0;i<1000;++i)height=Height(height,0,100,true);
     check(near(height,490),"height stable over 1000 asset switches");
+    check(near(Tolerance(10,false),5.5)&&near(Tolerance(500,false),10)&&near(Tolerance(500,true),275),"fine vs total tolerance");
+    const auto raw=box(390,-50,490,50);
+    const auto nearFixed=box(0,-100,424.25,100);
+    const auto expected=Find(raw,nearFixed,Tolerance(500,true));
+    check(expected.matched&&near(expected.dx,34.27),"capture between coarse grid nodes");
+    check(!Find(raw,nearFixed,Tolerance(500,false)).matched,"fine mode must not pull distant object");
+    for(int frame=0;frame<1000;++frame){
+        Match best;
+        // Reference may be any scene object, not the most recently appended one.
+        Consider(best,Find(raw,nearFixed,275));
+        for(int i=0;i<100;++i)Consider(best,Find(raw,box(10000+i*500,-100,10400+i*500,100),275));
+        check(best.matched&&near(best.dx,expected.dx)&&near(best.dy,expected.dy),"stable non-accumulating scene search");
+        check(std::hypot(best.dx,best.dy)<=275,"correction bounded by capture radius");
+    }
     std::cout<<"Placement snap: fractional/all-side/rotated edges, separation, floors, XYZ grid and retained height PASS\n";
     return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
