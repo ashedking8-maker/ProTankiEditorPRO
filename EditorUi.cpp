@@ -662,12 +662,16 @@ void EditorUi::BeginFunctionalPlacement(FunctionalPlacement type, SceneRenderer&
     functionalPasteActive_=false;
     placementActive_=false; placementItems_.clear(); ghostProps_.clear(); scene.ClearGhost();
     functionalPlacement_=type; functionalGhostValid_=false; functionalCommitRequested_=false;
-    showGameplay_=true; if(gameplayMode_<0)gameplayMode_=0;
-    if(type==FunctionalPlacement::KillZone || type==FunctionalPlacement::KickZone) showZones_=true;
-    else if(type==FunctionalPlacement::BonusRegion) showBonuses_=true;
-    else if(type==FunctionalPlacement::RedFlag || type==FunctionalPlacement::BlueFlag) showFlags_=true;
-    else if(type==FunctionalPlacement::ControlPoint) showPoints_=true;
-    else showSpawns_=true;
+    if(type==FunctionalPlacement::Light) {
+        showLights_=true;
+    } else {
+        showGameplay_=true; if(gameplayMode_<0)gameplayMode_=0;
+        if(type==FunctionalPlacement::KillZone || type==FunctionalPlacement::KickZone) showZones_=true;
+        else if(type==FunctionalPlacement::BonusRegion) showBonuses_=true;
+        else if(type==FunctionalPlacement::RedFlag || type==FunctionalPlacement::BlueFlag) showFlags_=true;
+        else if(type==FunctionalPlacement::ControlPoint) showPoints_=true;
+        else showSpawns_=true;
+    }
     // Do not emit a second temporary notification: the persistent palette explains placement.
     Log::Debug("Gameplay placement started; Space commits, RMB cancels.");
 }
@@ -741,9 +745,18 @@ void EditorUi::CommitFunctionalPlacement(MapDocument& map, SceneRenderer& scene)
             item.max.x+=dx;item.max.y+=dy;item.max.z+=dz;
             functionalIndex_=map.AddSpecialBox(item);break;
         }
+        case FunctionalType::Light: {
+            auto item=functionalClipboardLight_;item.legacySourceIndex=-1;item.position=at;
+            const size_t inserted=map.AddLight(item);
+            if(inserted>=map.Lights().size()) {
+                SetMessage("Copied native light could not be authored safely.",true);return;
+            }
+            functionalIndex_=inserted;selectedLight_=static_cast<int>(inserted);showLights_=true;break;
+        }
         default:return;
         }
         functionalSelected_=functionalClipboardKind_;
+        functionalSelection_.clear();functionalSelection_.push_back({functionalSelected_,functionalIndex_});
         history_.PushSnapshot(std::move(before),map);
         RequestSceneRebuild(true);
         SetMessage("Gameplay element pasted with its original properties. Undo restores the map.");
@@ -796,8 +809,15 @@ void EditorUi::CommitFunctionalPlacement(MapDocument& map, SceneRenderer& scene)
         p.min={at.x-250,at.y-250,at.z-100};p.max={at.x+250,at.y+250,at.z+250};
         functionalIndex_=map.AddSpecialBox(p);functionalSelected_=FunctionalType::Zone;break;
     }
+    case FunctionalPlacement::Light: {
+        auto light=pendingLight_;light.position=at;
+        const size_t inserted=map.AddLight(light);
+        if(inserted>=map.Lights().size()) {SetMessage("Light could not be authored safely.",true);return;}
+        functionalIndex_=inserted;functionalSelected_=FunctionalType::Light;selectedLight_=static_cast<int>(inserted);showLights_=true;break;
+    }
     default:return;
     }
+    functionalSelection_.clear();functionalSelection_.push_back({functionalSelected_,functionalIndex_});
     history_.PushSnapshot(std::move(before),map);
     scene.SetFunctionalGhost({},0,false);
     RequestSceneRebuild(true);
@@ -1371,6 +1391,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
             case FunctionalType::Point: functionalClipboardPoint_=map.ControlPoints()[index];break;
             case FunctionalType::Bonus: functionalClipboardBonus_=map.Bonuses()[index];break;
             case FunctionalType::Zone: functionalClipboardZone_=map.SpecialBoxes()[index];break;
+            case FunctionalType::Light: functionalClipboardLight_=map.Lights()[index];break;
             default:functionalClipboardKind_=FunctionalType::None;break;
             }
             clipboard_.clear();
@@ -1433,6 +1454,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
         case FunctionalType::Point: type=FunctionalPlacement::ControlPoint;break;
         case FunctionalType::Bonus: type=FunctionalPlacement::BonusRegion;break;
         case FunctionalType::Zone: type=functionalClipboardZone_.action=="kick"?FunctionalPlacement::KickZone:FunctionalPlacement::KillZone;break;
+        case FunctionalType::Light: type=FunctionalPlacement::Light;break;
         default:break;
         }
         if(type!=FunctionalPlacement::None) {
@@ -3132,6 +3154,7 @@ void EditorUi::DrawLighting(MapDocument& map, SceneRenderer& scene) {
                 history_.PushSnapshot(std::move(before),map);RequestSceneRebuild(true);
                 showLights_=true;selectedLight_=static_cast<int>(index);
                 SelectOnly(-1,scene);functionalSelected_=FunctionalType::Light;functionalIndex_=index;
+                functionalSelection_.push_back({FunctionalType::Light,index});
                 ImGui::SetWindowFocus("Properties");
             }
         }
@@ -3144,7 +3167,7 @@ void EditorUi::DrawLighting(MapDocument& map, SceneRenderer& scene) {
         const std::string label="Light "+std::to_string(i+1)+" / "+light.type+"##light"+std::to_string(i);
         if(ImGui::Selectable(label.c_str(),functionalSelected_==FunctionalType::Light && functionalIndex_==i)) {
             selectedLight_=static_cast<int>(i);functionalSelected_=FunctionalType::Light;functionalIndex_=i;
-            SelectOnly(-1,scene);showLights_=true;scene.FocusLegacyPoint(light.position,1650.f);
+            SelectOnly(-1,scene);functionalSelection_.push_back({FunctionalType::Light,i});showLights_=true;scene.FocusLegacyPoint(light.position,1650.f);
             ImGui::SetWindowFocus("Properties");
         }
         if(ImGui::IsItemHovered())ImGui::SetTooltip("Color #%06X | intensity %.3f",light.color,light.intensity);
@@ -3156,7 +3179,8 @@ void EditorUi::DrawLighting(MapDocument& map, SceneRenderer& scene) {
             MapDocument before=map;const size_t index=map.AddLight(light);
             if(index<map.Lights().size()) {
                 history_.PushSnapshot(std::move(before),map);functionalIndex_=index;
-                selectedLight_=static_cast<int>(index);RequestSceneRebuild(true);
+                selectedLight_=static_cast<int>(index);functionalSelection_.clear();
+                functionalSelection_.push_back({FunctionalType::Light,index});RequestSceneRebuild(true);
             }
         }
         ImGui::EndDisabled();
@@ -3866,7 +3890,7 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
                 history_.PushSnapshot(std::move(before),map);
                 functionalSelected_=FunctionalType::Light;functionalIndex_=index;
                 selectedLight_=static_cast<int>(index);
-                SelectOnly(-1,scene);RequestSceneRebuild(true);
+                SelectOnly(-1,scene);functionalSelection_.push_back({FunctionalType::Light,index});RequestSceneRebuild(true);
                 lightPlacementActive_=false;lightAddedThisFrame=true;
             }
         }
@@ -3919,7 +3943,7 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
             const GameplaySelection::Item previouslyActive{functionalSelected_,functionalIndex_};
             bool foundFunctional=false;
             if(showLights_) {
-                float distance2=18.f*18.f;
+                float distance2=24.f*24.f;
                 for(size_t i=0;i<map.Lights().size();++i) {
                     float x{},y{};
                     if(!scene.ProjectLegacy(map.Lights()[i].position,x,y))continue;

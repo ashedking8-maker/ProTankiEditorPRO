@@ -106,7 +106,14 @@ def main() -> int:
                 'TrimBrowseCpuCache();' in ui,
                 'Session-only manually selected library / thumbnail cache policy regressed')
         require('VERSION 0.5.28' in cmake and '0.5.28' in text('src/App.cpp')
-                and '0.5.28-large-world-3ds-v7' in text('src/Logger.cpp'),'Version drift')
+                and '0.5.28-light-clipboard-v8' in text('src/Logger.cpp'),'Version drift')
+        require('LightMarker functionalClipboardLight_' in hdr and
+                'case FunctionalType::Light: functionalClipboardLight_=map.Lights()[index];break;' in ui and
+                'case FunctionalType::Light: type=FunctionalPlacement::Light;break;' in ui and
+                'auto item=functionalClipboardLight_;item.legacySourceIndex=-1;item.position=at;' in ui and
+                'marker.originalXml=std::make_shared<const std::string>(rawLight.str())' in doc and
+                'node=section.append_copy(detached.child("light"))' in doc,
+                'V8 native light selection/clipboard/lossless XML path missing')
         require('AppendLosslessNativeStaticClone' in doc and
                 'clipboardHasNativeStaticBundle_' in ui and
                 '3DS reinterpretation bypassed' in ui and

@@ -245,14 +245,14 @@ int main() {
     for(int i=0;i<8;++i){SpawnMarker s;s.type=i%2?"red":"dm";s.position.x=100.f*i;bulk.AddSpawn(s);}
     SpecialBox volume;volume.action="kick";volume.min={0,0,0};volume.max={100,100,100};bulk.AddSpecialBox(volume);
     LightMarker light;bulk.AddLight(light);
-    GameplaySelection::Visibility visibility;visibility.gameplay=true;visibility.spawns=true;visibility.mode=1;
+    GameplaySelection::Visibility visibility;visibility.gameplay=true;visibility.spawns=true;visibility.lights=true;visibility.mode=1;
     auto candidates=GameplaySelection::Visible(bulk,visibility);
-    if(candidates.size()!=4)return Fail(115);
+    if(candidates.size()!=5)return Fail(115);
     std::vector<GameplaySelection::Item> selected;
     for(const auto& c:candidates)selected.push_back(c.item);
     selected.push_back(selected.front()); // deduplicate before deleting indices
     MapDocument prior=bulk;
-    if(!GameplaySelection::Delete(bulk,selected)||bulk.Spawns().size()!=4||bulk.SpecialBoxes().size()!=1||bulk.Lights().size()!=1)return Fail(116);
+    if(!GameplaySelection::Delete(bulk,selected)||bulk.Spawns().size()!=4||bulk.SpecialBoxes().size()!=1||bulk.Lights().size()!=0)return Fail(116);
     for(const auto& s:bulk.Spawns())if(s.type!="red")return Fail(117);
     EditHistory bulkHistory;bulkHistory.PushSnapshot(prior,bulk);
     std::vector<size_t> restored;

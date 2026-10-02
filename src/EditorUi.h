@@ -321,6 +321,7 @@ private:
     ControlPointMarker functionalClipboardPoint_;
     BonusRegionMarker functionalClipboardBonus_;
     SpecialBox functionalClipboardZone_;
+    LightMarker functionalClipboardLight_;
     bool functionalPasteActive_{};
     std::vector<PropInstance> placementItems_; // relative to clipboard center or Library origin
     std::vector<PropInstance> ghostProps_;     // world positions; never serialized before Space

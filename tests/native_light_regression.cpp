@@ -22,7 +22,7 @@ int main(){
     const auto folder=std::filesystem::temp_directory_path()/"ptpro-native-light-regression";
     std::error_code ec;std::filesystem::create_directories(folder,ec);
     if(!check(!ec,"create test directory"))return 1;
-    const auto input=folder/"light-original.xml",unmodified=folder/"light-unmodified.xml",out=folder/"light-edited.xml",second=folder/"light-second.xml",deleted=folder/"light-deleted.xml",blank=folder/"light-blank.xml";
+    const auto input=folder/"light-original.xml",unmodified=folder/"light-unmodified.xml",out=folder/"light-edited.xml",second=folder/"light-second.xml",deleted=folder/"light-deleted.xml",blank=folder/"light-blank.xml",copied=folder/"light-copied.xml";
     {std::ofstream stream(input,std::ios::binary|std::ios::trunc);stream<<original;if(!check(bool(stream),"write fixture"))return 2;}
     MapDocument map;std::string error;
     if(!check(map.Load(input,error),"load Fogtown-schema fixture"))return 3;
@@ -71,6 +71,25 @@ int main(){
     if(!check(empty.SaveLegacyAs(blank,error),"blank map supports native lights"))return 26;
     pugi::xml_document blankDoc;
     if(!check(bool(blankDoc.load_file(blank.c_str()))&&count(blankDoc.child("map").child("lights"),"light")==1,"blank map light saved"))return 27;
-    std::cout<<"PASS native light XML edit, add, delete, undo, unknown node preservation and repeated save\n";
+
+    // Ctrl+C/V uses a detached LightMarker copy with legacySourceIndex=-1. It
+    // must preserve unknown native XML carried by the source light rather than
+    // silently recreating only the fields the editor currently understands.
+    MapDocument copyMap;
+    if(!check(copyMap.Load(input,error),"reload fixture for light clipboard clone"))return 29;
+    auto copiedLight=copyMap.Lights()[0];
+    copiedLight.legacySourceIndex=-1;copiedLight.position={111.f,222.f,333.f};
+    if(!check(copyMap.AddLight(copiedLight)==2&&copyMap.SaveLegacyAs(copied,error),"save copied native light"))return 30;
+    pugi::xml_document copiedDoc;
+    if(!check(bool(copiedDoc.load_file(copied.c_str())),"read copied-light XML"))return 31;
+    auto copiedNode=copiedDoc.child("map").child("lights").last_child();
+    if(!check(std::string(copiedNode.name())=="light"&&copiedNode.attribute("extraLegacy")&&
+              copiedNode.child("future-marker").attribute("preserved"),
+              "copied light preserves detached unknown XML"))return 32;
+    if(!check(eq(copiedNode.child("position").child("x").text().as_float(),111.f)&&
+              eq(copiedNode.child("position").child("y").text().as_float(),222.f)&&
+              eq(copiedNode.child("position").child("z").text().as_float(),333.f),
+              "copied light updates placement position inside preserved XML"))return 33;
+    std::cout<<"PASS native light XML edit, add, delete, undo, clipboard clone, unknown node preservation and repeated save\n";
     return 0;
 }

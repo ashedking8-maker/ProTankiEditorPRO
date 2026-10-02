@@ -106,6 +106,10 @@ struct LightMarker {
     unsigned int color{0xFFFA9Du}; // Native XML: packed decimal RGB
     float intensity{1.0f};
     float attenuationBegin{0.1f}, attenuationEnd{20.0f};
+    // Detached native <light> subtree. Existing lights already preserve unknown
+    // XML in-place through legacySourceIndex; this copy lets Ctrl+C/V of a
+    // supported light retain unknown attributes/children as well.
+    std::shared_ptr<const std::string> originalXml;
 };
 
 struct MapStats {

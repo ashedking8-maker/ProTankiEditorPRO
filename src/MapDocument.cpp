@@ -205,6 +205,8 @@ bool MapDocument::Load(const std::filesystem::path& file, std::string& error) {
         marker.attenuationEnd=light.attribute("attenuationEnd").as_float(20.f);
         marker.position=vec3(light.child("position"));
         marker.rotationZ=number(light.child("rotation"),"z");
+        std::ostringstream rawLight;light.print(rawLight,"",pugi::format_raw,pugi::encoding_utf8);
+        marker.originalXml=std::make_shared<const std::string>(rawLight.str());
         lights_.push_back(std::move(marker));
     }
     stats_.wayPoints = childCount(map.child("way-points"), "way-point");
@@ -1684,7 +1686,17 @@ bool MapDocument::SerializeLegacy(std::string& xml, std::string& error) const {
         }
         for(const auto& light:lights_) if(light.legacySourceIndex<0) {
             if(light.type!="omni") {error="Unsupported light type cannot be authored.";return false;}
-            auto node=section.append_child("light");updateNative(node,light);
+            pugi::xml_node node;
+            pugi::xml_document detached;
+            if(light.originalXml && !light.originalXml->empty()) {
+                const auto parsed=detached.load_buffer(light.originalXml->data(),light.originalXml->size(),
+                    pugi::parse_full,pugi::encoding_utf8);
+                if(!parsed || !detached.child("light")) {
+                    error="Copied native light XML could not be reparsed: export stopped.";return false;
+                }
+                node=section.append_copy(detached.child("light"));
+            } else node=section.append_child("light");
+            updateNative(node,light);
         }
     }
     if(zonesDirty_) {
@@ -1816,7 +1828,14 @@ bool MapDocument::SaveLegacyAs(const std::filesystem::path& file, std::string& e
     for(size_t i=0;i<controlPoints_.size();++i) controlPoints_[i].legacySourceIndex=static_cast<int>(i);
     for(size_t i=0;i<bonuses_.size();++i) bonuses_[i].legacySourceIndex=static_cast<int>(i);
     for(size_t i=0;i<specialBoxes_.size();++i) specialBoxes_[i].legacySourceIndex=static_cast<int>(i);
-    for(size_t i=0;i<lights_.size();++i) lights_[i].legacySourceIndex=static_cast<int>(i);
+    auto savedLight=refreshed.child("map").child("lights").child("light");
+    for(size_t i=0;i<lights_.size();++i) {
+        if(!savedLight){error="Internal error: saved light snapshot count differs.";return false;}
+        lights_[i].legacySourceIndex=static_cast<int>(i);
+        std::ostringstream raw;savedLight.print(raw,"",pugi::format_raw,pugi::encoding_utf8);
+        lights_[i].originalXml=std::make_shared<const std::string>(raw.str());
+        savedLight=savedLight.next_sibling("light");
+    }
     auto savedCollision=refreshed.child("map").child("collision-geometry");
     auto savedPlane=savedCollision.child("collision-plane");
     for(size_t i=0;i<collisionPlanes_.size();++i) {

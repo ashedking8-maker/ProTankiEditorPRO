@@ -1,0 +1,30 @@
+{
+  "patch": "light-clipboard-v8-2026-10-02",
+  "base": "0.5.28-large-world-3ds-v7",
+  "log_marker": "0.5.28-light-clipboard-v8",
+  "changed_files": [
+    "EditorUi.cpp",
+    "EditorUi.h",
+    "Logger.cpp",
+    "MapDocument.cpp",
+    "check_source_consistency.py",
+    "src/EditorUi.cpp",
+    "src/EditorUi.h",
+    "src/Logger.cpp",
+    "src/MapDocument.cpp",
+    "src/MapDocument.h",
+    "tests/native_light_regression.cpp",
+    "tests/functional_map_regression.cpp",
+    "tests/test_light_clipboard_v8_audit.py",
+    "tools/check_source_consistency.py",
+    "docs/OPRAVY_V8_LIGHT_CLIPBOARD_SK.md",
+    "V8_LIGHT_CLIPBOARD_HOTFIX_README.txt"
+  ],
+  "validation": {
+    "source_preflight": "PASS",
+    "python_tests": "81 PASS",
+    "native_cpu_regressions": "7 PASS",
+    "windows_msbuild": "NOT RUN HERE",
+    "protlvk": "NOT RUN HERE"
+  }
+}
