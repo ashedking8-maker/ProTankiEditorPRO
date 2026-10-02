@@ -84,7 +84,7 @@ add_executable(GTanksNextEditor WIN32
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
   src/Native3DSScene.h src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
-  src/EditorUi.cpp src/EditorUi.h src/GameplaySelection.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
+  src/EditorUi.cpp src/EditorUi.h src/GameplaySelection.h src/PlacementSnap.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
 target_include_directories(GTanksNextEditor PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -161,6 +161,9 @@ set(CPACK_PACKAGE_INSTALL_DIRECTORY "ProTanki Editor PRO")
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(PlacementSnapRegression tests/placement_snap_regression.cpp)
+  target_include_directories(PlacementSnapRegression PRIVATE src)
+  add_test(NAME PlacementGridAndRotatedEdges COMMAND PlacementSnapRegression)
   add_executable(GameplaySelectionRegression tests/gameplay_selection_regression.cpp)
   target_include_directories(GameplaySelectionRegression PRIVATE src tests)
   add_test(NAME GameplayBulkSelection COMMAND GameplaySelectionRegression)

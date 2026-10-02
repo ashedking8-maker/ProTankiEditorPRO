@@ -9,8 +9,8 @@ class Ux0513Audit(unittest.TestCase):
     def test_grid_phase_and_drag_copy(self):
         ui=content("src/EditorUi.cpp")
         self.assertIn("clipboardAnchor_=center",ui)
-        self.assertIn("GridStep::QuantizeAroundAnchor(target.x",ui)
-        self.assertIn("gridSize_,clipboardAnchor_.y",ui)
+        self.assertIn("PlacementSnap::Coordinate(target.x",ui)
+        self.assertIn("absoluteGridSnap_,clipboardPlacement_?clipboardAnchor_.y",ui)
         self.assertIn("clipboardPlacement_=false;",ui)
         self.assertIn("if(GridStep::QuantizeAroundAnchor(749.f,100.f,250.f)!=750.f)",content("tests/grid_step_regression.cpp"))
 

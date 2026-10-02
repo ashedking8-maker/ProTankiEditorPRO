@@ -106,7 +106,7 @@ def main() -> int:
                 'TrimBrowseCpuCache();' in ui,
                 'Session-only manually selected library / thumbnail cache policy regressed')
         require('VERSION 0.5.28' in cmake and '0.5.28' in text('src/App.cpp')
-                and '0.5.28-selection-compatibility-v2' in text('src/Logger.cpp'),'Version drift')
+                and '0.5.28-placement-grid-v3' in text('src/Logger.cpp'),'Version drift')
         require('AppendLosslessNativeStaticClone' in doc and
                 'clipboardHasNativeStaticBundle_' in ui and
                 '3DS reinterpretation bypassed' in ui and
@@ -264,7 +264,7 @@ def main() -> int:
         require('DrawBrowseLibrary(map, assets, scene, previewScene)' in ui and 'ImGuiListClipper clipper' in ui
                 and 'ImGuiTreeNodeFlags_SpanAvailWidth' in ui and 'TrimBrowseGpuCache(PreviewThumbnailCodec::GpuBudget' in ui
                 and 'browseRenderedThisFrame_' in ui, 'Lazy full-workspace library browser missing')
-        require('SnapDelta(current.x-drag_.planeStart.x)' in ui and 'SnapDelta(current.y-drag_.planeStart.y)' in ui,
+        require('SnapPosition(drag_.before.position.x+current.x-drag_.planeStart.x)' in ui and 'SnapPosition(drag_.before.position.y+current.y-drag_.planeStart.y)' in ui,
                 'Existing props must snap relative movement, not absolute XML positions')
         require('PushSnapshot' in text('src/EditHistory.cpp') and 'DrawUnsavedChangesDialog' in text('src/App.cpp')
                 and 'CreateBlank' in doc, 'Structural Undo / New Map / unsaved changes guard missing')
@@ -302,7 +302,7 @@ def main() -> int:
                 'scripts/package-windows.ps1: output filename mismatch; replace with the matching 0.5.28 packaging script')
         require('0.5.28' in text('assets/GTanksNextEditor.rc') and
                 'FILEVERSION 0,5,28,0' in text('assets/GTanksNextEditor.rc'), 'Resource version drift')
-        require('GridStep::Quantize(v,gridSize_)' in ui and 'GridStep::KeyboardStep(gridSize_,io.KeyShift)' in ui
+        require('PlacementSnap::Coordinate(v,GridStep::KeyboardStep(gridSize_,ImGui::GetIO().KeyShift),absoluteGridSnap_)' in ui and 'GridStep::KeyboardStep(gridSize_,io.KeyShift)' in ui
                 and 'GridStepAlwaysOn' in cmake, 'Movement grid regression: grid must snap by default')
         require('objectUndo_.push_back(CaptureObjectSnapshot())' in ui and 'if (objectEditorOpen_)' in ui,
                 'Object authoring undo must remain separate from the map')
@@ -336,7 +336,7 @@ def main() -> int:
                 'Native light XML editing/preview regression')
         # 0.5.18 copies must retain source-grid phase and native gameplay properties.
         require('QuantizeAroundAnchor' in text('src/GridStep.h') and
-                ui.count('GridStep::QuantizeAroundAnchor(')>=4 and
+                ui.count('PlacementSnap::Coordinate(')>=5 and
                 'functionalClipboardBonus_' in hdr and 'item.modes' not in ui and
                 'auto item=functionalClipboardBonus_' in ui and 'map.AddBonusRegion(item)' in ui,
                 'Gameplay/static paste needs source-aligned native clipboard')

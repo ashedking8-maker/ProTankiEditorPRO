@@ -1,6 +1,7 @@
 #pragma once
 #include "MapDocument.h"
 #include "AssetRegistry.h"
+#include "PlacementSnap.h"
 #include <DirectXMath.h>
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -100,6 +101,8 @@ public:
     // changes XML or ghost until caller explicitly applies the returned delta.
     bool SuggestEdgeSnap(const std::vector<PropInstance>& props,float tolerance,
                          float clearance,float& legacyDx,float& legacyDy) const;
+    PlacementSnap::Match SuggestPlacementSnap(const PropInstance& moving,int referenceIndex,
+        const PropInstance& reference,float tolerance,float clearance);
     int Selected() const { return selectedProp_; }
 
 private:
@@ -134,6 +137,14 @@ private:
         DirectX::XMFLOAT3 boundsMin{};
         DirectX::XMFLOAT3 boundsMax{};
     };
+    struct SnapShapeCache {
+        std::shared_ptr<MeshGpu> mesh;
+        DirectX::XMFLOAT3 rotation{};
+        PlacementSnap::Shape shape;
+    };
+    SnapShapeCache movingSnapCache_, fixedSnapCache_;
+    static PlacementSnap::Shape SnapShape(const std::shared_ptr<MeshGpu>& mesh,
+        const PropInstance& prop,SnapShapeCache& cache);
     struct TextureGpu {
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
         unsigned width{1};

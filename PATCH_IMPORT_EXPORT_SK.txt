@@ -1,30 +1,21 @@
-KUMULATÍVNY PATCH V2 — 2026-09-29
-Pre zaslaný ProTankiEditorPRO-main 0.5.28.
+KUMULATÍVNY PATCH V3 — 2026-10-02
+Pre zaslaný projekt ProTankiEditorPRO-main 0.5.28.
 
-1. Rozbaľ ZIP a skopíruj CELÝ obsah do koreňa existujúceho projektu.
-2. Zachovaj src/, tests/, tools/, docs/ a prepíš zodpovedajúce súbory.
-   Nevymaž zvyšok projektu: toto sú iba zmenené a nové súbory.
-3. Nahraj rozbalené súbory do GitHubu na rovnaké cesty.
-   Nahratie samotného ZIP-u ako jedného súboru nezmení zdrojový kód.
-4. Nechaj existujúci Windows workflow zostaviť projekt a vykonať CTest.
-5. Použi EXE zo zostavenia, v ktorom prešli build aj testy.
+Rozbaľ ZIP a nahraj CELÝ obsah do koreňa existujúceho GitHub projektu.
+Zachovaj src/, tests/, tools/, docs/ a prepíš rovnomenné súbory.
+Neodstraňuj zvyšok projektu: balík obsahuje len nové/zmenené súbory.
+Nenahrávaj iba ZIP ako jeden súbor. CMake kompiluje zdroje v src/.
+Nechaj GitHub workflow vykonať Windows build a CTest pred vytvorením EXE.
 
-Balík zahŕňa aj predchádzajúce opravy importu/exportu.
-Aktuálny podrobný rozbor: docs/OPRAVY_V2_SK.md
-Historická analýza originálneho SWF: docs/IMPORT_EXPORT_OPRAVA_SK.md
-Výsledky testov: docs/IMPORT_EXPORT_TEST_RESULTS.txt
-Súbory a SHA-256: PATCH_IMPORT_EXPORT_MANIFEST.json
+Balík zahŕňa V1/V2 aj nové opravy:
+- Q/E pri Quick add mení gameplay ghost a nie starý vybraný objekt.
+- Only used AX library je predvolene zapnuté.
+- Grid snap: XYZ, zachovaná výška, prisúvanie k poslednej vloženej hrane.
+- Show gameplay overlays zapína/vypína všetkých 5 podvolieb.
 
-Opravené: odmietanie viac-koreňových 3DS, výber nenačítaných objektov,
-viditeľné gameplay skupiny a Delete/Undo, Properties pred Scene,
-Q/E výška držaného objektu, automatický posun Z o 0,5 predvolene vypnutý.
-AAA/BBB Fabr Tower: všetkých 6 lokálnych kolíznych rovín je identických;
-líši sa poloha objektu, poradie a ID záznamov.
+Vysvetlenie, geometrické hranice a návod: docs/OPRAVY_V3_SK.md
+Výsledky overenia: docs/IMPORT_EXPORT_TEST_RESULTS.txt
+Log novej verzie: 0.5.28-placement-grid-v3
 
-Lokálne: 79 Python kontrol, konzistencia zdrojov a 5 CPU C++ programov PASS.
-Celý Windows build, Windows/XML CTest, GUI a hra tu neboli spustené.
-cond1.3ds nebol priložený; fallback nie je záruka presnej zhody jeho
-vizuálneho výberu s AIR. Podrobnosti a rozsah funkcií sú v rozbore V2.
-
-CMake kompiluje src/. Nestačí nahrať iba koreňové .cpp/.h.
-Log opraveného zdroja: 0.5.28-selection-compatibility-v2.
+Lokálne: 79 Python kontrol + 6 CPU C++ programov + zdrojová kontrola PASS.
+Kompletný Windows build, GUI a hra tu neboli spustené.

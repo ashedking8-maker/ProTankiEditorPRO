@@ -709,6 +709,7 @@ void SceneRenderer::ReleasePreviewResources() {
 }
 
 void SceneRenderer::ClearScene() {
+    movingSnapCache_={};fixedSnapCache_={};
     meshBatches_.clear(); spriteBatches_.clear(); functionalModelBatches_ = {}; ghostItems_.clear(); pickProxies_.clear(); propBindings_.clear(); selectedProps_.clear(); selectedProp_ = -1; stats_ = {}; lastWarning_.clear(); hasBounds_ = false;
     debugVertices_.clear(); functionalPadBuffer_.Reset(); functionalPadVertices_=functionalFlagVertices_=functionalPointVertices_=0; functionalSpawnStarts_.fill(0);functionalSpawnCounts_.fill(0); functionalGhostActive_=false; boundsVertexCount_ = 0; gameplayVertexCount_ = 0; zoneVertexCount_ = 0; debugVertexBuffer_.Reset();
     collisionFaceBuffer_.Reset(); collisionEdgeBuffer_.Reset(); collisionFaceVertices_=collisionEdgeVertices_=0; collisionPreviewCounts_.fill(0);
@@ -1662,6 +1663,36 @@ bool SceneRenderer::SuggestEdgeSnap(const std::vector<PropInstance>& props,float
     const auto snap=GeometrySnap::Find(moving,others,tolerance,clearance);
     legacyDx=snap.x; legacyDy=snap.y; // internal Z = legacy Y in the GTanks left-handed basis
     return snap.xMatched||snap.yMatched;
+}
+
+PlacementSnap::Shape SceneRenderer::SnapShape(const std::shared_ptr<MeshGpu>& mesh,
+        const PropInstance& prop,SnapShapeCache& cache) {
+    if(cache.mesh!=mesh || cache.rotation.x!=prop.rotation.x ||
+       cache.rotation.y!=prop.rotation.y || cache.rotation.z!=prop.rotation.z) {
+        cache.mesh=mesh;cache.rotation=prop.rotation;cache.shape={};
+        cache.shape.minZ=std::numeric_limits<double>::infinity();cache.shape.maxZ=-cache.shape.minZ;
+        const auto world=LegacyTransform::World({},prop.rotation);
+        std::vector<PlacementSnap::Point> points;points.reserve(mesh->cpuVertices.size());
+        for(const auto& v:mesh->cpuVertices){
+            XMFLOAT3 p;XMStoreFloat3(&p,XMVector3TransformCoord(XMLoadFloat3(&v.position),world));
+            points.push_back({p.x,p.z}); // internal Y is legacy elevation
+            cache.shape.minZ=std::min(cache.shape.minZ,double(p.y));
+            cache.shape.maxZ=std::max(cache.shape.maxZ,double(p.y));
+        }
+        cache.shape.hull=PlacementSnap::Hull(std::move(points));
+    }
+    return PlacementSnap::Translate(cache.shape,prop.position.x,prop.position.y,prop.position.z);
+}
+PlacementSnap::Match SceneRenderer::SuggestPlacementSnap(const PropInstance& moving,int referenceIndex,
+        const PropInstance& reference,float tolerance,float clearance) {
+    if(referenceIndex<0 || static_cast<size_t>(referenceIndex)>=propBindings_.size() ||
+       ghostItems_.size()!=1 || !ghostItems_[0].mesh)return {};
+    const auto& binding=propBindings_[static_cast<size_t>(referenceIndex)];
+    if(binding.kind!=PropBinding::Kind::Mesh || binding.batch>=meshBatches_.size() ||
+       !meshBatches_[binding.batch].mesh)return {};
+    const auto movingShape=SnapShape(ghostItems_[0].mesh,moving,movingSnapCache_);
+    const auto fixedShape=SnapShape(meshBatches_[binding.batch].mesh,reference,fixedSnapCache_);
+    return PlacementSnap::Find(movingShape,fixedShape,tolerance,clearance);
 }
 
 void SceneRenderer::SetGhost(const std::vector<PropInstance>& props, const AssetRegistry& assets) {

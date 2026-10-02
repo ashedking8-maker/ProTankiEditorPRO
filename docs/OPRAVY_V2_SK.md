@@ -1,3 +1,5 @@
+> Historický popis V2. Aktuálne ovládanie umiestňovania a Grid snap opisuje `OPRAVY_V3_SK.md`.
+
 # Opravy V2 — výber, kopírovanie, ovládanie a kompatibilita exportu
 
 Tento kumulatívny balík je určený pre zaslaný projekt ProTankiEditorPRO-main 0.5.28. Obsahuje aj predchádzajúce opravy importu/exportu. GPU vykresľovanie zostáva zachované. Nie je to hotová EXE; tú zostaví existujúci GitHub Windows workflow.

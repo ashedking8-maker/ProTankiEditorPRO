@@ -37,7 +37,8 @@ class OrientationNative0522(unittest.TestCase):
     def test_edge_snap_and_new_object_surface_controls_do_not_mutate_existing_maps(self):
         ui=(ROOT/'src/EditorUi.cpp').read_text()
         header=(ROOT/'src/EditorUi.h').read_text()
-        self.assertIn('bool edgeSnapEnabled_{}',header)
+        self.assertIn('bool absoluteGridSnap_ = true',header)
+        self.assertIn('scene.SuggestPlacementSnap(',ui)
         self.assertIn('bool surfaceOffsetEnabled_{false}',header)
         self.assertIn('float surfaceOffsetZ_{0.5f}',header)
         self.assertIn('if(surfaceOffsetEnabled_ && !clipboardPlacement_) ghostPivot_.z+=surfaceOffsetZ_;',ui)

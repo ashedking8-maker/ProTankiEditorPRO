@@ -1,24 +1,20 @@
-V2 — executed locally, 2026-09-29
+V3 executed locally, 2026-10-02
+Source consistency preflight: PASS
 
-python3 tools/check_source_consistency.py: PASS
-python3 -m unittest discover -s tests -p 'test_*audit.py':
+Python audit suite:
 ...............................................................................
 ----------------------------------------------------------------------
-Ran 79 tests in 0.042s
+Ran 79 tests in 0.046s
 
 OK
 
-python3 tools/run_native_cpu_tests.py:
+Scalar C++ regressions:
+Placement snap: fractional/all-side/rotated edges, separation, floors, XYZ grid and retained height PASS
 Gameplay selection: visibility modes, 1000-item set, additive/toggle selection and projected volume rectangles PASS
 Native3DSWriter: visual mesh, winding, two native-read boxes, materials, keyframes, invalid inputs PASS
 Native visual smoothing masks, source material preservation, face mapping and opt-in overrides PASS
 PASS: game-verified 136->138 terrain helper match, 3DS readback, fail-closed multi-edit, TARA roundtrip
 SWF compatibility: inverse matrices, pivots, angle-axis, explicit selection, direct children, cycle rejection, filename independence, original box scale and old PTPRO migration PASS
-PASS: 5 scalar C++ regression programs; Windows/Assimp/XML tests are separate.
+PASS: 6 scalar C++ regression programs; Windows/Assimp/XML tests are separate.
 
-The CPU runner uses only a type shim for DirectX::XMFLOAT3.
-These are not full Windows build or GUI integration results.
-Added Windows/XML tests for 2000-prop full native copy, gameplay bulk
-Delete/Undo/Redo and XML reload have NOT been run in this environment.
-GitHub Windows workflow must compile and execute CTest.
-No runtime physics equivalence or exact cond1.3ds fallback selection claimed.
+Full Windows/MSVC/D3D/Assimp build, Windows XML CTests, GUI and gameplay NOT run here.

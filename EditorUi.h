@@ -134,7 +134,9 @@ private:
     void ResetObjectHistory();
     void DrawAxLibrary(const MapDocument&, const AssetRegistry&, SceneRenderer&, SceneRenderer&);
     void SelectOnly(int index, SceneRenderer& scene);
-    void UpdatePlacementGhost(SceneRenderer&, const AssetRegistry&, float x, float y);
+    void UpdatePlacementGhost(SceneRenderer&, const AssetRegistry&, const MapDocument&, float x, float y);
+    void UpdatePlacementKeyboard(SceneRenderer&);
+    void SetGameplayOverlays(bool enabled);
     void CommitPlacement(MapDocument&, const AssetRegistry&, SceneRenderer&);
     bool AuthorCollisionForPlacement(MapDocument&,const AssetRegistry&,size_t,std::string&,
                                      bool sourceVerifiedCoincident=false,size_t stagedStart=0);
@@ -291,9 +293,7 @@ private:
     bool showZones_ = false;
     bool snap_ = true;
     bool absoluteGridSnap_ = true;
-    bool edgeSnapEnabled_{}; // opt-in until compared against ProTLVK
-    float edgeSnapTolerance_{5.f};
-    float edgeSnapClearance_{}; // horizontal separation; NOT vertical surface offset
+    float edgeSnapClearance_{0.02f}; // horizontal separation; NOT vertical surface offset
     bool surfaceOffsetEnabled_{false}; // default for newly placed props; existing props never move
     float surfaceOffsetZ_{0.5f};
     float gridSize_ = 500.0f;
@@ -335,7 +335,7 @@ private:
     std::vector<int> dragIndices_;
     struct RecentAsset { size_t index{}; Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> thumbnail; int textureVariant{}; };
     std::vector<RecentAsset> recentAssets_;
-    bool axPinned_{}, axOnlyUsed_{}, axConfirmRemove_{};
+    bool axPinned_{}, axOnlyUsed_{true}, axConfirmRemove_{};
     int axRemovalIndex_{-1};
     int axCurrent_{0};
     bool axTabHeld_{};
@@ -358,6 +358,11 @@ private:
     bool placementActive_{};
     PropInstance placementTemplate_{};
     float placementZ_{};
+    float placementRayZ_{};
+    int lastPlacedProp_{-1};
+    PropInstance lastPlacedSnapshot_{};
+    bool edgeGuideActive_{};
+    DirectX::XMFLOAT3 edgeGuideA_{},edgeGuideB_{};
     DirectX::XMFLOAT3 placementKeyboardOffset_{};
 
     std::vector<GameplaySelection::Item> functionalSelection_;
