@@ -33,9 +33,11 @@ jobs:
         shell: powershell
         run: node report_gateway/discord/test_gateway.mjs
 
-      - name: Install NSIS installer compiler
+      - name: Install packaging tools
         shell: powershell
-        run: choco install nsis -y --no-progress
+        run: |
+          choco install nsis -y --no-progress
+          choco install 7zip -y --no-progress
 
       - name: Configure x64 Release
         shell: powershell
@@ -69,16 +71,39 @@ jobs:
           if (!(Test-Path "build/ProTankiEditorPRO-0.5.28-Setup.exe")) { throw "Setup EXE was not created" }
           if (!(Test-Path "build/ProTankiEditorPRO-0.5.28-Portable.zip")) { throw "Portable ZIP was not created" }
 
-      - name: Publish GitHub Release
+      - name: Create AES-256 encrypted Windows package
+        shell: powershell
+        env:
+          ARCHIVE_PASSWORD: ${{ secrets.ARCHIVE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:ARCHIVE_PASSWORD)) {
+            throw "Repository secret ARCHIVE_PASSWORD is missing or empty"
+          }
+          $sevenZip = Join-Path $env:ProgramFiles "7-Zip\7z.exe"
+          if (!(Test-Path $sevenZip)) { throw "7-Zip was not found at $sevenZip" }
+
+          $archive = "build/ProTankiEditorPRO-0.5.28-Windows-Encrypted.7z"
+          if (Test-Path $archive) { Remove-Item $archive -Force }
+
+          & $sevenZip a -t7z -mx=9 -mhe=on "-p$env:ARCHIVE_PASSWORD" $archive `
+            "build/ProTankiEditorPRO-0.5.28-Setup.exe" `
+            "build/ProTankiEditorPRO-0.5.28-Portable.zip" `
+            "build/ProTankiEditorPRO-0.5.28-SHA256.txt"
+          if ($LASTEXITCODE -ne 0) { throw "AES-256 archive creation failed" }
+          if (!(Test-Path $archive)) { throw "Encrypted archive was not created" }
+
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($archive))" | Set-Content -Encoding ASCII "build/ProTankiEditorPRO-0.5.28-Encrypted-SHA256.txt"
+
+      - name: Publish encrypted GitHub Release
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ github.ref_name }}" `
-            "build/ProTankiEditorPRO-0.5.28-Setup.exe#ProTankiEditorPRO-0.5.28-Setup.exe" `
-            "build/ProTankiEditorPRO-0.5.28-Portable.zip#ProTankiEditorPRO-0.5.28-Portable.zip" `
-            "build/ProTankiEditorPRO-0.5.28-SHA256.txt#ProTankiEditorPRO-0.5.28-SHA256.txt" `
+            "build/ProTankiEditorPRO-0.5.28-Windows-Encrypted.7z#ProTankiEditorPRO-0.5.28-Windows-Encrypted.7z" `
+            "build/ProTankiEditorPRO-0.5.28-Encrypted-SHA256.txt#ProTankiEditorPRO-0.5.28-Encrypted-SHA256.txt" `
             --title "ProTanki Editor PRO ${{ github.ref_name }}" `
-            --notes "Windows x64 build candidate. Native GLB game export remains disabled pending original-editor and ProTLVK validation. Download ProTankiEditorPRO-0.5.28-Setup.exe for the normal installer." `
+            --notes "Windows x64 build candidate. The 7z package is AES-256 encrypted and requires the separately shared password." `
             --prerelease
-          if ($LASTEXITCODE -ne 0) { throw "Cannot create tag release" }
+          if ($LASTEXITCODE -ne 0) { throw "Cannot create encrypted tag release" }
