@@ -19,7 +19,11 @@ inline V Sub(V a,V b){return {a.x-b.x,a.y-b.y,a.z-b.z};}
 inline V Mul(V a,float s){return {a.x*s,a.y*s,a.z*s};}
 inline float Dot(V a,V b){return a.x*b.x+a.y*b.y+a.z*b.z;}
 inline V Cross(V a,V b){return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
-inline bool Finite(V a){return std::isfinite(a.x)&&std::isfinite(a.y)&&std::isfinite(a.z)&&
+inline bool Numeric(V a){return std::isfinite(a.x)&&std::isfinite(a.y)&&std::isfinite(a.z);}
+// Sanity limit for NORMALIZED prop-local values. Raw 3DS world coordinates can
+// legitimately be much larger because old assets may carry an artist-scene
+// translation that is cancelled by the 0x4160 matrix / keyframe root.
+inline bool Finite(V a){return Numeric(a)&&
     std::fabs(a.x)<1.e7f&&std::fabs(a.y)<1.e7f&&std::fabs(a.z)<1.e7f;}
 struct Node {
     std::string name;std::vector<V> vertices;
@@ -91,7 +95,7 @@ inline bool Read(const std::filesystem::path& path,Scene& out,std::string& error
                 if(tag==0x4110){
                     if(e-p<2){failed=true;break;}size_t count=u16(p);p+=2;
                     if(count>(e-p)/12||!n.vertices.empty()){failed=true;break;}
-                    for(size_t i=0;i<count;++i){auto v=vec(p+12*i);if(!Finite(v)){failed=true;break;}n.vertices.push_back(v);}
+                    for(size_t i=0;i<count;++i){auto v=vec(p+12*i);if(!Numeric(v)){failed=true;break;}n.vertices.push_back(v);}
                 }else if(tag==0x4120){
                     if(e-p<2){failed=true;break;}size_t count=u16(p);p+=2;
                     if(count>(e-p)/8||!n.faces.empty()){failed=true;break;}
@@ -113,7 +117,7 @@ inline bool Read(const std::filesystem::path& path,Scene& out,std::string& error
                     if(tag==0xb021)f.rotation=AngleAxis(f32(p+20),vec(p+24));
                     if(tag==0xb022)f.scale=vec(p+20);
                 }
-                if(!Finite(f.pivot)||!Finite(f.position)||!Finite(f.rotation)||!Finite(f.scale))failed=true;
+                if(!Finite(f.pivot)||!Numeric(f.position)||!Finite(f.rotation)||!Finite(f.scale))failed=true;
             }
             a=e;
         }

@@ -1,0 +1,63 @@
+{
+  "patch": "large-world-3ds-v7-2026-10-02",
+  "base_project": "uploaded ProTankiEditorPRO-main 0.5.28 existing-snap-v6",
+  "base_zip_sha256": "91a9af43d379ac2e305014324fc9fe8db649d59675744820d4b950d210e76439",
+  "note": "V7 overlay. No asset-specific porch1 exception; raw 3DS artist-space coordinates are validated after normalization. Manifest excludes own hash.",
+  "files": [
+    {
+      "path": "Native3DSScene.h",
+      "bytes": 11418,
+      "sha256": "b1b211e3b922ca54fd4f25e3b288d0f20d99f07f36043373280e82ea85a2fe07"
+    },
+    {
+      "path": "NativeCollisionImport.h",
+      "bytes": 8028,
+      "sha256": "0eefba6373d62608cac46cce5c79005de3e93faf5b6281c0df72ed847d708204"
+    },
+    {
+      "path": "Logger.cpp",
+      "bytes": 5663,
+      "sha256": "0689797bdcabc4adf226624c9590eebbdcce4b8b587425c8bc773552b8fd5b76"
+    },
+    {
+      "path": "PATCH_IMPORT_EXPORT_SK.txt",
+      "bytes": 940,
+      "sha256": "fa6e328a17f392fbf3a2bd5e64c8610e377346f81db81eedd59949c2cbd337a9"
+    },
+    {
+      "path": "src/Native3DSScene.h",
+      "bytes": 11418,
+      "sha256": "b1b211e3b922ca54fd4f25e3b288d0f20d99f07f36043373280e82ea85a2fe07"
+    },
+    {
+      "path": "src/NativeCollisionImport.h",
+      "bytes": 8028,
+      "sha256": "0eefba6373d62608cac46cce5c79005de3e93faf5b6281c0df72ed847d708204"
+    },
+    {
+      "path": "src/Logger.cpp",
+      "bytes": 5663,
+      "sha256": "0689797bdcabc4adf226624c9590eebbdcce4b8b587425c8bc773552b8fd5b76"
+    },
+    {
+      "path": "tests/native_swf_compatibility_regression.cpp",
+      "bytes": 8757,
+      "sha256": "90d814d55cdd96b9acc821925170abdaa136f368a5a7024d2e18a730543f89cc"
+    },
+    {
+      "path": "tools/check_source_consistency.py",
+      "bytes": 34292,
+      "sha256": "2886a06f2639a1fce9311dc71e7eae8a9138e15ca0b5d69952160f8c9a7889a7"
+    },
+    {
+      "path": "check_source_consistency.py",
+      "bytes": 34292,
+      "sha256": "2886a06f2639a1fce9311dc71e7eae8a9138e15ca0b5d69952160f8c9a7889a7"
+    },
+    {
+      "path": "docs/OPRAVY_V7_3DS_LARGE_WORLD_SK.md",
+      "bytes": 2510,
+      "sha256": "d635b18d53ee2ec16f151c318f3f8c5566b0c61272e29fd843290d44154b2bef"
+    }
+  ]
+}

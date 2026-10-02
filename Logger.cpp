@@ -119,7 +119,7 @@ bool Initialize() {
     if (!g_file) return false;
     g_previousFilter = SetUnhandledExceptionFilter(CrashFilter);
     g_file << "[" << Timestamp() << "] [INFO] [tid=" << GetCurrentThreadId() << "] "
-           << "Session log opened. version=0.5.28-existing-snap-v6 build=" << __DATE__ << " " << __TIME__ << "\r\n";
+           << "Session log opened. version=0.5.28-large-world-3ds-v7 build=" << __DATE__ << " " << __TIME__ << "\r\n";
     g_file.flush();
     return true;
 }

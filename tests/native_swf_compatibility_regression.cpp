@@ -23,6 +23,17 @@ static W::Bytes Frame(const std::string& name,int parent,S::V pivot={},S::V pos=
 static bool Save(const std::filesystem::path& file,const W::Bytes& b){
     std::ofstream f(file,std::ios::binary);f.write(reinterpret_cast<const char*>(b.data()),static_cast<std::streamsize>(b.size()));return bool(f);
 }
+static W::Bytes OffsetObject(const std::string& name,S::V origin,
+                             const std::vector<std::array<float,3>>& local,
+                             const std::vector<std::array<std::uint16_t,3>>& faces){
+    W::Bytes mesh,verts,matrix,face,obj;W::U16(verts,static_cast<std::uint16_t>(local.size()));
+    for(const auto& v:local){W::Float(verts,v[0]+origin.x);W::Float(verts,v[1]+origin.y);W::Float(verts,v[2]+origin.z);}
+    W::Add(mesh,W::Chunk(0x4110,verts));
+    for(int i=0;i<12;++i)W::Float(matrix,i==0||i==4||i==8?1.f:(i==9?origin.x:(i==10?origin.y:(i==11?origin.z:0.f))));
+    W::Add(mesh,W::Chunk(0x4160,matrix));W::U16(face,static_cast<std::uint16_t>(faces.size()));
+    for(const auto& f:faces){for(auto i:f)W::U16(face,i);W::U16(face,0);}
+    W::Add(mesh,W::Chunk(0x4120,face));W::CStr(obj,name);W::Add(obj,W::Chunk(0x4100,mesh));return W::Chunk(0x4000,obj);
+}
 int main(int argc,char** argv){
     PT_REQUIRE(argc==2);const auto root=std::filesystem::path(argv[1]);std::string error;
     const auto temp=std::filesystem::temp_directory_path()/
@@ -36,6 +47,36 @@ int main(int argc,char** argv){
     PT_REQUIRE(S::LocalVertex(n,nullptr,{24,38,-2},local)&&Eq(local,{24,38,-2}));
     n.matrix[0]=0;PT_REQUIRE(!S::LocalVertex(n,&f,{24,38,-2},local));
     PT_REQUIRE(Eq(S::AngleAxis(1.57079632679f,{0,0,1}).z,-1.57079632679f));
+    // Legacy artist scenes may store a visual mesh around a huge world-space
+    // translation and cancel it with 0x4160/keyframe data. porch1.3ds in the
+    // original library is such a file. Reject NaN/Inf raw data, but apply the
+    // magnitude sanity limit only after normalization into prop-local space.
+    {
+        constexpr S::V origin{11417447.f,-1146447.25f,-69.72265625f};
+        W::Bytes largeMeshes,largeFrames,largeBody;
+        const std::vector<std::array<float,3>> visualLocal{{-500,-250,0},{0,-250,0},{0,250,0},{-500,250,0}};
+        W::Add(largeMeshes,OffsetObject("visual",origin,visualLocal,{{0,1,2},{0,2,3}}));
+        W::Add(largeMeshes,W::Object("PlaneChild",{{0,0,0},{200,0,0},{0,300,0}},{{0,1,2}}));
+        W::Add(largeFrames,Frame("visual",-1,{},origin));W::Add(largeFrames,Frame("PlaneChild",0));
+        W::Add(largeBody,W::Chunk(0x3d3d,largeMeshes));W::Add(largeBody,W::Chunk(0xb000,largeFrames));
+        const auto large=temp/"large-world-origin.3ds";PT_REQUIRE(Save(large,W::Chunk(0x4d4d,largeBody)));
+        S::Scene largeScene;S::Selection largeSelection;PT_REQUIRE(S::Read(large,largeScene,error));
+        PT_REQUIRE(S::Resolve(largeScene,"visual",largeSelection,error));
+        S::V normalized{};const auto* largeFrame=S::SelectedFrame(largeScene,largeSelection);
+        PT_REQUIRE(S::LocalVertex(largeScene.nodes[largeSelection.node],largeFrame,
+            largeScene.nodes[largeSelection.node].vertices.front(),normalized));
+        PT_REQUIRE(Eq(normalized,{-500,-250,0}));
+        const auto largeCollision=NativeCollisionImport::Read(large,"visual");
+        PT_REQUIRE(largeCollision.Valid()&&largeCollision.planes.size()==1);
+        // Relaxing raw world coordinates must not allow a helper whose FINAL
+        // prop-local collision position is absurdly large.
+        largeFrames.clear();largeBody.clear();W::Add(largeFrames,Frame("visual",-1,{},origin));
+        W::Add(largeFrames,Frame("PlaneChild",0,{},S::V{20000000.f,0,0}));
+        W::Add(largeBody,W::Chunk(0x3d3d,largeMeshes));W::Add(largeBody,W::Chunk(0xb000,largeFrames));
+        const auto unsafe=temp/"large-helper-offset.3ds";PT_REQUIRE(Save(unsafe,W::Chunk(0x4d4d,largeBody)));
+        const auto unsafeCollision=NativeCollisionImport::Read(unsafe,"visual");
+        PT_REQUIRE(!unsafeCollision.Valid()&&unsafeCollision.error.find("Out-of-range normalized")!=std::string::npos);
+    }
     // Two roots, a direct plane, a grandchild and an unrelated root named Box.
     // Only the direct plane belongs to the explicitly selected visual object.
     W::Bytes meshes,frames,body;

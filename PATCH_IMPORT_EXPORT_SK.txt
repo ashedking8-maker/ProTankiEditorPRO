@@ -1,11 +1,14 @@
-KUMULATÍVNY PATCH V6 — 2026-10-02
+KUMULATÍVNY PATCH V7 — 2026-10-02
 Rozbaľ ZIP a nahraj celý obsah do koreňa existujúceho GitHub projektu.
 Zachovaj src/, tests/, tools/, docs/; prepíš súbory, ostatné ponechaj.
 GitHub workflow musí vykonať Windows build a CTest.
 
-V6: Grid snap aj pri presune existujúcich objektov a skupín myšou/klávesmi.
-Tenká 1px vodiaca čiara bez textu. Farba: Tools > Placement settings > Snap guide color.
-Podrobnosti: docs/OPRAVY_V6_SK.md
-Log: 0.5.28-existing-snap-v6
-Lokálne PASS: 79 Python kontrol, 7 CPU C++ programov, kontrola zdrojov.
-Windows build a GUI tu neboli spustené. Balík obsahuje všetky opravy V1–V6.
+V7: globálna oprava legacy 3DS s veľkým pôvodným world-origin.
+Rio: 52 chýbajúcich objektov boli všetky ComBuild/porch1.3ds. Súbor nie je poškodený;
+raw vrcholy sú okolo X=11,4 milióna a 0x4160/keyframe transform ich normalizuje späť do lokálneho priestoru.
+Parser už neodmieta raw world-space hodnoty len kvôli veľkosti; bezpečnostný limit platí až po normalizácii.
+Kolízne výsledky zostávajú fail-closed.
+Podrobnosti: docs/OPRAVY_V7_3DS_LARGE_WORLD_SK.md
+Log: 0.5.28-large-world-3ds-v7
+Lokálne PASS: 79 Python kontrol, 7 CPU C++ programov, kontrola zdrojov, audit 1432 3DS.
+Windows/MSVC + Assimp/GPU + hra tu neboli spustené. Balík obsahuje všetky opravy V1–V7.

@@ -85,6 +85,7 @@ inline Result Read(const std::filesystem::path& file,const std::string& objectNa
             for(V p:v){lo={std::min(lo.x,p.x),std::min(lo.y,p.y),std::min(lo.z,p.z)};hi={std::max(hi.x,p.x),std::max(hi.y,p.y),std::max(hi.z,p.z)};}
             Result::Box out;out.size=Sub(hi,lo);out.offset=place(Mul(Add(lo,hi),.5f));out.rotation=frame.rotation;
             if(out.size.x<.01f||out.size.y<.01f||out.size.z<.01f)return fail("Degenerate 3DS box helper: "+frame.name);
+            if(!Finite(out.offset)||!Finite(out.rotation)||!Finite(out.size))return fail("Out-of-range normalized 3DS box helper: "+frame.name);
             result.boxes.push_back(out);
         }else{
             // Mesh._faces is keyed by numeric face ids; the first face supplies
@@ -96,7 +97,10 @@ inline Result Read(const std::filesystem::path& file,const std::string& objectNa
                 x=Unit(x);z=Unit(z);const V y=Cross(z,x),center=Mul(Add(Add(a,b),c),1.f/3.f);
                 auto local=[&](V p){p=Sub(p,center);return V{Dot(p,x),Dot(p,y),0};};
                 VerifiedCollisionTemplates::Triangle out;out.offset=place(center);out.rotation=rotation(x,y,z);
-                out.v0=local(a);out.v1=local(b);out.v2=local(c);result.triangles.push_back(out);
+                out.v0=local(a);out.v1=local(b);out.v2=local(c);
+                if(!Finite(out.offset)||!Finite(out.rotation)||!Finite(out.v0)||!Finite(out.v1)||!Finite(out.v2))
+                    return fail("Out-of-range normalized 3DS triangle helper: "+frame.name);
+                result.triangles.push_back(out);
             }else{
                 const std::array<V,3> points{a,b,c},edges{Sub(b,a),Sub(c,b),Sub(a,c)};
                 const std::array<float,3> lengths{Norm(edges[0]),Norm(edges[1]),Norm(edges[2])};
@@ -108,7 +112,10 @@ inline Result Read(const std::filesystem::path& file,const std::string& objectNa
                 x=Unit(x);y=Unit(y);V z=Cross(x,y);
                 // The original expects a right-triangle half of a rectangle.
                 if(std::fabs(Dot(x,y))>.003f)return fail("Nonrectangular 3DS plane helper: "+frame.name);
-                VerifiedCollisionTemplates::Plane out;out.offset=place(center);out.rotation=rotation(x,y,Unit(z));out.width=width;out.length=length;result.planes.push_back(out);
+                VerifiedCollisionTemplates::Plane out;out.offset=place(center);out.rotation=rotation(x,y,Unit(z));out.width=width;out.length=length;
+                if(!Finite(out.offset)||!Finite(out.rotation)||!std::isfinite(out.width)||!std::isfinite(out.length)||
+                   out.width>1.e7f||out.length>1.e7f)return fail("Out-of-range normalized 3DS plane helper: "+frame.name);
+                result.planes.push_back(out);
             }
         }
         if(result.planes.size()+result.boxes.size()+result.triangles.size()>2048)return fail("Excessive 3DS helper count.");
