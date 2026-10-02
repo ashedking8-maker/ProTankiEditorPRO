@@ -482,6 +482,7 @@ void EditorUi::LoadControls() {
         else if (tag=="customSurface") { for(auto& v:customSurface_) if(!(in>>v)) break; for(auto& v:customSurface_) v=std::clamp(v,0.f,1.f); }
         else if (tag=="customText") { for(auto& v:customText_) if(!(in>>v)) break; for(auto& v:customText_) v=std::clamp(v,0.f,1.f); }
         else if (tag=="viewportBackground") { for(auto& v:viewportBackground_) if(!(in>>v)) break; for(auto& v:viewportBackground_) v=std::clamp(v,0.f,1.f); }
+        else if (tag=="snapGuideColor") { for(auto& v:snapGuideColor_) if(!(in>>v)) break; for(auto& v:snapGuideColor_) v=std::isfinite(v)?std::clamp(v,0.f,1.f):0.5f; }
         else if (tag=="viewportGridColor") { for(auto& v:viewportGridColor_) if(!(in>>v)) break; for(auto& v:viewportGridColor_) v=std::clamp(v,0.f,1.f); }
         else if (tag=="smoothCameraFocus") { int v{};if(in>>v)smoothCameraFocus_=v!=0; }
         else if (tag=="previewNativeLighting") { int v{}; if(in>>v) previewNativeLighting_=v!=0; }
@@ -537,6 +538,7 @@ void EditorUi::SaveControls() const {
     out<<"customSurface "<<customSurface_[0]<<' '<<customSurface_[1]<<' '<<customSurface_[2]<<'\n';
     out<<"customText "<<customText_[0]<<' '<<customText_[1]<<' '<<customText_[2]<<'\n';
     out<<"viewportBackground "<<viewportBackground_[0]<<' '<<viewportBackground_[1]<<' '<<viewportBackground_[2]<<'\n';
+    out<<"snapGuideColor "<<snapGuideColor_[0]<<' '<<snapGuideColor_[1]<<' '<<snapGuideColor_[2]<<'\n';
     out<<"viewportGridColor "<<viewportGridColor_[0]<<' '<<viewportGridColor_[1]<<' '<<viewportGridColor_[2]<<'\n';
     out<<"smoothCameraFocus "<<smoothCameraFocus_<<'\n';
     out<<"previewNativeLighting "<<previewNativeLighting_<<'\n';
@@ -611,6 +613,7 @@ void EditorUi::PushDiscreteTransform(MapDocument& map, SceneRenderer& scene, int
 }
 
 void EditorUi::SelectOnly(int index, SceneRenderer& scene) {
+    edgeGuideActive_=false;
     functionalSelection_.clear();
     selected_=index; selectedItems_.clear(); if(index>=0) functionalSelected_=FunctionalType::None;
     if (index>=0) {selectedItems_.push_back(index);functionalPropertyBefore_.reset();zonePropertyBefore_.reset();}
@@ -1194,6 +1197,14 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
         " native triangles. Validate new 3DS helper types in ProTLVK.");
 }
 
+void EditorUi::SetSnapGuide(const PlacementSnap::Match& match,float elevation) {
+    edgeGuideActive_=match.matched;
+    if(!match.matched)return;
+    edgeGuideUntil_=ImGui::GetTime()+.35;
+    edgeGuideA_={static_cast<float>(match.guideA.x),static_cast<float>(match.guideA.y),elevation};
+    edgeGuideB_={static_cast<float>(match.guideB.x),static_cast<float>(match.guideB.y),elevation};
+}
+
 void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& assets, const MapDocument& map, float x, float y) {
     edgeGuideActive_=false;
     if (!placementActive_ || placementItems_.empty()) { ghostValid_=false; ghostProps_.clear(); scene.ClearGhost(); return; }
@@ -1225,9 +1236,7 @@ void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& a
             ghostPivot_.x+=dx;ghostPivot_.y+=dy;
             for(auto& prop:ghostProps_){prop.position.x+=dx;prop.position.y+=dy;}
             // The SAME group translation goes into native clipboard collision at commit.
-            scene.SetGhost(ghostProps_,assets);edgeGuideActive_=true;
-            edgeGuideA_={static_cast<float>(match.guideA.x),static_cast<float>(match.guideA.y),ghostPivot_.z};
-            edgeGuideB_={static_cast<float>(match.guideB.x),static_cast<float>(match.guideB.y),ghostPivot_.z};
+            scene.SetGhost(ghostProps_,assets);SetSnapGuide(match,ghostPivot_.z);
         }
     }
 }
@@ -1534,27 +1543,29 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
     if (right==0 && forward==0 && height==0 && rotation==0) return;
     DirectX::XMFLOAT3 basisRight{1,0,0},basisForward{0,1,0};
     if (navigationMode_==NavigationMode::Simple || navigationMode_==NavigationMode::Custom) scene.CameraMoveBasisLegacy(basisRight,basisForward);
-    const DirectX::XMFLOAT3 delta{step*(basisRight.x*right+basisForward.x*forward),
+    DirectX::XMFLOAT3 delta{step*(basisRight.x*right+basisForward.x*forward),
         step*(basisRight.y*right+basisForward.y*forward),step*height};
+    std::vector<int> indices;
+    for(int index:selectedItems_)if(index>=0 && static_cast<size_t>(index)<map.Props().size())indices.push_back(index);
+    if(indices.empty())return;
+    const auto anchor=map.Props()[static_cast<size_t>(indices.back())].position;
+    if(absoluteGridSnap_){
+        if(right!=0||forward!=0){delta.x=GridStep::Quantize(anchor.x+delta.x,step)-anchor.x;delta.y=GridStep::Quantize(anchor.y+delta.y,step)-anchor.y;}
+        if(height!=0)delta.z=GridStep::Quantize(anchor.z+delta.z,step)-anchor.z;
+    }
+    std::vector<PropInstance> proposed;
+    for(int index:indices){auto p=map.Props()[static_cast<size_t>(index)];p.position.x+=delta.x;p.position.y+=delta.y;p.position.z+=delta.z;p.rotation.z+=angle*rotation;proposed.push_back(p);}
+    edgeGuideActive_=false;
+    if(absoluteGridSnap_ && (right!=0||forward!=0) && rotation==0){
+        const PlacementSnap::Point travel{delta.x,delta.y};
+        const auto match=scene.SuggestPlacementSnap(proposed,map,step,{-travel.x,-travel.y},edgeSnapClearance_,indices,travel);
+        for(auto& p:proposed){p.position.x+=static_cast<float>(match.dx);p.position.y+=static_cast<float>(match.dy);}
+        SetSnapGuide(match,anchor.z+delta.z);
+    }
     std::vector<TransformEdit> edits;
-    for (int index:selectedItems_) {
-        if (index<0 || static_cast<size_t>(index)>=map.Props().size()) continue;
-        const auto before=StateOf(map.Props()[static_cast<size_t>(index)]);
-        auto after=before;
-        after.position.x+=delta.x; after.position.y+=delta.y; after.position.z+=delta.z;
-        // Quantize the WORLD position, not only the camera-relative delta. This
-        // removes fractional drift left by mouse placement and prior transforms.
-        if (absoluteGridSnap_ && (right!=0 || forward!=0 || height!=0)) {
-            const float cell=GridStep::KeyboardStep(gridSize_,io.KeyShift);
-            if (right!=0 || forward!=0) {
-                after.position.x=GridStep::Quantize(after.position.x,cell);
-                after.position.y=GridStep::Quantize(after.position.y,cell);
-            }
-            if (height!=0) after.position.z=GridStep::Quantize(after.position.z,cell);
-        }
-        after.rotation.z+=angle*rotation;
-        ApplyLiveTransform(map,scene,index,after);
-        edits.push_back({static_cast<size_t>(index),before,after,"Keyboard transform"});
+    for(size_t i=0;i<indices.size();++i){
+        const int index=indices[i];const auto before=StateOf(map.Props()[static_cast<size_t>(index)]),after=StateOf(proposed[i]);
+        ApplyLiveTransform(map,scene,index,after);edits.push_back({static_cast<size_t>(index),before,after,"Keyboard transform"});
     }
     history_.PushBatch(std::move(edits));
 }
@@ -1824,6 +1835,7 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         if(ImGui::Begin("Placement settings##tools",&showPlacementSettings_,
                         ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoDocking)) {
             ImGui::Checkbox("Grid snap",&absoluteGridSnap_);
+            if(ImGui::ColorEdit3("Snap guide color",snapGuideColor_))SaveControls();
             HoverHelp("Regular XYZ grid plus extra discrete edge positions between grid nodes. No continuous sliding along edges. Applies to new props and clipboard groups.");
             if(absoluteGridSnap_) {
                 ImGui::SetNextItemWidth(125.f);ImGui::InputFloat("Edge clearance (units)",&edgeSnapClearance_,0,0,"%.3f");
@@ -3819,14 +3831,6 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         }
         draw->PopClipRect();
     }
-    if(edgeGuideActive_ && placementActive_ && absoluteGridSnap_ && !showCollision_) {
-        float ax{},ay{},bx{},by{};
-        if(scene.ProjectLegacy(edgeGuideA_,ax,ay)&&scene.ProjectLegacy(edgeGuideB_,bx,by)){
-            auto* draw=ImGui::GetWindowDrawList();draw->PushClipRect(origin,{origin.x+size.x,origin.y+size.y},true);
-            draw->AddLine({origin.x+ax,origin.y+ay},{origin.x+bx,origin.y+by},IM_COL32(70,245,205,255),3.f);
-            draw->AddText({origin.x+ax+6,origin.y+ay+6},IM_COL32(70,245,205,255),"Grid snap: extra position");draw->PopClipRect();
-        }
-    }
     if (showCollision_) {
         const auto counts=scene.CollisionPreviewCounts();
         ImGui::GetWindowDrawList()->AddText({origin.x+12,origin.y+49},IM_COL32(255,255,255,255),
@@ -4153,6 +4157,19 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
             if (scene.ScreenToLegacyPlane(mp.x-origin.x,mp.y-origin.y,drag_.before.position.z,current)) {
                 delta.x=SnapPosition(drag_.before.position.x+current.x-drag_.planeStart.x)-drag_.before.position.x;
                 delta.y=SnapPosition(drag_.before.position.y+current.y-drag_.planeStart.y)-drag_.before.position.y;
+                edgeGuideActive_=false;
+                if(absoluteGridSnap_){
+                    std::vector<PropInstance> proposed;std::vector<int> indices;
+                    for(size_t k=0;k<dragBefore_.size() && k<dragIndices_.size();++k){
+                        const int index=dragIndices_[k];if(index<0 || static_cast<size_t>(index)>=map.Props().size())continue;
+                        auto p=map.Props()[static_cast<size_t>(index)];p.position=dragBefore_[k].position;p.rotation=dragBefore_[k].rotation;
+                        p.position.x+=delta.x;p.position.y+=delta.y;proposed.push_back(p);indices.push_back(index);
+                    }
+                    const PlacementSnap::Point cursor{current.x-drag_.planeStart.x-delta.x,current.y-drag_.planeStart.y-delta.y};
+                    const auto match=scene.SuggestPlacementSnap(proposed,map,GridStep::KeyboardStep(gridSize_,io.KeyShift),cursor,edgeSnapClearance_,indices);
+                    delta.x+=static_cast<float>(match.dx);delta.y+=static_cast<float>(match.dy);
+                    SetSnapGuide(match,drag_.before.position.z);
+                }
             }
         }
         const float angle=drag_.tool==ToolMode::Rotate?SnapRotation((mp.x-drag_.mouseStartX)*0.010f):0.0f;
@@ -4182,6 +4199,15 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
         if(std::find(functionalSelection_.begin(),functionalSelection_.end(),candidate.item)==functionalSelection_.end())continue;
         DirectX::XMFLOAT3 center{(candidate.min.x+candidate.max.x)*.5f,(candidate.min.y+candidate.max.y)*.5f,(candidate.min.z+candidate.max.z)*.5f};
         float x{},y{};if(scene.ProjectLegacy(center,x,y))dl->AddCircle({origin.x+x,origin.y+y},20.f,IM_COL32(255,204,64,255),24,2.f);
+    }
+    if(edgeGuideActive_ && (placementActive_ || drag_.active || ImGui::GetTime()<edgeGuideUntil_) && absoluteGridSnap_ && !showCollision_) {
+        float ax{},ay{},bx{},by{};
+        if(scene.ProjectLegacy(edgeGuideA_,ax,ay)&&scene.ProjectLegacy(edgeGuideB_,bx,by)){
+            auto* draw=ImGui::GetWindowDrawList();draw->PushClipRect(origin,{origin.x+size.x,origin.y+size.y},true);
+            draw->AddLine({origin.x+ax,origin.y+ay},{origin.x+bx,origin.y+by},
+                ImGui::ColorConvertFloat4ToU32(ImVec4(snapGuideColor_[0],snapGuideColor_[1],snapGuideColor_[2],1.f)),1.f);
+            draw->PopClipRect();
+        }
     }
     const auto& rs=scene.Stats(); char top[256];
     const char* toolName=tool_==ToolMode::Select?"SELECT":tool_==ToolMode::Move?"MOVE":"ROTATE";

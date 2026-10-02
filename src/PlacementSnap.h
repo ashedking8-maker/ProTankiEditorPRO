@@ -53,7 +53,7 @@ inline Match Find(const Shape& moving,const Shape& fixed,double tolerance,double
 // Additional DISCRETE nodes are generated from the regular lattice position.
 // The raw cursor ranks nodes only; it never supplies their tangential position.
 inline Match FindDiscrete(const Shape& moving,const Shape& fixed,double reach,double clearance,
-                          Point cursorDelta,double& bestDistanceSquared) {
+                          Point cursorDelta,double& bestDistanceSquared,Point keyboardStep={}) {
     Match result;
     if(moving.hull.size()<3||fixed.hull.size()<3||reach<=0||!std::isfinite(reach))return result;
     if(moving.maxZ<fixed.minZ-.01||fixed.maxZ<moving.minZ-.01)return result;
@@ -67,6 +67,11 @@ inline Match FindDiscrete(const Shape& moving,const Shape& fixed,double reach,do
         for(auto p:moving.hull)if(std::fabs(Dot(p,normal)-lo)<1e-5){const double t=Dot(p,tangent);tl=std::min(tl,t);th=std::max(th,t);}
         if(std::min(th,Dot(b,tangent))-std::max(tl,Dot(a,tangent))< -1e-5)continue;
         const double dx=normal.x*delta,dy=normal.y*delta;
+        const double travel=Dot(keyboardStep,keyboardStep);
+        if(travel>1e-8){
+            const double progress=Dot({dx+keyboardStep.x,dy+keyboardStep.y},keyboardStep);
+            if(progress<=.01*std::sqrt(travel) || progress>travel+1e-4)continue; // no sticking or backwards keyboard snaps
+        }
         const double distance=(dx-cursorDelta.x)*(dx-cursorDelta.x)+(dy-cursorDelta.y)*(dy-cursorDelta.y);
         if(distance+1e-6>=bestDistanceSquared)continue; // regular grid wins ties
         bestDistanceSquared=distance;result={true,dx,dy,a,b};

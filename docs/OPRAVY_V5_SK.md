@@ -1,3 +1,5 @@
+> V6 rozširuje presúvanie existujúcich objektov a upravuje vodiacu čiaru; pozri `OPRAVY_V6_SK.md`.
+
 # V5 — jediný Grid snap s dodatočnými polohami
 
 Kumulatívny patch k zaslanému ProTankiEditorPRO-main 0.5.28. Nový log: `0.5.28-discrete-grid-v5`. Priložený používateľský log potvrdzuje spustenú V4.

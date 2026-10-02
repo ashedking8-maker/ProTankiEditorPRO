@@ -100,6 +100,18 @@ int main(){try{
         if(hit.matched){if(captured)check(near(hit.dx,first.dx)&&near(hit.dy,first.dy),"diagonal candidate stays discrete inside grid cell");first=hit;captured=true;}
     }
     check(captured,"rotated discrete edge test must exercise a match");
+    // Existing-object keyboard motion: stop at the intermediate node, then continue.
+    const auto atNextNode=Translate(local,500,0,0);
+    double keyboardScore=10000;
+    auto firstKey=FindDiscrete(atNextNode,edge444,150,.02,{-100,0},keyboardScore,{100,0});
+    check(firstKey.matched&&near(500+firstKey.dx,444.59),"keyboard reaches extra node before 500");
+    const double remaining=500-(500+firstKey.dx);
+    keyboardScore=remaining*remaining;
+    auto secondKey=FindDiscrete(atNextNode,edge444,150,.02,{-remaining,0},keyboardScore,{remaining,0});
+    check(!secondKey.matched,"next key leaves current edge rather than sticking");
+    keyboardScore=10000;
+    auto backwards=FindDiscrete(Translate(local,600,0,0),edge444,300,.02,{-100,0},keyboardScore,{100,0});
+    check(!backwards.matched,"keyboard cannot snap backwards");
     std::cout<<"Placement snap: fractional/all-side/rotated edges, separation, floors, XYZ grid and retained height PASS\n";
     return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

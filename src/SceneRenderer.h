@@ -102,7 +102,8 @@ public:
     bool SuggestEdgeSnap(const std::vector<PropInstance>& props,float tolerance,
                          float clearance,float& legacyDx,float& legacyDy) const;
     PlacementSnap::Match SuggestPlacementSnap(const std::vector<PropInstance>& moving,const MapDocument& map,
-        float cell,PlacementSnap::Point cursorDelta,float clearance);
+        float cell,PlacementSnap::Point cursorDelta,float clearance,
+        const std::vector<int>& movingIndices={},PlacementSnap::Point keyboardStep={});
     int Selected() const { return selectedProp_; }
 
 private:

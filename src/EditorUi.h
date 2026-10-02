@@ -364,6 +364,9 @@ private:
     float placementZ_{};
     float placementRayZ_{};
     bool edgeGuideActive_{};
+    double edgeGuideUntil_{};
+    float snapGuideColor_[3]{0.27f,0.96f,0.80f};
+    void SetSnapGuide(const PlacementSnap::Match&,float elevation);
     DirectX::XMFLOAT3 edgeGuideA_{},edgeGuideB_{};
     DirectX::XMFLOAT3 placementKeyboardOffset_{};
 

@@ -1,15 +1,11 @@
-KUMULATÍVNY PATCH V5 — 2026-10-02
-Obsahuje predchádzajúce opravy V1 až V4 a nový diskrétny Grid snap.
+KUMULATÍVNY PATCH V6 — 2026-10-02
+Rozbaľ ZIP a nahraj celý obsah do koreňa existujúceho GitHub projektu.
+Zachovaj src/, tests/, tools/, docs/; prepíš súbory, ostatné ponechaj.
+GitHub workflow musí vykonať Windows build a CTest.
 
-Rozbaľ ZIP a nahraj CELÝ obsah do koreňa existujúceho GitHub projektu.
-Zachovaj src/, tests/, tools/, docs/. Prepíš súbory, nevymaž zvyšok projektu.
-Samotné nahratie ZIP-u ako súboru kód nezmení.
-GitHub workflow musí vykonať Windows build a CTest pred vydaním EXE.
-
-Jediný Grid snap: bežné kroky + ďalšie pevné polohy pri hranách.
-Bez plynulého kĺzania pozdĺž hrany. Platí aj pre schránku a skupiny.
-Podrobnosti/hranice: docs/OPRAVY_V5_SK.md
-Testy: docs/IMPORT_EXPORT_TEST_RESULTS.txt
-Log: 0.5.28-discrete-grid-v5
-Lokálne PASS: 79 Python kontrol + 7 C++ CPU regresných programov.
-Windows build a GUI tu neboli spustené.
+V6: Grid snap aj pri presune existujúcich objektov a skupín myšou/klávesmi.
+Tenká 1px vodiaca čiara bez textu. Farba: Tools > Placement settings > Snap guide color.
+Podrobnosti: docs/OPRAVY_V6_SK.md
+Log: 0.5.28-existing-snap-v6
+Lokálne PASS: 79 Python kontrol, 7 CPU C++ programov, kontrola zdrojov.
+Windows build a GUI tu neboli spustené. Balík obsahuje všetky opravy V1–V6.

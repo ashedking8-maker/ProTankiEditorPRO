@@ -1685,12 +1685,25 @@ PlacementSnap::Shape SceneRenderer::SnapShape(const std::shared_ptr<MeshGpu>& me
     return PlacementSnap::Translate(cache.shape,prop.position.x,prop.position.y,prop.position.z);
 }
 PlacementSnap::Match SceneRenderer::SuggestPlacementSnap(const std::vector<PropInstance>& moving,const MapDocument& map,
-        float cell,PlacementSnap::Point cursorDelta,float clearance) {
-    if(moving.empty() || ghostItems_.size()!=moving.size() || cell<=0)return {};
+        float cell,PlacementSnap::Point cursorDelta,float clearance,
+        const std::vector<int>& movingIndices,PlacementSnap::Point keyboardStep) {
+    if(moving.empty() || cell<=0 || (movingIndices.empty()?ghostItems_.size()!=moving.size():movingIndices.size()!=moving.size()))return {};
     movingSnapCaches_.resize(moving.size());
     std::vector<PlacementSnap::Shape> shapes;shapes.reserve(moving.size());
     for(size_t i=0;i<moving.size();++i){
-        const auto& item=ghostItems_[i];
+        GhostItem item;
+        if(movingIndices.empty())item=ghostItems_[i];
+        else{
+            const int index=movingIndices[i];
+            if(index<0 || static_cast<size_t>(index)>=propBindings_.size())return {};
+            const auto& binding=propBindings_[static_cast<size_t>(index)];
+            if(binding.kind==PropBinding::Kind::Mesh && binding.batch<meshBatches_.size())item.mesh=meshBatches_[binding.batch].mesh;
+            else if(binding.kind==PropBinding::Kind::Sprite && binding.batch<spriteBatches_.size()){
+                const auto& batch=spriteBatches_[binding.batch];
+                if(binding.instance>=batch.instances.size())return {};
+                item.sprite=batch.texture;item.spriteScale=batch.instances[binding.instance].scale;
+            }
+        }
         if(item.mesh)shapes.push_back(SnapShape(item.mesh,moving[i],movingSnapCaches_[i]));
         else if(item.sprite){
             const auto p=moving[i].position;
@@ -1706,6 +1719,7 @@ PlacementSnap::Match SceneRenderer::SuggestPlacementSnap(const std::vector<PropI
     double bestDistanceSquared=PlacementSnap::Dot(cursorDelta,cursorDelta);
     for(const auto& proxy:pickProxies_){
         const int index=proxy.propIndex;
+        if(std::find(movingIndices.begin(),movingIndices.end(),index)!=movingIndices.end())continue;
         if(index<0 || static_cast<size_t>(index)>=map.Props().size() || static_cast<size_t>(index)>=propBindings_.size())continue;
         if(proxy.boundsMax.x<minX-tolerance || proxy.boundsMin.x>maxX+tolerance ||
            proxy.boundsMax.z<minY-tolerance || proxy.boundsMin.z>maxY+tolerance ||
@@ -1713,7 +1727,7 @@ PlacementSnap::Match SceneRenderer::SuggestPlacementSnap(const std::vector<PropI
         const auto& binding=propBindings_[static_cast<size_t>(index)];
         if(binding.kind!=PropBinding::Kind::Mesh || binding.batch>=meshBatches_.size() || !meshBatches_[binding.batch].mesh)continue;
         const auto fixed=SnapShape(meshBatches_[binding.batch].mesh,map.Props()[static_cast<size_t>(index)],fixedSnapCaches_[index]);
-        const auto match=PlacementSnap::FindDiscrete(movingShape,fixed,tolerance,clearance,cursorDelta,bestDistanceSquared);
+        const auto match=PlacementSnap::FindDiscrete(movingShape,fixed,tolerance,clearance,cursorDelta,bestDistanceSquared,keyboardStep);
         if(match.matched)best=match;
     }
     return best;

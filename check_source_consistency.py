@@ -106,7 +106,7 @@ def main() -> int:
                 'TrimBrowseCpuCache();' in ui,
                 'Session-only manually selected library / thumbnail cache policy regressed')
         require('VERSION 0.5.28' in cmake and '0.5.28' in text('src/App.cpp')
-                and '0.5.28-discrete-grid-v5' in text('src/Logger.cpp'),'Version drift')
+                and '0.5.28-existing-snap-v6' in text('src/Logger.cpp'),'Version drift')
         require('AppendLosslessNativeStaticClone' in doc and
                 'clipboardHasNativeStaticBundle_' in ui and
                 '3DS reinterpretation bypassed' in ui and

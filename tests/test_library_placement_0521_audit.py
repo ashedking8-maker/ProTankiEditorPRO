@@ -55,7 +55,7 @@ class LibraryPlacement0521(unittest.TestCase):
         self.assertNotIn('ImGui::TreeNodeEx(groupLabel.c_str()',s)
     def test_absolute_grid_and_linked_colliders_are_protected(self):
         s=(ROOT/'src/EditorUi.cpp').read_text()
-        self.assertIn('after.position.x=GridStep::Quantize(after.position.x,cell);',s)
+        self.assertIn('delta.x=GridStep::Quantize(anchor.x+delta.x,step)-anchor.x;',s)
         self.assertIn('if(values[i].authoredOwnerIndex>=0)',s)
         self.assertIn('Log::Info("Map Undo applied;',s)
 

@@ -1,9 +1,8 @@
-V5 local results 2026-10-02
-Source preflight: PASS
-
+V6 local verification 2026-10-02
+Source preflight PASS
 ...............................................................................
 ----------------------------------------------------------------------
-Ran 79 tests in 0.051s
+Ran 79 tests in 0.026s
 
 OK
 
@@ -16,4 +15,4 @@ PASS: game-verified 136->138 terrain helper match, 3DS readback, fail-closed mul
 SWF compatibility: inverse matrices, pivots, angle-axis, explicit selection, direct children, cycle rejection, filename independence, original box scale and old PTPRO migration PASS
 PASS: 7 scalar C++ regression programs; Windows/Assimp/XML tests are separate.
 
-Full Windows/MSVC/Direct3D build and GUI NOT run here.
+Full Windows build and GUI NOT executed locally.
