@@ -1,0 +1,13 @@
+Predvolené pozadie viewportu: RGB 180, 180, 180.
+
+Patch vychádza z nového ProTankiEditorPRO-main(2).zip.
+Rozbaľ ho do koreňa existujúceho projektu a prepíš EditorUi.h a src/EditorUi.h.
+Nahraj rozbalené súbory na rovnaké cesty do GitHubu a nechaj zostaviť EXE.
+
+Zmenená je iba predvolená hodnota farby v oboch kópiách hlavičky.
+Farba sa používa pri prvom spustení bez uloženého nastavenia pozadia.
+Existujúca uložená farba má naďalej prednosť; reinštalácia ju neprepíše.
+Tlačidlo Restore dark blue background ostáva výslovnou voľbou tmavomodrej.
+Overený rozdiel: presne jeden riadok v každej hlavičke; ostatný obsah zhodný
+s novým ZIP-om. Skontrolovaná cesta načítania a aplikovania uloženej farby.
+Windows build a GUI tu neboli spustené.

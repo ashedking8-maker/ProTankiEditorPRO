@@ -62,7 +62,7 @@ private:
     int uiTheme_{};
     std::array<float,3> customSurface_{0.13f,0.21f,0.29f};
     std::array<float,3> customText_{0.94f,0.96f,0.98f};
-    float viewportBackground_[3]{0.055f,0.073f,0.10f};
+    float viewportBackground_[3]{180.0f/255.0f,180.0f/255.0f,180.0f/255.0f};
     float viewportGridColor_[3]{0.52f,0.56f,0.60f};
     bool showCustomThemePopup_{};
     bool showPlacementSettings_{}; // Tools > Placement settings
