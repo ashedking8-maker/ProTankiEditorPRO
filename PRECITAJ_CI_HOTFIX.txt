@@ -1,0 +1,26 @@
+GitHub CI hotfix – 13. 10. 2026
+
+Použi PO poslednom ProTankiEditorPRO_ObjectEditor_safety_fix.zip.
+Nahraj oba súbory z priečinka tests do rovnakého priečinka na GitHube
+(a nahraď ich existujúce verzie). Nový commit spustí workflow znova.
+
+Dodaný log končí pred CMake/kompiláciou. Zo 81 Python audit testov zlyhali dva:
+- test_legacy_fidelity_0516_audit hľadal pending.nativeWithCollision==1
+  v EditorUi.cpp, ale kontrola je teraz v CollisionPlacementPolicy.h;
+- test_verified_ground_0528_audit hľadal candidateMissingFloor,
+  ktorý nahradila spoločná ochrana všetkých nepodporovaných modelov.
+
+Testy teraz kontrolujú volanie spoločnej politiky, odmietnutie explicitného
+with_collision=1 bez kolízie, vrátenie neúspešnej transakcie a jednorazový
+visual-only režim. Pôvodná kontrola opravy plôch pri ukladaní zostáva.
+Žiadne testy sa nevypínajú a ochrana aplikácie sa nemení.
+
+Overené lokálne:
+- rovnaký príkaz ako v CI: python -m unittest discover -s tests -p "test_*audit.py" -v
+  -> všetkých 81 testov OK;
+- python tools/check_source_consistency.py -> PASS;
+- C++ CollisionPlacementPolicyRegression, Release/NDEBUG -> PASS.
+
+Tento hotfix opravuje uvedené zlyhanie auditov. Celý Windows/MSVC build
+ani nasledujúce Windows CTest testy tu neboli spustené; výsledok ich ďalšieho
+kroku sa ukáže až v novom GitHub behu. ZIP neobsahuje nové .exe.

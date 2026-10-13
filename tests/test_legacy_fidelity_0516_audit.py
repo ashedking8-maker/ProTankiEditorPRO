@@ -31,7 +31,17 @@ class NativeMetadata0516Audit(unittest.TestCase):
         self.assertIn('geometry.remove_child(originalNodes[i])',m)
         self.assertIn('no owned collision primitives',m)
         self.assertIn('unknown source metadata',m)
-        self.assertIn('pending.nativeWithCollision==1',u)
+        # Placement delegates to the shared policy; audit its call and guard.
+        placement=u.split('void EditorUi::CommitPlacement(',1)[1].split('void EditorUi::SetSnapGuide(',1)[0]
+        policy=(ROOT/'src/CollisionPlacementPolicy.h').read_text(encoding='utf8')
+        code=re.sub(r'//[^\n]*|/\*.*?\*/','',policy,flags=re.S)
+        self.assertRegex(placement,r'if\s*\(\s*!CollisionPlacementPolicy::MayPlaceWithoutCollision\(\s*'
+                         r'spriteOnly\s*,\s*allowVisualOnlyPlacement_\s*,\s*pending.nativeWithCollision\s*\)\s*\)\s*'
+                         r'\{[^}]*failure\s*=[^}]*break;')
+        self.assertRegex(code,r'if\s*\(\s*nativeWithCollision\s*==\s*1\s*\)\s*return\s+false\s*;')
+        self.assertLess(code.index('nativeWithCollision == 1'),code.index('return spriteOnly'))
+        cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf8')
+        self.assertIn('NAME NoSilentVisualOnlyPlacement COMMAND CollisionPlacementPolicyRegression',cmake)
         self.assertIn('Object purpose (draft)',u)
         self.assertIn('native_export false',draft)
         self.assertIn('Purpose::DriveableDraft',draft)

@@ -45,7 +45,16 @@ class VerifiedGroundAudit(unittest.TestCase):
         ui=(ROOT/'src/EditorUi.cpp').read_text()
         doc=(ROOT/'src/MapDocument.cpp').read_text()
         self.assertIn('map.AddVerifiedGroundSurfaceForProp(index)',ui)
-        self.assertIn('candidateMissingFloor',ui)
+        # The shared guard covers all unsupported meshes, including slopes.
+        placement=ui.split('void EditorUi::CommitPlacement(',1)[1].split('void EditorUi::SetSnapGuide(',1)[0]
+        self.assertIn('!CollisionPlacementPolicy::MayPlaceWithoutCollision(',placement)
+        self.assertIn('spriteOnly,allowVisualOnlyPlacement_,pending.nativeWithCollision',placement)
+        self.assertIn('map=std::move(before);',placement)
+        self.assertIn('allowVisualOnlyPlacement_=false;',placement)
+        policy=(ROOT/'src/CollisionPlacementPolicy.h').read_text()
+        code=re.sub(r'//[^\n]*|/\*.*?\*/','',policy,flags=re.S)
+        self.assertRegex(code,r'return\s+spriteOnly\s*\|\|\s*explicitVisualOnly\s*;')
+        self.assertNotIn('originalWithoutHelpers',placement)
         self.assertIn('map.RepairVerifiedGroundSurfaces(certified,repaired,missing)',ui)
         self.assertIn('map=std::move(beforeRepair);',ui)
         self.assertIn('HasVerifiedGroundSurfaceForProp(index)',doc)
