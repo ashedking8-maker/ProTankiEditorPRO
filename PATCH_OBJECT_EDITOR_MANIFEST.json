@@ -1,0 +1,167 @@
+{
+  "CMakeLists.txt": {
+    "base_sha256": "03a6a9502c080f9ef5e3653b0e3ac44875848e243592043c1ce3c05aba52a81d",
+    "previous_fogtown_patch_sha256": "a2e1b4bbdd7694a16ddf7ac1d072e6aa11bac3045504de2b1a4707e1e176f8d5",
+    "patched_sha256": "f40f1510d49ecd84556de831e5b586da6bcd718443a558d3b51fffb828af7e37"
+  },
+  "tools/run_native_cpu_tests.py": {
+    "base_sha256": "49bdf319ff78f39e56bb2c799683da534070867016733ca6501544c1e6d2e095",
+    "previous_fogtown_patch_sha256": "a80a69b8b3ee91d740558c32f9e0ec3bae6bb71680e9606a4c87a32d9496c81a",
+    "patched_sha256": "0cad433c9fb35bb964e15422bd2dd5da762b718de96a9510f3bb5f5db844ba0a"
+  },
+  "tests/collision_placement_policy_regression.cpp": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "8de37c81de5be00d9582ed103fc35382414d6b73c06d0f18cc82b08cf7816589",
+    "patched_sha256": "8de37c81de5be00d9582ed103fc35382414d6b73c06d0f18cc82b08cf7816589"
+  },
+  "tests/verified_mesh_surface_regression.cpp": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "5222bb2abc373e0568a42abb390f16b6975f02459b558fafcdb9bfe46d185534",
+    "patched_sha256": "5222bb2abc373e0568a42abb390f16b6975f02459b558fafcdb9bfe46d185534"
+  },
+  "tests/fogtown_surface_document_regression.cpp": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "fc5551777ae2e62934d054edaf9eb925ddd9256d63904eb1063e6ccb0cc41898",
+    "patched_sha256": "fc5551777ae2e62934d054edaf9eb925ddd9256d63904eb1063e6ccb0cc41898"
+  },
+  "docs/FOGTOWN_SURFACE_FIX_SK.md": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "adbd5fa589a62f160c3dcd7cef9bd6aec521d5b6a379155a9867c9216efe8d9f",
+    "patched_sha256": "adbd5fa589a62f160c3dcd7cef9bd6aec521d5b6a379155a9867c9216efe8d9f"
+  },
+  "PRECITAJ_FOGTOWN_OPRAVU.txt": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "90bbd71fb055f3b4eec01b5adb89ae61ad9470a1ee2432fe56442dcf8f531b14",
+    "patched_sha256": "90bbd71fb055f3b4eec01b5adb89ae61ad9470a1ee2432fe56442dcf8f531b14"
+  },
+  "repaired-maps/TEST_MAP_BBB_repaired.xml": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "e1dcb88e301100ff6e823ef4be74cc8a1feccb88f581c4240dab70cf6cc32dc8",
+    "patched_sha256": "e1dcb88e301100ff6e823ef4be74cc8a1feccb88f581c4240dab70cf6cc32dc8"
+  },
+  "EditorUi.cpp": {
+    "base_sha256": "6655b70f9401544496f523c1c6e6e1f262517cba477691e0458fad79868a94e0",
+    "previous_fogtown_patch_sha256": "9fae6b3fba273616ee9709805552ded5802c38be0fc0fa0cd2b44fa2eae9317a",
+    "patched_sha256": "2b406a4d64775bac035eb039cf422dbf5e237c4ab18da041e50088df1a080b8f"
+  },
+  "src/EditorUi.cpp": {
+    "base_sha256": "6655b70f9401544496f523c1c6e6e1f262517cba477691e0458fad79868a94e0",
+    "previous_fogtown_patch_sha256": "9fae6b3fba273616ee9709805552ded5802c38be0fc0fa0cd2b44fa2eae9317a",
+    "patched_sha256": "2b406a4d64775bac035eb039cf422dbf5e237c4ab18da041e50088df1a080b8f"
+  },
+  "MapDocument.cpp": {
+    "base_sha256": "6196e7a39f343c99942283ba5353dd3ca416fa413aa48de06baf6af40a24cc28",
+    "previous_fogtown_patch_sha256": "e648fd6189e5a98578c3be21b656494fe30a31342d45a2f5439f6d1fe7871c80",
+    "patched_sha256": "e648fd6189e5a98578c3be21b656494fe30a31342d45a2f5439f6d1fe7871c80"
+  },
+  "src/MapDocument.cpp": {
+    "base_sha256": "6196e7a39f343c99942283ba5353dd3ca416fa413aa48de06baf6af40a24cc28",
+    "previous_fogtown_patch_sha256": "e648fd6189e5a98578c3be21b656494fe30a31342d45a2f5439f6d1fe7871c80",
+    "patched_sha256": "e648fd6189e5a98578c3be21b656494fe30a31342d45a2f5439f6d1fe7871c80"
+  },
+  "MapDocument.h": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "f6b4880d5d65b3e733dcaa285a3b329c000809457e937afbea91b951ccbbc14a",
+    "patched_sha256": "f6b4880d5d65b3e733dcaa285a3b329c000809457e937afbea91b951ccbbc14a"
+  },
+  "src/MapDocument.h": {
+    "base_sha256": "b4f010230f307d56150b8f3394982a0c2cd43f715d0d45a519883c7b60f4b359",
+    "previous_fogtown_patch_sha256": "f6b4880d5d65b3e733dcaa285a3b329c000809457e937afbea91b951ccbbc14a",
+    "patched_sha256": "f6b4880d5d65b3e733dcaa285a3b329c000809457e937afbea91b951ccbbc14a"
+  },
+  "CollisionPlacementPolicy.h": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "6b493fe54b80fa7678834fac7c6338881797987a43e7884eae16442994347407",
+    "patched_sha256": "6b493fe54b80fa7678834fac7c6338881797987a43e7884eae16442994347407"
+  },
+  "src/CollisionPlacementPolicy.h": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "6b493fe54b80fa7678834fac7c6338881797987a43e7884eae16442994347407",
+    "patched_sha256": "6b493fe54b80fa7678834fac7c6338881797987a43e7884eae16442994347407"
+  },
+  "VerifiedMeshSurface.h": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "a4cfbd9044e7809a3078d74ab6520093e67b03ef6c32a5f2e5c485bd033e572f",
+    "patched_sha256": "a4cfbd9044e7809a3078d74ab6520093e67b03ef6c32a5f2e5c485bd033e572f"
+  },
+  "src/VerifiedMeshSurface.h": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "a4cfbd9044e7809a3078d74ab6520093e67b03ef6c32a5f2e5c485bd033e572f",
+    "patched_sha256": "a4cfbd9044e7809a3078d74ab6520093e67b03ef6c32a5f2e5c485bd033e572f"
+  },
+  "tests/fixtures/fogtown_surface/land01.3ds": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "43348f433b8937e54887d74bf4c555a8de34b386c6d7507fdb1e5684c868161c",
+    "patched_sha256": "43348f433b8937e54887d74bf4c555a8de34b386c6d7507fdb1e5684c868161c"
+  },
+  "tests/fixtures/fogtown_surface/land02.3ds": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "41240853fb99af7354630ff232b7de1d18745e3d920a9434a1c2037c14a6d82a",
+    "patched_sha256": "41240853fb99af7354630ff232b7de1d18745e3d920a9434a1c2037c14a6d82a"
+  },
+  "tests/fixtures/fogtown_surface/missing_surface.xml": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "7bdd026b82a2f7f54221702189f62cb43c39d07f7327e8a6042176048698594e",
+    "patched_sha256": "7bdd026b82a2f7f54221702189f62cb43c39d07f7327e8a6042176048698594e"
+  },
+  "tests/fixtures/fogtown_surface/original_surface_instances.xml": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "bd6de052ef9374f617c9dfab213918ff3b2e6dee9dc41d25bbc408f28a522a90",
+    "patched_sha256": "bd6de052ef9374f617c9dfab213918ff3b2e6dee9dc41d25bbc408f28a522a90"
+  },
+  "tests/fixtures/fogtown_surface/original_world_triangles.txt": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": "237403dddd83fe94da0c67f254cf7bdf6c799645d806f9b45127690cf5d92c34",
+    "patched_sha256": "237403dddd83fe94da0c67f254cf7bdf6c799645d806f9b45127690cf5d92c34"
+  },
+  "src/EditorUi.h": {
+    "base_sha256": "91256a95ea21d86ee886e5c5f3e534ecd3e36ec1b6df27d31b3beb91a31dcb98",
+    "previous_fogtown_patch_sha256": "91256a95ea21d86ee886e5c5f3e534ecd3e36ec1b6df27d31b3beb91a31dcb98",
+    "patched_sha256": "02288263720c26500d15eb193678e39b1fabb360c52ea30e5c57bcb991214243"
+  },
+  "EditorUi.h": {
+    "base_sha256": "91256a95ea21d86ee886e5c5f3e534ecd3e36ec1b6df27d31b3beb91a31dcb98",
+    "previous_fogtown_patch_sha256": "91256a95ea21d86ee886e5c5f3e534ecd3e36ec1b6df27d31b3beb91a31dcb98",
+    "patched_sha256": "02288263720c26500d15eb193678e39b1fabb360c52ea30e5c57bcb991214243"
+  },
+  "src/ObjectDraft.h": {
+    "base_sha256": "3fb000cfd3f08aac6a06997fdeaaee2a780af49f2f25bdd601283a2ff10f3a8b",
+    "previous_fogtown_patch_sha256": "3fb000cfd3f08aac6a06997fdeaaee2a780af49f2f25bdd601283a2ff10f3a8b",
+    "patched_sha256": "2d192a5502649614de27c98e595ef845579fdd453873129898e23a8b8b1afac9"
+  },
+  "ObjectDraft.h": {
+    "base_sha256": "e9c8243ba63e5b416d447e23cf8d06451ab90821edb977495a0e686dfb280e5c",
+    "previous_fogtown_patch_sha256": "e9c8243ba63e5b416d447e23cf8d06451ab90821edb977495a0e686dfb280e5c",
+    "patched_sha256": "2d192a5502649614de27c98e595ef845579fdd453873129898e23a8b8b1afac9"
+  },
+  "src/NativeObjectExport.h": {
+    "base_sha256": "15e9bdc909adc9ef0285fe90e669ec19086d75ed995f0946106f6cee82ae83b1",
+    "previous_fogtown_patch_sha256": "15e9bdc909adc9ef0285fe90e669ec19086d75ed995f0946106f6cee82ae83b1",
+    "patched_sha256": "d425ee2672bfe24439184dd9945e39c1af389ccbb663a0a78adf508082a329a2"
+  },
+  "src/NativeVerifiedSurfaceExport.h": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": null,
+    "patched_sha256": "00fba7acc8ed9461fef02cbbdec675876b8662d95c840d28efd44ab55ce27765"
+  },
+  "tests/object_editor_safety_regression.cpp": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": null,
+    "patched_sha256": "06f5cd0b5ec8f04f7ba58fbb7da3c1fc2d939d8c9afea7fbf52b56765ed02cbb"
+  },
+  "tests/native_object_export_integration.cpp": {
+    "base_sha256": "d47c269b8278f10b6d2cf07d47a35c7ee6d679e18e5aeb766a504f9996a3a0b0",
+    "previous_fogtown_patch_sha256": "d47c269b8278f10b6d2cf07d47a35c7ee6d679e18e5aeb766a504f9996a3a0b0",
+    "patched_sha256": "095f8d1750eea5d29f1f4e98b811d0f55589d7d9a1e38e17fc2eb926b4dd3001"
+  },
+  "docs/OBJECT_EDITOR_AUDIT_FIX_SK.md": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": null,
+    "patched_sha256": "91c3513bcffb70fb24b3632934e3decfab159cce0056d5e2dfe64bf0b280885f"
+  },
+  "PRECITAJ_OBJECT_EDITOR.txt": {
+    "base_sha256": null,
+    "previous_fogtown_patch_sha256": null,
+    "patched_sha256": "29966abcf1285b1d72636fc0a664653a5fb853a8f085373f681d5e0049dad803"
+  }
+}

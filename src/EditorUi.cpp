@@ -34,6 +34,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <system_error>
 #include <iterator>
 #include <iomanip>
@@ -2469,6 +2470,8 @@ void EditorUi::RestoreObjectSnapshot(ObjectSnapshot&& state) {
     objectVisualVertices_=std::move(state.vertices);
     objectVisualIndices_=std::move(state.indices);
     objectSelectedVertex_=state.selectedVertex;
+    objectDirty_=true; // Undo/Redo after Save changes the in-memory document again.
+    objectBoxDragHistoryCaptured_=false;
     objectVertexDragActive_=false;objectVertexDragHistoryCaptured_=false;objectFacePointCount_=0;
     if(objectSceneHasModel_ && objectMeshEditable_) {
         objectScene_.UpdatePreviewMeshGeometry(objectVisualVertices_,objectVisualIndices_);
@@ -2490,7 +2493,8 @@ void EditorUi::RedoObject() {
     RestoreObjectSnapshot(std::move(next));
 }
 void EditorUi::ResetObjectHistory() {
-    objectUndo_.clear();objectRedo_.clear();objectVertexDragHistoryCaptured_=false;objectDirty_=false;
+    objectUndo_.clear();objectRedo_.clear();objectVertexDragHistoryCaptured_=false;
+    objectBoxDragHistoryCaptured_=false;objectVertexDragActive_=false;objectDirty_=false;
 }
 
 bool EditorUi::SaveObjectDraft(const AssetRegistry& assets) {
@@ -2520,13 +2524,26 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoDocking);
     if(!windowOpen) {if(objectDirty_)objectCloseRequested_=true;else objectEditorOpen_=false;}
     if(!shown) {ImGui::End();return;}
-    ImGui::TextDisabled("Object draft"); HoverHelp("Separate model workspace; original library files are never changed.");
+    const auto selectObjectSource=[&](const AssetDefinition& asset) {
+        objectDraft_=ObjectDraft::FreshSource(asset.mesh,asset.name);
+        objectDraft_.templateLibrary=asset.library;objectDraft_.templateGroup=asset.group;
+        objectDraft_.templateName=asset.name;objectDraft_.templatePropXml=asset.originalPropXml;
+        objectDraft_.libraryTemplateXml=asset.originalLibraryXml;
+        ResetObjectHistory();objectDirty_=true;objectSelectedBox_=0;objectSelectedVertex_=-1;objectFacePointCount_=0;
+        objectSceneNeedsBuild_=true;objectSceneHasModel_=false;
+    };
+    const auto requestObjectPicker=[&](int kind) {
+        if(objectDirty_) {objectPendingPicker_=kind;objectPendingAsset_=-1;objectReplaceRequested_=true;}
+        else objectPickerRequest_=kind;
+    };
+    ImGui::TextUnformatted(objectDirty_?"Object draft - unsaved changes":"Object draft");
+    HoverHelp("Save draft keeps editable work. Export library creates a separate game asset; it does not save the editable draft.");
     ImGui::SameLine();if(ImGui::SmallButton("?##obj_help"))objectHelpRequested_=true;
     ImGui::Separator();
     ImGui::BeginChild("##object_controls",{310,0},ImGuiChildFlags_Borders);
-    if(ImGui::Button("Import GLB...")) objectPickerRequest_=1; ImGui::SameLine();
-    if(ImGui::Button("Open 3DS...")) objectPickerRequest_=3;
-    if(ImGui::Button("Open saved draft...")) objectPickerRequest_=4;
+    if(ImGui::Button("Import GLB...")) requestObjectPicker(1); ImGui::SameLine();
+    if(ImGui::Button("Open 3DS...")) requestObjectPicker(3);
+    if(ImGui::Button("Open saved draft...")) requestObjectPicker(4);
     if(ImGui::CollapsingHeader("Use existing library model")) {
         ImGui::InputTextWithHint("##obj_asset_search","Search original library...",objectLegacySearch_,sizeof(objectLegacySearch_));
         ImGui::BeginChild("##obj_existing",{0,130},ImGuiChildFlags_Borders);
@@ -2537,17 +2554,10 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
             ImGui::PushID(static_cast<int>(shown));
             const std::string label=asset.library+" / "+asset.name;
             if(ImGui::Selectable(label.c_str())) {
-                objectDraft_.model=asset.mesh;
-                objectDraft_.name=asset.name.substr(0,127);
-                objectDraft_.templateLibrary=asset.library;
-                objectDraft_.templateGroup=asset.group;
-                objectDraft_.templateName=asset.name;
-                objectDraft_.templatePropXml=asset.originalPropXml;
-                objectDraft_.excludedTemplateFields.clear();
-                objectDraft_.libraryTemplateXml=asset.originalLibraryXml;
-                objectDraft_.meshVertices.clear();objectDraft_.meshIndices.clear();objectDraft_.scale=1.f;
-                ResetObjectHistory();objectDirty_=true;objectSelectedVertex_=-1;objectFacePointCount_=0;
-                objectSceneNeedsBuild_=true; objectSceneHasModel_=false;
+                if(objectDirty_) {
+                    objectPendingAsset_=static_cast<int>(&asset-assets.Assets().data());
+                    objectPendingPicker_=0;objectReplaceRequested_=true;
+                } else selectObjectSource(asset);
             }
             ImGui::PopID();
         }
@@ -2614,24 +2624,30 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     const std::string draftMeshObject=draftTemplate?draftTemplate->meshObject:std::string{};
     static std::string inspectedObject;
     static std::filesystem::path inspectedSource;
-    static NativeCollisionImport::Result inspectedHelpers;
+    static NativeCollisionImport::Result inspectedHelpers,inspectedVerifiedSurface;
     if(objectDraft_.model!=inspectedSource || inspectedObject!=draftMeshObject) {
         inspectedObject=draftMeshObject;
         inspectedSource=objectDraft_.model;
-        inspectedHelpers={};
-        if(!inspectedSource.empty()&&LegacyMeshImport::Lower(inspectedSource.extension().string())==".3ds")
+        inspectedHelpers={};inspectedVerifiedSurface={};
+        if(!inspectedSource.empty()&&LegacyMeshImport::Lower(inspectedSource.extension().string())==".3ds") {
             inspectedHelpers=NativeCollisionImport::Read(inspectedSource,draftMeshObject);
+            if(inspectedHelpers.error==NativeCollisionImport::NoNativeHelpersError)
+                inspectedVerifiedSurface=VerifiedMeshSurface::ReadVerified(inspectedSource,draftMeshObject);
+        }
     }
     if(LegacyMeshImport::Lower(objectDraft_.model.extension().string())==".3ds") {
         if(inspectedHelpers.Valid())
             ImGui::TextColored({.30f,.88f,.50f,1.f},"Native 3DS helpers: %zu planes / %zu boxes / %zu triangles",
                 inspectedHelpers.planes.size(),inspectedHelpers.boxes.size(),inspectedHelpers.triangles.size());
-        else ImGui::TextWrapped("Native helper import blocked: %s",inspectedHelpers.error.c_str());
+        else if(inspectedVerifiedSurface.Valid()) {
+            ImGui::TextColored({.30f,.88f,.50f,1.f},"Map-verified terrain: %zu triangles",inspectedVerifiedSurface.triangles.size());
+            ImGui::TextWrapped("Native export preserves this surface only while geometry is unchanged. Mesh edits remain editable drafts.");
+        } else ImGui::TextWrapped("Native helper import blocked: %s",inspectedHelpers.error.c_str());
         HoverHelp("Custom collision boxes below are separate editable drafts, not a native game export.");
     } else { ImGui::TextDisabled("GLB: collision draft"); HoverHelp("Edit solid/trigger boxes below. GLB native conversion is not implemented; experimental native export requires an original 3DS template."); }
     char draftName[128]{};
     std::memcpy(draftName,objectDraft_.name.data(),std::min(objectDraft_.name.size(),sizeof(draftName)-1));
-    if(ImGui::InputText("Object name",draftName,sizeof(draftName))) {objectDraft_.name=draftName;objectDirty_=true;}
+    if(ImGui::InputText("Object name",draftName,sizeof(draftName))) {PushObjectUndo();objectDraft_.name=draftName;}
     float draftTint[3]={objectDraft_.tint[0],objectDraft_.tint[1],objectDraft_.tint[2]};
     if(ImGui::ColorEdit3("Draft tint",draftTint)) {
         PushObjectUndo();objectDraft_.tint={draftTint[0],draftTint[1],draftTint[2]};
@@ -2743,6 +2759,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         if(objectSelectedVertex_>=0 && static_cast<size_t>(objectSelectedVertex_)<objectVisualVertices_.size()) {
             auto& vertex=objectVisualVertices_[static_cast<size_t>(objectSelectedVertex_)];
             ImGui::Text("Selected point %d / %zu",objectSelectedVertex_+1,objectVisualVertices_.size());
+            ImGui::TextDisabled("Mesh coordinates: Y is height");
             float coords[3]={vertex.x,vertex.y,vertex.z};
             if(ImGui::InputFloat3("Point X / Y / Z",coords,"%.3f")) {
                 const DirectX::XMFLOAT3 edited{coords[0],coords[1],coords[2]};
@@ -2803,7 +2820,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         } else if(objectDraft_.boxes.empty())objectDraft_.boxes.push_back(ObjectDraft::Box{});
         objectDirty_=true;
     }
-    HoverHelp("Draft intent only: native collision, with_collision flags and dirt/dust material effects are NOT exported to ProTLVK from this workspace.");
+    HoverHelp("Draft save does not change game physics. Native export has a separate supported collision path; the purpose selector does not assign dust/snow effects or native gameplay flags.");
     ImGui::Checkbox("Show collision boxes",&objectShowBoxes_);
     ImGui::Text("Collision draft (%zu boxes)",objectDraft_.boxes.size());
     ImGui::Spacing();
@@ -2851,6 +2868,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         if(ImGui::Combo("Draft type",&role,"Solid / impassable\0Trigger / region\0")) {
             PushObjectUndo();box.role=role==0?ObjectDraft::BoxRole::Solid:ObjectDraft::BoxRole::Trigger;
         }
+        ImGui::TextDisabled("Collision coordinates: Z is height");
         float minimum[3]={box.min[0],box.min[1],box.min[2]};
         if(ImGui::InputFloat3("Min X/Y/Z",minimum,"%.1f")) {
             PushObjectUndo();box.min={minimum[0],minimum[1],minimum[2]};
@@ -2876,7 +2894,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     if(ImGui::Button("Save isolated object draft",{-1,34})) objectSaveRequested_=true;
     ImGui::EndDisabled();
     ImGui::SeparatorText("Experimental native 3DS library export");
-    ImGui::TextWrapped("Original 3DS templates only. Writes a NEW PTPRO_* folder AND a sibling .tara, without replacing the original library. Verified triangle-only terrain preserves and conforms source helpers for a single edited peak. Box-only/helperless originals use explicitly authored SOLID boxes (not original rotated helpers). Plane/mixed helpers, GLB and triggers are not supported.");
+    ImGui::TextWrapped("Original 3DS templates only. Writes a NEW PTPRO_* folder AND a sibling .tara, without replacing the original library. Verified triangle-only terrain preserves and conforms source helpers for a single edited peak. Map-verified Fogtown surfaces preserve collision only with unchanged geometry. Other box-only/helperless originals use authored SOLID boxes. Plane/mixed helpers, GLB and triggers are not supported.");
     const bool nativeValid=ObjectDraft::Validate(objectDraft_,validation) && objectSceneHasModel_ &&
         !assets.Root().empty() && !ObjectDraft::IsGlb(objectDraft_.model) &&
         static_cast<bool>(objectDraft_.libraryTemplateXml);
@@ -2934,21 +2952,21 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
                                 v.x*=objectDraft_.scale;v.y*=objectDraft_.scale;v.z*=objectDraft_.scale;
                             }
                         } else {
-                            Log::Warning("Saved draft vertex count differs from source mesh; ignoring edit layer.");
-                            objectDraft_.meshVertices.clear();objectDraft_.scale=1.f;
+                            throw std::runtime_error("Saved draft vertices do not match the source mesh. Edit data retained; preview/export blocked.");
                         }
                         if(!objectDraft_.meshIndices.empty()) {
                             bool good=objectDraft_.meshIndices.size()<=600000 && objectDraft_.meshIndices.size()%3==0;
                             for(const auto i:objectDraft_.meshIndices)if(i>=objectVisualVertices_.size())good=false;
                             if(good)objectVisualIndices_=objectDraft_.meshIndices;
-                            else {Log::Warning("Saved draft mesh faces are incompatible with source mesh; using original faces.");objectDraft_.meshIndices.clear();}
+                            else throw std::runtime_error("Saved draft faces do not match the source mesh. Edit data retained; preview/export blocked.");
                         }
                         objectScene_.UpdatePreviewMeshGeometry(objectVisualVertices_,objectVisualIndices_);
                     }
                 } catch(const std::exception& ex) {
                     Log::Warning(std::string("Optional object mesh wireframe unavailable: ")+ex.what());
                     objectVisualVertices_.clear();objectOriginalVertices_.clear();objectVisualIndices_.clear();objectOriginalIndices_.clear();
-                    objectMeshEditable_=false;
+                    objectMeshEditable_=false;objectSceneHasModel_=false;
+                    objectScene_.ReleasePreviewResources();err=ex.what();
                 }
             }
             if(!objectSceneHasModel_)SetMessage("Cannot preview model: "+err,true);
@@ -2957,7 +2975,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
     ImGui::TextUnformatted("3D model + independent collision boxes");
     ImGui::SameLine(); if(ImGui::Button("Frame model") && objectSceneInitialized_)objectScene_.FrameScene();
     // View controls are available on hover, not as a permanent instruction row.
-    HoverHelp("Right drag: orbit | Middle drag: pan | Wheel: zoom | Left-click point: drag in view plane");
+    HoverHelp("Right drag: orbit | Middle drag: pan | Wheel: zoom | Left drag: move point | Shift+left drag: move selected collision box | Ctrl+Z: undo");
     if(objectSceneInitialized_) {
         const ImVec2 size={std::max(300.f,ImGui::GetContentRegionAvail().x),
                            std::max(240.f,ImGui::GetContentRegionAvail().y-14.f)};
@@ -2976,7 +2994,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
             objectScene_.Orbit(io.MouseDelta.x,io.MouseDelta.y);
         if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
             objectScene_.Pan(io.MouseDelta.x,io.MouseDelta.y);
-        if(hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && objectMeshEditable_ && objectShowVertices_) {
+        if(hover && !io.KeyShift && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && objectMeshEditable_ && objectShowVertices_) {
             int candidate=-1;float best=11.f*11.f;
             const float mx=io.MousePos.x-top.x,my=io.MousePos.y-top.y;
             for(size_t i=0;i<objectVisualVertices_.size();++i) {
@@ -3014,7 +3032,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
             }
         }
         if(ImGui::IsMouseReleased(ImGuiMouseButton_Left)){
-            objectVertexDragActive_=false;objectVertexDragHistoryCaptured_=false;
+            objectVertexDragActive_=false;objectVertexDragHistoryCaptured_=false;objectBoxDragHistoryCaptured_=false;
         }
         if(ImGui::IsItemActive() && !objectVertexDragActive_ && objectShowBoxes_ && io.KeyShift && ImGui::IsMouseDragging(ImGuiMouseButton_Left) && !objectDraft_.boxes.empty()) {
             auto& b=objectDraft_.boxes[static_cast<size_t>(std::clamp(objectSelectedBox_,0,static_cast<int>(objectDraft_.boxes.size())-1))];
@@ -3023,7 +3041,12 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
             if(objectScene_.ScreenToLegacyPlane(x,y,mid,current) &&
                objectScene_.ScreenToLegacyPlane(x-io.MouseDelta.x,y-io.MouseDelta.y,mid,previous)) {
                 const float dx=current.x-previous.x,dy=current.y-previous.y;
-                b.min[0]+=dx;b.max[0]+=dx;b.min[1]+=dy;b.max[1]+=dy;
+                auto next=b;
+                next.min[0]+=dx;next.max[0]+=dx;next.min[1]+=dy;next.max[1]+=dy;
+                if((dx!=0.f||dy!=0.f)&&ObjectDraft::ValidBox(next)) {
+                    if(!objectBoxDragHistoryCaptured_){PushObjectUndo();objectBoxDragHistoryCaptured_=true;}
+                    b=next;
+                }
             }
         }
         // Model vertices are already renderer Y-up; box annotations are legacy Z-up.
@@ -3100,8 +3123,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         ImGui::TextUnformatted("Save a new isolated object draft?");
         HoverHelp("Creates a new draft folder; original library assets are not overwritten. The draft folder is NOT a native game asset. Use the separate experimental 3DS library export for original 3DS templates.");
         if(ImGui::Button("Save draft")) {
-            SaveObjectDraft(assets);
-            ImGui::CloseCurrentPopup();
+            if(SaveObjectDraft(assets))ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();if(ImGui::Button("Cancel##save_draft"))ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -3112,7 +3134,7 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
         draftViewport->WorkPos.y+draftViewport->WorkSize.y*.5f},ImGuiCond_Appearing,{.5f,.5f});
     if(ImGui::BeginPopupModal("Confirm native object export",nullptr,ImGuiWindowFlags_AlwaysAutoResize)){
         ImGui::TextWrapped("Create a NEW PTPRO_* library folder and game .tara beside it under the selected Library root?");
-        ImGui::TextWrapped("The original libraries are not modified. This exports the currently edited mesh, original texture variants, and SOLID draft boxes. For verified original triangle terrain, edits are conformed to original collision helpers. Box-only/helperless models export authored SOLID boxes, not preserved original rotated boxes. Plane/mixed helpers and unsupported changes fail closed. GLB and triggers are not supported. Test in ProTLVK.");
+        ImGui::TextWrapped("The original libraries are not modified. This exports the currently edited mesh, original texture variants, and SOLID draft boxes. For verified original triangle terrain, edits are conformed to original collision helpers. Map-verified Fogtown surfaces preserve their triangles only with unchanged geometry. Other box-only/helperless models export authored SOLID boxes, not preserved original rotated boxes. Plane/mixed helpers and unsupported changes fail closed. GLB and triggers are not supported. Test in ProTLVK.");
         if(ImGui::Button("Export native 3DS")){
             ObjectDraft::Document toExport=objectDraft_;
             if(objectMeshEditable_&&!objectVisualVertices_.empty()){
@@ -3125,14 +3147,30 @@ void EditorUi::DrawObjectEditor(const AssetRegistry& assets, SceneRenderer& scen
                 Log::Info("Native object library exported: "+Log::PathUtf8(exported));
                 SetMessage("New native library created: "+Log::PathUtf8(exported));
                 pendingLibrary_=assets.Root(); // Rescan on next frame, never while drawing.
-                objectDirty_=false;
+                // Native output is not an editable draft save; keep the dirty flag.
             }else{
                 Log::Error("Native object library export rejected: "+error);
                 SetMessage("Native object export rejected: "+error,true);
             }
-            ImGui::CloseCurrentPopup();
+            if(error.empty())ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();if(ImGui::Button("Cancel##nativeexport"))ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    if(objectReplaceRequested_) {ImGui::OpenPopup("Open another object?##objreplace");objectReplaceRequested_=false;}
+    if(ImGui::BeginPopupModal("Open another object?##objreplace",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextWrapped("This draft has unsaved changes. Save it before opening another model?");
+        const auto proceed=[&]() {
+            if(objectPendingAsset_>=0 && static_cast<size_t>(objectPendingAsset_)<assets.Assets().size())
+                selectObjectSource(assets.Assets()[static_cast<size_t>(objectPendingAsset_)]);
+            else if(objectPendingPicker_!=0)objectPickerRequest_=objectPendingPicker_;
+            objectPendingAsset_=-1;objectPendingPicker_=0;ImGui::CloseCurrentPopup();
+        };
+        if(ImGui::Button("Save draft and continue")) {if(SaveObjectDraft(assets))proceed();}
+        ImGui::SameLine();if(ImGui::Button("Continue without saving"))proceed();
+        ImGui::SameLine();if(ImGui::Button("Cancel##objreplace")) {
+            objectPendingAsset_=-1;objectPendingPicker_=0;ImGui::CloseCurrentPopup();
+        }
         ImGui::EndPopup();
     }
     if(objectCloseRequested_) {ImGui::OpenPopup("Save object changes?##objclose");objectCloseRequested_=false;}
@@ -4436,8 +4474,8 @@ void EditorUi::ProcessPendingNativeDialogs() {
             if(objectKind==1 && !ObjectDraft::ValidateGlbContainer(source)) {
                 SetMessage("Invalid binary glTF 2.0 container; draft unchanged.",true);
             } else {
-                objectDraft_.model=source;
-                objectDraft_.meshVertices.clear();objectDraft_.meshIndices.clear();objectDraft_.scale=1.f;
+                objectDraft_=ObjectDraft::FreshSource(source,source.stem().string());
+                objectSelectedBox_=0;
                 ResetObjectHistory();objectDirty_=true;objectSelectedVertex_=-1;objectFacePointCount_=0;
                 const auto stem=source.stem().string();
                 objectDraft_.name=stem.substr(0,127);

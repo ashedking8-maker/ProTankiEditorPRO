@@ -424,5 +424,9 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME FogtownSurfaceRepairXMLUndo COMMAND FogtownSurfaceDocumentRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_surface")
+  add_executable(ObjectEditorSafetyRegression tests/object_editor_safety_regression.cpp)
+  target_include_directories(ObjectEditorSafetyRegression PRIVATE src tests)
+  add_test(NAME ObjectEditorStateAndCertifiedExport COMMAND ObjectEditorSafetyRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_surface")
 endif()
 include(CPack)

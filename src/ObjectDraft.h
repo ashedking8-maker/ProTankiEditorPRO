@@ -69,6 +69,10 @@ struct Document {
     // no game-native export is implied by these selections.
     std::vector<std::string> excludedTemplateFields;
 };
+// Starting another model must not inherit collision, material or template state.
+inline Document FreshSource(const fs::path& source,const std::string& name) {
+    Document next;next.model=source;next.name=name.substr(0,127);return next;
+}
 inline bool ValidBox(const Box& b) {
     for (int i=0;i<3;++i)
         if (!std::isfinite(b.min[i]) || !std::isfinite(b.max[i]) ||

@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <sstream>
 
 namespace fs=std::filesystem;
 struct Scratch {
@@ -118,5 +119,37 @@ int main(int argc,char** argv) {
     auto invalid=draft;invalid.name="invalid_vertices";invalid.meshVertices.pop_back();
     PT_REQUIRE(!NativeObjectExport::Export(invalid,assets,output,error));
     PT_REQUIRE(!fs::exists(root/"PTPRO_invalid_vertices"));
+    // Map-certified helperless Fogtown surface must not become the default draft box.
+    const auto fogDir=root/"FogtownFixture";PT_REQUIRE(fs::create_directories(fogDir));
+    PT_REQUIRE(fs::copy_file(fixtures.parent_path()/"fogtown_surface/land01.3ds",fogDir/"land01.3ds"));
+    Native3DSVisualMetadata::Visual fogMeta;
+    PT_REQUIRE(Native3DSVisualMetadata::Read(fogDir/"land01.3ds","Land",fogMeta,error));
+    pugi::xml_document fogXml;auto fogLib=fogXml.append_child("library");fogLib.append_attribute("name")="FogtownFixture";
+    auto fogGroup=fogLib.append_child("prop-group");fogGroup.append_attribute("name")="l";
+    auto fogProp=fogGroup.append_child("prop");fogProp.append_attribute("name")="land 1";
+    auto fogMesh=fogProp.append_child("mesh");fogMesh.append_attribute("file")="land01.3ds";
+    std::set<std::string> fogTextures;
+    for(const auto& material:fogMeta.materials)fogTextures.insert(fs::path(material.texture).filename().string());
+    for(const auto& name:fogTextures) {
+        std::ofstream tex(fogDir/name,std::ios::binary);tex<<"texture fixture";PT_REQUIRE(bool(tex));
+        auto t=fogMesh.append_child("texture");t.append_attribute("name")=name.c_str();t.append_attribute("diffuse-map")=name.c_str();
+    }
+    PT_REQUIRE(fogXml.save_file((fogDir/"library.xml").string().c_str()));
+    PT_REQUIRE(assets.Scan(root,error));const auto* fogAsset=assets.Find("FogtownFixture","l","land 1");PT_REQUIRE(fogAsset);
+    auto fogDraft=ObjectDraft::FreshSource(fogAsset->mesh,"Fogtown_preserved");
+    fogDraft.templateLibrary=fogAsset->library;fogDraft.templateGroup=fogAsset->group;fogDraft.templateName=fogAsset->name;
+    fogDraft.templatePropXml=fogAsset->originalPropXml;fogDraft.libraryTemplateXml=fogAsset->originalLibraryXml;
+    PT_REQUIRE(NativeObjectExport::Export(fogDraft,assets,output,error));
+    const auto fogBack=NativeCollisionImport::Read(output/"ptpro_mesh.3ds");
+    PT_REQUIRE(fogBack.Valid()&&fogBack.triangles.size()==18&&fogBack.boxes.empty());
+    auto changedFog=fogDraft;changedFog.name="Fogtown_changed";changedFog.scale=2;
+    PT_REQUIRE(!NativeObjectExport::Export(changedFog,assets,output,error));
+    PT_REQUIRE(!fs::exists(root/"PTPRO_Fogtown_changed"));
+    auto unknownTexture=fogDraft;unknownTexture.name="Fogtown_extra_texture_metadata";
+    pugi::xml_document extra;PT_REQUIRE(extra.load_string(unknownTexture.templatePropXml.c_str()));
+    extra.child("prop").child("mesh").child("texture").append_attribute("alpha-map")="alpha.png";
+    std::ostringstream serialized;extra.save(serialized);unknownTexture.templatePropXml=serialized.str();
+    PT_REQUIRE(!NativeObjectExport::Export(unknownTexture,assets,output,error));
+    PT_REQUIRE(!fs::exists(root/"PTPRO_Fogtown_extra_texture_metadata"));
     std::cout<<"PASS: original Land01 -> manual-reference peak -> native 3DS + TARA -> 138 verified helpers, no overwrite\n";
 }

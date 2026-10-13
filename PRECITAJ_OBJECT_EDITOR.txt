@@ -1,0 +1,7 @@
+Kumulatívny patch Obj. editor + Fogtown, 13. 10. 2026.
+Nahraj obsah do koreňa projektu so zachovaním priečinkov.
+Staršie patche potom neaplikuj znova.
+Podrobný audit, rozsah ochrany, zmeny a testy:
+  docs/OBJECT_EDITOR_AUDIT_FIX_SK.md
+Ide o zdrojové súbory pre GitHub zostavenie, nie .exe.
+Ak máš novšie vlastné zmeny v týchto súboroch, zlúč ich s patchom.

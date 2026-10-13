@@ -8,6 +8,7 @@
 #include "Native3DSWriter.h"
 #include "Native3DSVisualMetadata.h"
 #include "NativeTerrainDelta.h"
+#include "NativeVerifiedSurfaceExport.h"
 #include "NativeExportCollisionPolicy.h"
 #include "NativeTaraWriter.h"
 #include "ObjectDraft.h"
@@ -77,6 +78,14 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     }
     for(auto n:meshNode.children())if(std::string(n.name())!="texture"){
         error="The source mesh has unsupported non-texture metadata.";return false;
+    }
+    for(auto texture:meshNode.children("texture")) {
+        for(auto attr:texture.attributes())if(std::string(attr.name())!="name" && std::string(attr.name())!="diffuse-map") {
+            error="Texture metadata is unsupported and would be lost: "+std::string(attr.name())+". Native export refused.";return false;
+        }
+        for(auto child:texture.children())if(child.type()==pugi::node_element) {
+            error="Nested texture metadata cannot be preserved by this native exporter.";return false;
+        }
     }
     std::error_code ec;
     const auto root=assets.Root();
@@ -193,8 +202,11 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
         originalCollision.triangles.size(),
         originalCollision.error==NativeCollisionImport::NoNativeHelpersError,
         d.boxes.size(),error))return false;
+    const auto certifiedSurface=VerifiedMeshSurface::ReadVerified(source->mesh,source->meshObject);
     if(d.purpose!=ObjectDraft::Purpose::Decorative){
-        if(terrain){
+        if(certifiedSurface.Valid()) {
+            if(!NativeVerifiedSurfaceExport::Build(certifiedSurface,sourceModel,output,output.triangles,error))return false;
+        }else if(terrain){
             if(!NativeTerrainDelta::Build(source->mesh,output,output.triangles,error,source->meshObject))return false;
         }else{
             for(const auto& b:d.boxes)output.boxes.push_back({b.min,b.max});

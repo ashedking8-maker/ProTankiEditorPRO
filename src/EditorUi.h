@@ -227,6 +227,10 @@ private:
     bool objectNativeExportRequested_{};
     bool objectCloseRequested_{};
     bool objectDirty_{};
+    bool objectBoxDragHistoryCaptured_{};
+    bool objectReplaceRequested_{};
+    int objectPendingPicker_{};
+    int objectPendingAsset_{-1};
     bool objectVertexDragHistoryCaptured_{};
     struct ObjectSnapshot {
         ObjectDraft::Document draft;
