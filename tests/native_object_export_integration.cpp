@@ -20,6 +20,24 @@ struct Scratch {
     fs::path path;
     ~Scratch(){std::error_code ec;fs::remove_all(path,ec);}
 };
+// 3DS files may retain unused materials (Fogtown has an untextured Default).
+// Build sidecars only for materials referenced by this visual's faces. A used
+// material without a safe texture remains a test failure, not a silent skip.
+static int VisualTextureNames(const Native3DSVisualMetadata::Visual& visual, std::set<std::string>& names) {
+    names.clear();
+    for(const auto& face:visual.faces) {
+        const auto material=std::find_if(visual.materials.begin(),visual.materials.end(),
+            [&](const auto& candidate){return candidate.name==face.material;});
+        PT_REQUIRE(material!=visual.materials.end());
+        const auto filename=fs::path(material->texture).filename().string();
+        if(!Native3DSWriter::SafeAscii(filename,120))
+            std::cerr<<"Invalid fixture texture for used material: "<<face.material<<'\n';
+        PT_REQUIRE(Native3DSWriter::SafeAscii(filename,120));
+        names.insert(filename);
+    }
+    PT_REQUIRE(!names.empty());
+    return 0;
+}
 int main(int argc,char** argv) {
     PT_REQUIRE(argc==2);
     const fs::path fixtures=argv[1];
@@ -38,12 +56,7 @@ int main(int argc,char** argv) {
     Native3DSVisualMetadata::Visual meta;
     PT_REQUIRE(Native3DSVisualMetadata::Read(sourceDir/"land01.3ds",native.visualAnchor,meta,error));
     std::set<std::string> textureNames;
-    for(const auto& mat:meta.materials) {
-        const auto filename=fs::path(mat.texture).filename().string();
-        PT_REQUIRE(Native3DSWriter::SafeAscii(filename,120));
-        textureNames.insert(filename);
-    }
-    PT_REQUIRE(!textureNames.empty());
+    PT_REQUIRE(VisualTextureNames(meta,textureNames)==0);
     pugi::xml_document doc;
     auto lib=doc.append_child("library");lib.append_attribute("name")="LandFixture";
     auto group=lib.append_child("prop-group");group.append_attribute("name")="default";
@@ -129,7 +142,7 @@ int main(int argc,char** argv) {
     auto fogProp=fogGroup.append_child("prop");fogProp.append_attribute("name")="land 1";
     auto fogMesh=fogProp.append_child("mesh");fogMesh.append_attribute("file")="land01.3ds";
     std::set<std::string> fogTextures;
-    for(const auto& material:fogMeta.materials)fogTextures.insert(fs::path(material.texture).filename().string());
+    PT_REQUIRE(VisualTextureNames(fogMeta,fogTextures)==0);
     for(const auto& name:fogTextures) {
         std::ofstream tex(fogDir/name,std::ios::binary);tex<<"texture fixture";PT_REQUIRE(bool(tex));
         auto t=fogMesh.append_child("texture");t.append_attribute("name")=name.c_str();t.append_attribute("diffuse-map")=name.c_str();
@@ -139,7 +152,9 @@ int main(int argc,char** argv) {
     auto fogDraft=ObjectDraft::FreshSource(fogAsset->mesh,"Fogtown_preserved");
     fogDraft.templateLibrary=fogAsset->library;fogDraft.templateGroup=fogAsset->group;fogDraft.templateName=fogAsset->name;
     fogDraft.templatePropXml=fogAsset->originalPropXml;fogDraft.libraryTemplateXml=fogAsset->originalLibraryXml;
-    PT_REQUIRE(NativeObjectExport::Export(fogDraft,assets,output,error));
+    if(!NativeObjectExport::Export(fogDraft,assets,output,error)) {
+        std::cerr<<"Fogtown end-to-end native export failed: "<<error<<'\n';return 1;
+    }
     const auto fogBack=NativeCollisionImport::Read(output/"ptpro_mesh.3ds");
     PT_REQUIRE(fogBack.Valid()&&fogBack.triangles.size()==18&&fogBack.boxes.empty());
     auto changedFog=fogDraft;changedFog.name="Fogtown_changed";changedFog.scale=2;
