@@ -7,7 +7,9 @@
 #include <chrono>
 #include "VerifiedCollisionTemplates.h"
 #include "NativeCollisionImport.h"
+#include "CollisionPlacementPolicy.h"
 #include "VerifiedGroundCollision.h"
+#include "VerifiedMeshSurface.h"
 #include "Theme.h"
 #include "Logger.h"
 #include "SplashScreen.h"
@@ -965,8 +967,32 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         explanation="Original Fogtown verified ground XML: one owned native collision plane.";
         return true;
     }
-    const auto imported=NativeCollisionImport::Read(asset->mesh,asset->meshObject);
+    const auto imported=VerifiedMeshSurface::Read(asset->mesh,asset->meshObject);
     if(!imported.Valid()) {
+        Native3DSScene::Scene source;
+        Native3DSScene::Selection selection;
+        std::string parseError;
+        std::string detail;
+        if(Native3DSScene::Read(asset->mesh,source,parseError) &&
+           Native3DSScene::Resolve(source,asset->meshObject,selection,parseError)) {
+            const auto& visual=source.nodes[selection.node];
+            size_t directHelpers=0,totalHelpers=0;
+            for(const auto& frame:source.frames) {
+                if(NativeCollisionImport::Prefix(frame.name,"plane") ||
+                   NativeCollisionImport::Prefix(frame.name,"box") ||
+                   NativeCollisionImport::Prefix(frame.name,"tri")) {
+                    ++totalHelpers;
+                    if(frame.parent==selection.frame)++directHelpers;
+                }
+            }
+            detail=" selected="+visual.name+" vertices="+std::to_string(visual.vertices.size())+
+                " faces="+std::to_string(visual.faces.size())+
+                " helperFrames="+std::to_string(totalHelpers)+
+                " directHelperFrames="+std::to_string(directHelpers);
+        } else detail=" sourceError="+parseError;
+        Log::Warning("Collision authoring failed: identity="+prop.library+"/"+prop.group+"/"+prop.name+
+            " source="+Log::PathUtf8(asset->mesh)+" meshObject="+asset->meshObject+
+            " reason="+imported.error+detail);
         // General protection: helperless rectangular 3DS might be a floor or
         // a deliberate roof/decal. Never silently turn it into pass-through
         // terrain. User must explicitly choose visual-only when unsupported.
@@ -983,7 +1009,7 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         explanation="Native helper collision refused (overlapping duplicate or unsupported transform).";
         return false;
     }
-    explanation="3DS native helpers: "+std::to_string(imported.planes.size())+" planes / "+
+    explanation="Native collision geometry: "+std::to_string(imported.planes.size())+" planes / "+
         std::to_string(imported.triangles.size())+" triangles; in-game test pending.";
     return true;
 }
@@ -1159,30 +1185,21 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
             }
             const auto* pendingAsset=assets.Find(pending.library,pending.group,pending.name);
             const bool intentionalSprite=pendingAsset && !pendingAsset->sprite.empty();
-            // An original 3DS which has NO native collision nodes is distinct
-            // from an original 3DS with unsupported/invalid collision nodes.
-            // The former is not assigned a fictional collider, and can be
-            // placed as original visual-only content without the emergency
-            // "allow unsupported" override. Explicit <with_collision>1 is
-            // still rejected above; nonempty unsupported helpers still fail.
-            const bool originalWithoutHelpers=info==NativeCollisionImport::NoNativeHelpersError;
-            // A copied native with_collision=1 is not safe to claim as a
-            // visual-only duplicate: its per-instance game flag would survive
-            // while no collision geometry was authored for the new instance.
-            if(pending.nativeWithCollision==1) {
-                failure=pending.name+": copied original <with_collision>1</with_collision> but no complete new collider set ("+info+")";
+            // No helpers is not evidence that a mesh is a decoration. This
+            // applies equally to flat floors, slopes and every other library.
+            const bool spriteOnly=intentionalSprite && pendingAsset->mesh.empty();
+            if(!CollisionPlacementPolicy::MayPlaceWithoutCollision(
+                    spriteOnly,allowVisualOnlyPlacement_,pending.nativeWithCollision)) {
+                failure=pending.name+": no complete collider set ("+info+")";
                 break;
             }
-            const bool candidateMissingFloor=info.find("Flat ground-like 3DS")!=std::string::npos;
-            const bool confirmedGround=VerifiedGroundCollision::Find(pending.library,pending.group,pending.name)!=nullptr;
-            if(!allowVisualOnlyPlacement_ && !intentionalSprite &&
-               (!originalWithoutHelpers || candidateMissingFloor || confirmedGround)) {
-                failure=pending.name+": "+info;break;
-            }
+            Log::Warning(std::string(spriteOnly ? "Sprite-only placement: identity=" : "Visual-only placement explicitly allowed: identity=")+
+                pending.library+"/"+pending.group+"/"+pending.name+" reason="+info);
             ++visualOnly;
         }
         inserted.push_back(static_cast<int>(index));
     }
+    allowVisualOnlyPlacement_=false; // explicit consent applies to this transaction only
     allowOpaqueMetadataCopy_=false; // approval is never carried into a later placement
     if(!failure.empty()) {
         // The failing candidate has been staged but NOT added to inserted.
@@ -1286,17 +1303,40 @@ bool EditorUi::Save(MapDocument& map, bool saveAs) {
         Log::Warning(why);SetMessage(why,true);
         return false;
     }
+    size_t surfaceTriangles=0;
+    std::unordered_map<std::string,NativeCollisionImport::Result> surfaceCache;
+    for(size_t i=0;i<map.Props().size();++i) {
+        const auto& prop=map.Props()[i];
+        const bool required=VerifiedMeshSurface::ExpectedIdentity(prop.library,prop.group,prop.name);
+        const auto* asset=saveAssets_?saveAssets_->Find(prop.library,prop.group,prop.name):nullptr;
+        NativeCollisionImport::Result source;
+        if(asset&&!asset->mesh.empty()) {
+            const auto key=asset->mesh.string()+"\x1f"+asset->meshObject;
+            auto it=surfaceCache.find(key);
+            if(it==surfaceCache.end())it=surfaceCache.emplace(key,VerifiedMeshSurface::ReadVerified(asset->mesh,asset->meshObject)).first;
+            source=it->second;
+        }
+        if(!source.Valid()&&!required)continue;
+        size_t added=0;std::string why;
+        if(!source.Valid()||!map.RepairVerifiedMeshSurfaceForProp(i,source,added,why)) {
+            const auto identity=prop.library+"/"+prop.group+"/"+prop.name;
+            map=std::move(beforeRepair);
+            SetMessage("Save blocked: "+identity+": "+(source.Valid()?why:"matching original surface mesh unavailable")+". No partial repair was kept.",true);
+            return false;
+        }
+        surfaceTriangles+=added;
+    }
     std::string error;
     const bool ok = saveAs ? map.SaveLegacyAs(destination, error) : map.SaveLegacy(error);
     if (ok) {
-        if(repaired) {
+        if(repaired||surfaceTriangles) {
             history_.PushSnapshot(std::move(beforeRepair),map);
             RequestSceneRebuild(true);
-            Log::Info("Save preflight restored "+std::to_string(repaired)+" original-map verified ground planes.");
+            Log::Info("Save preflight restored "+std::to_string(repaired)+" verified ground planes and "+std::to_string(surfaceTriangles)+" verified surface triangles.");
         }
         Log::Info("UI save succeeded: " + Log::PathUtf8(map.Path()));
         SetMessage("Map saved: "+map.Path().filename().string()+
-            (repaired?"; auto-repaired "+std::to_string(repaired)+" missing ground planes.":"; verified Fogtown ground preflight passed."));
+            "; restored "+std::to_string(repaired)+" ground planes and "+std::to_string(surfaceTriangles)+" surface triangles.");
     } else {
         map=std::move(beforeRepair);
         Log::Error("UI save failed: " + error); SetMessage(error, true);
@@ -1614,7 +1654,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
             if(!asset||asset->mesh.empty())continue;
             const auto key=asset->mesh.string()+"\x1f"+asset->meshObject;
             auto it=meshCache.find(key);
-            if(it==meshCache.end())it=meshCache.emplace(key,NativeCollisionImport::Read(asset->mesh,asset->meshObject)).first;
+            if(it==meshCache.end())it=meshCache.emplace(key,VerifiedMeshSurface::Read(asset->mesh,asset->meshObject)).first;
             const bool matched=it->second.Valid()&&map.BindImportedCollisionForProp(i,it->second);
             if(matched)++bound;
             // No-helper decorative models are valid. A recognized helper set
@@ -1871,8 +1911,8 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
                 surfaceOffsetZ_=std::clamp(surfaceOffsetZ_,0.f,20.f);
                 if(ImGui::IsItemDeactivatedAfterEdit()) SaveControls();
             }
-            ImGui::Checkbox("Allow visual-only props (no tank collision)",&allowVisualOnlyPlacement_);
-            HoverHelp("Only for deliberate visual placement. New unsupported 3DS solids will not receive collision.");
+            ImGui::Checkbox("Allow visual-only props for NEXT placement (no tank collision)",&allowVisualOnlyPlacement_);
+            HoverHelp("One placement transaction only, including a copied group. Meshes without complete collision are blocked by default. Use only for intentional decoration; tanks can pass through these props.");
             ImGui::Checkbox("Allow opaque XML copy for NEXT placement (advanced)",&allowOpaqueMetadataCopy_);
             HoverHelp("One-shot approval for copying original per-instance XML whose semantics are unknown; never automatically proves gameplay equivalence.");
         }
@@ -3586,7 +3626,7 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
             inspectedCollisionObject=asset->meshObject;
             inspectedCollisionMesh=asset->mesh;
             if(!ec)inspectedCollisionTimestamp=timestamp;
-            inspectedCollisionInfo=NativeCollisionImport::Read(asset->mesh,asset->meshObject);
+            inspectedCollisionInfo=VerifiedMeshSurface::Read(asset->mesh,asset->meshObject);
         }
     }
     if(!p.texture.empty()) {
@@ -3638,12 +3678,29 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
             ImGui::TextUnformatted("Collision: source helpers found (not linked)");
             HoverHelp("Source helper geometry exists, but this saved instance has not been safely matched to a complete owned collider set. No automatic repair is performed.");
         } else {
-            ImGui::TextUnformatted("Collision: needs verification");
-            HoverHelp(info.error.c_str());
+            if(info.error==NativeCollisionImport::NoNativeHelpersError) {
+                ImGui::TextColored({1.f,.43f,.36f,1.f},"Collision: no source helpers; no linked collider");
+                HoverHelp("This mesh has no supported source helpers and no linked collider. It may be pass-through. Existing unlinked map collision is preserved; absence of source helpers does not prove that a saved map is safe. Supply the original 3DS/library and original map export to verify it.");
+            } else {
+                ImGui::TextUnformatted("Collision: needs verification");
+                HoverHelp(info.error.c_str());
+            }
         }
     } else {
         ImGui::TextUnformatted("Collision: no source geometry available");
         HoverHelp("No supported source mesh or native collision is available for this object.");
+    }
+    if(asset && !asset->mesh.empty() && inspectedCollisionInfo.Valid() &&
+       VerifiedMeshSurface::ExpectedIdentity(p.library,p.group,p.name)) {
+        if(ImGui::Button("Verify / repair original terrain collision")) {
+            const auto verified=VerifiedMeshSurface::ReadVerified(asset->mesh,asset->meshObject);
+            MapDocument before=map;size_t added=0;std::string error;
+            if(verified.Valid()&&map.RepairVerifiedMeshSurfaceForProp(static_cast<size_t>(selected_),verified,added,error)) {
+                if(added)history_.PushSnapshot(std::move(before),map);
+                RequestSceneRebuild(true);
+                SetMessage("Verified terrain surface; restored "+std::to_string(added)+" missing triangles. Press G to inspect.");
+            } else SetMessage("Terrain repair refused: "+(verified.Valid()?error:verified.error),true);
+        }
     }
     if(p.hasInvalidNativeMetadata) {
         ImGui::TextColored({1.f,.43f,.36f,1.f},"Native metadata: invalid (copy blocked)");

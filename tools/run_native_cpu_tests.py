@@ -11,6 +11,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS = (
+    ('verified_mesh_surface_regression.cpp', ('tests/fixtures/fogtown_surface',)),
+    ('collision_placement_policy_regression.cpp', ('tests/fixtures',)),
     ('ax_only_used_wheel_regression.cpp', ()),
     ('placement_snap_regression.cpp', ()),
     ('gameplay_selection_regression.cpp', ()),

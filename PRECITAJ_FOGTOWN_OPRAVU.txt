@@ -1,0 +1,7 @@
+Oprava Fogtown land 1 / land 2 + predchádzajúca ochrana collision_guard.
+Zdrojové súbory nahraj do koreňa rovnakého GitHub projektu, zachovaj adresáre.
+Podrobný návod, príčina, rozsah opravy a stav testov:
+  docs/FOGTOWN_SURFACE_FIX_SK.md
+Opravená posledná testovacia mapa na vyskúšanie v hre:
+  repaired-maps/TEST_MAP_BBB_repaired.xml
+Windows build a jazda v hre tu neboli spustené.

@@ -178,6 +178,10 @@ public:
                                     bool sourceVerifiedCoincident=false,size_t stagedStart=static_cast<size_t>(-1));
     // Re-bind ONLY complete exact sets following Save/Load. No XML writes.
     bool BindImportedCollisionForProp(size_t index,const NativeCollisionImport::Result& source);
+    // Caller must certify source against an original-map surface reference.
+    // Bind exact existing triangles and append only missing ones, transactionally.
+    bool RepairVerifiedMeshSurfaceForProp(size_t index,const NativeCollisionImport::Result& source,
+                                         size_t& added,std::string& error);
     bool DeleteProp(size_t index);
     // Strict deletion: refuse rather than silently leave an unverified physical wall.
     // Legacy XML has no explicit prop->collider reference: only a unique exact

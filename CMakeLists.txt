@@ -406,5 +406,23 @@ if(BUILD_TESTING)
   add_executable(VolumePickingRegression tests/volume_picking_regression.cpp)
   target_include_directories(VolumePickingRegression PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   add_test(NAME ProjectedGameplayVolumePicking COMMAND VolumePickingRegression)
+  add_executable(CollisionPlacementPolicyRegression tests/collision_placement_policy_regression.cpp)
+  target_include_directories(CollisionPlacementPolicyRegression PRIVATE src tests)
+  add_test(NAME NoSilentVisualOnlyPlacement COMMAND CollisionPlacementPolicyRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
+  add_executable(VerifiedMeshSurfaceRegression tests/verified_mesh_surface_regression.cpp)
+  target_include_directories(VerifiedMeshSurfaceRegression PRIVATE src tests)
+  add_test(NAME OriginalFogtownSlopedSurfaces COMMAND VerifiedMeshSurfaceRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_surface")
+  add_executable(FogtownSurfaceDocumentRegression tests/fogtown_surface_document_regression.cpp
+    src/MapDocument.cpp src/EditHistory.cpp src/Logger.cpp)
+  target_include_directories(FogtownSurfaceDocumentRegression PRIVATE src tests)
+  target_link_libraries(FogtownSurfaceDocumentRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(FogtownSurfaceDocumentRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(MSVC)
+    target_compile_options(FogtownSurfaceDocumentRegression PRIVATE /W4 /permissive- /utf-8)
+  endif()
+  add_test(NAME FogtownSurfaceRepairXMLUndo COMMAND FogtownSurfaceDocumentRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_surface")
 endif()
 include(CPack)

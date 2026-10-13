@@ -3,6 +3,7 @@
 #include "VerifiedCollisionTemplates.h"
 #include "NativeCollisionImport.h"
 #include "VerifiedGroundCollision.h"
+#include "VerifiedMeshSurface.h"
 #include <pugixml.hpp>
 #include <windows.h>
 #include <algorithm>
@@ -1067,6 +1068,51 @@ bool MapDocument::BindImportedCollisionForProp(size_t index,const NativeCollisio
     for(const auto i:planes)collisionPlanes_[i].authoredOwnerIndex=owner;
     for(const auto i:boxes)collisionBoxes_[i].authoredOwnerIndex=owner;
     for(const auto i:triangles)collisionTriangles_[i].authoredOwnerIndex=owner;
+    return true;
+}
+
+bool MapDocument::RepairVerifiedMeshSurfaceForProp(size_t index,const NativeCollisionImport::Result& source,
+                                                  size_t& added,std::string& error) {
+    added=0;error.clear();
+    if(index>=props_.size()||!source.Valid()||source.triangles.empty()||
+       !source.planes.empty()||!source.boxes.empty()) {error="Invalid certified surface source.";return false;}
+    const auto& p=props_[index];
+    if(p.nativeWithCollision==0||p.hasInvalidNativeMetadata||
+       std::fabs(p.rotation.x)>1.e-5f||std::fabs(p.rotation.y)>1.e-5f) {
+        error="Surface flags or tilt do not permit automatic repair.";return false;
+    }
+    for(size_t j=0;j<props_.size();++j)if(j!=index) {
+        const auto& other=props_[j];
+        if(other.library==p.library&&other.group==p.group&&other.name==p.name&&
+           NativeCollisionImport::Norm(NativeCollisionImport::Sub(other.position,p.position))<.09f&&
+           std::fabs(std::atan2(std::sin(other.rotation.z-p.rotation.z),std::cos(other.rotation.z-p.rotation.z)))<.001f) {
+            error="Coincident props have ambiguous surface ownership.";return false;
+        }
+    }
+    const int owner=static_cast<int>(index);
+    for(const auto& c:collisionPlanes_)if(c.authoredOwnerIndex==owner){error="Owner already has plane collision.";return false;}
+    for(const auto& c:collisionBoxes_)if(c.authoredOwnerIndex==owner){error="Owner already has box collision.";return false;}
+    std::vector<CollisionTriangle> expected;
+    std::vector<VerifiedMeshSurface::Corners> wanted;
+    for(const auto& shape:source.triangles) {
+        CollisionTriangle c;c.position=NativeCollisionImport::Add(p.position,
+            Native3DSScene::Rotate(shape.offset,{0,0,p.rotation.z}));
+        c.rotation=shape.rotation;c.rotation.z+=p.rotation.z;
+        c.v0=shape.v0;c.v1=shape.v1;c.v2=shape.v2;c.authoredOwnerIndex=owner;c.transformDirty=true;
+        wanted.push_back(VerifiedMeshSurface::World(c.position,c.rotation,c.v0,c.v1,c.v2));expected.push_back(c);
+    }
+    std::vector<VerifiedMeshSurface::Existing> existing;existing.reserve(collisionTriangles_.size());
+    for(const auto& c:collisionTriangles_)existing.push_back({
+        VerifiedMeshSurface::World(c.position,c.rotation,c.v0,c.v1,c.v2),c.authoredOwnerIndex});
+    std::vector<int> matches;
+    if(!VerifiedMeshSurface::Plan(wanted,existing,owner,matches,error))return false;
+    // Validation above cannot leave a partial repair or alter original XML.
+    for(size_t i=0;i<matches.size();++i) {
+        if(matches[i]>=0)collisionTriangles_[static_cast<size_t>(matches[i])].authoredOwnerIndex=owner;
+        else {collisionTriangles_.push_back(expected[i]);++added;}
+    }
+    props_[index].collisionOwnershipUnresolved=false;
+    if(added){stats_.collisionTriangles=collisionTriangles_.size();collisionDirty_=dirty_=true;}
     return true;
 }
 
