@@ -3474,8 +3474,9 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
         ImGui::Checkbox("Control point markers",&showPoints_);
         ImGui::Checkbox("Bonus region wireframes",&showBonuses_);
     }
-    if(ImGui::Checkbox("Kill zones",&showKillZones_) && showKillZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
-    if(ImGui::Checkbox("Kick zones",&showKickZones_) && showKickZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
+    // The zone trees below share the visible labels, but must not share widget IDs.
+    if(ImGui::Checkbox("Kill zones##overlay_visibility",&showKillZones_) && showKillZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
+    if(ImGui::Checkbox("Kick zones##overlay_visibility",&showKickZones_) && showKickZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
     if (ImGui::Button("Hide all overlays")) { SetGameplayOverlays(false);gameplayMode_=-1; }
     ImGui::SeparatorText("Map elements");
     if (map.Version().empty()) { ImGui::TextDisabled("Open or create a map to inspect gameplay data."); ImGui::End(); return; }
