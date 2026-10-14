@@ -45,7 +45,7 @@ bool EditHistory::Undo(MapDocument& map, std::vector<size_t>& indices) {
     if (!CanUndo()) return false;
     indices.clear();
     const Entry& entry=edits_[cursor_-1];
-    if (entry.before) { map=*entry.before; --cursor_; return true; }
+    if (entry.before) { map.RestoreHistoryState(*entry.before); --cursor_; return true; }
     if (entry.zone) {
         if (!map.SetSpecialBox(entry.zone->index,entry.zone->before)) return false;
         --cursor_;return true;
@@ -62,7 +62,7 @@ bool EditHistory::Redo(MapDocument& map, std::vector<size_t>& indices) {
     if (!CanRedo()) return false;
     indices.clear();
     const Entry& entry=edits_[cursor_];
-    if (entry.after) { map=*entry.after; ++cursor_; return true; }
+    if (entry.after) { map.RestoreHistoryState(*entry.after); ++cursor_; return true; }
     if (entry.zone) {
         if (!map.SetSpecialBox(entry.zone->index,entry.zone->after)) return false;
         ++cursor_;return true;

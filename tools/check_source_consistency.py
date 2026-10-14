@@ -96,7 +96,9 @@ def main() -> int:
                 (ROOT/'tests/native_3ds_writer_regression.cpp').is_file() and
                 'NativeObjectExport::Export(toExport,assets,exported,error)' in ui and
                 'pendingLibrary_=assets.Root()' in ui and
-                'GLB-to-native 3DS/textured material conversion has not been verified' in text('src/NativeObjectExport.h') and
+                'GlbNativeExport::Export(d,assets.Root(),saved,error)' in text('src/NativeObjectExport.h') and
+                'GLB trigger export is unsupported.' in text('src/GlbNativeExport.h') and
+                'GlbEmbeddedTextureNativeRoundTrip' in cmake and
                 'Trigger draft has no verified native 3DS gameplay mapping' in text('src/NativeObjectExport.h'),
                 '0.5.28 fail-closed experimental native 3DS writer, authoring UI or CTest missing')
         require('TryAutoLibraryForMap' not in text('src/App.cpp') and
@@ -429,7 +431,7 @@ def main() -> int:
                 'Independent first-use guidance and persistence missing')
         require('ProcessPendingNativeDialogs();' in app and
                 'nativePickerRequest_=kind' in ui and
-                'ui_.OnMapLoaded(map_.Path())' in app and
+                'ui_.OnMapLoaded(map_.Path(),true)' in app and 'workspace_.Add(std::move(candidate)' in app and
                 'ui_.OnLibraryLoaded(previewScene_,assets_.Root())' in app,
                 'Native picker must run between frames and only successful loads count')
         # Catch misspelled Logger API calls before the expensive MSVC build.

@@ -214,6 +214,11 @@ public:
     bool DeleteLight(size_t index);
 
     const std::filesystem::path& Path() const { return path_; }
+    // Undo content without reverting a later Save As destination. The changed
+    // content must be saved again even when an old snapshot was originally clean.
+    void RestoreHistoryState(const MapDocument& snapshot) {
+        const auto destination=path_;*this=snapshot;path_=destination;dirty_=true;
+    }
     const std::vector<PropInstance>& Props() const { return props_; }
     const std::vector<SpecialBox>& SpecialBoxes() const { return specialBoxes_; }
     const std::vector<LightMarker>& Lights() const { return lights_; }

@@ -1,6 +1,6 @@
 #pragma once
-// Explicit, isolated native 3DS library export for edited legacy 3DS drafts.
-// No GLB/trigger export is implied: those formats need separate game proofs.
+// Explicit isolated native export: legacy 3DS templates and a separately
+// validated static GLB diffuse conversion. Trigger export remains unsupported.
 // The original source, existing library folders and map XML are NEVER replaced.
 #include "AssetRegistry.h"
 #include "LegacyMeshImport.h"
@@ -12,6 +12,7 @@
 #include "NativeExportCollisionPolicy.h"
 #include "NativeTaraWriter.h"
 #include "ObjectDraft.h"
+#include "GlbNativeExport.h"
 #include <pugixml.hpp>
 #include <algorithm>
 #include <filesystem>
@@ -36,7 +37,7 @@ inline bool Export(const ObjectDraft::Document& d,const AssetRegistry& assets,
     saved.clear();
     if(!ObjectDraft::Validate(d,error))return false;
     if(ObjectDraft::IsGlb(d.model)){
-        error="GLB-to-native 3DS/textured material conversion has not been verified. Use an original 3DS template.";return false;
+        return GlbNativeExport::Export(d,assets.Root(),saved,error);
     }
     if(!d.libraryTemplateXml||d.templateLibrary.empty()||!d.excludedTemplateFields.empty()){
         error="Select a complete original 3DS library template without excluding fields.";return false;

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <map>
+#include <memory>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -27,6 +28,9 @@ struct Part {
     std::filesystem::path diffuse;
     aiColor4D color{1,1,1,1};
     bool oneSidedPairedAtlas{}; // opposite, exactly coincident faces use distinct UV halves
+    std::shared_ptr<const std::vector<std::uint8_t>> embeddedDiffuse;
+    bool opaque{true};
+    bool doubleSided{};
 };
 struct Model {
     std::vector<Vertex> vertices;
@@ -35,6 +39,7 @@ struct Model {
     std::string anchor;
     size_t ignoredMeshNodes{}; // collision/occlusion/helper nodes not rendered
     std::vector<std::string> warnings;
+    std::vector<std::string> nativeExportProblems;
 };
 inline std::string Lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){return static_cast<char>(std::tolower(c));});

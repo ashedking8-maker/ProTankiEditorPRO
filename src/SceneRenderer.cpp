@@ -563,7 +563,7 @@ std::shared_ptr<SceneRenderer::MeshGpu> SceneRenderer::LoadMesh(const std::files
     auto gpu = std::make_shared<MeshGpu>();
     gpu->cpuVertices=vertices;
     gpu->cpuIndices=indices;
-    for (const auto& part : imported.parts) gpu->parts.push_back({part.firstIndex,part.indexCount,part.diffuse,{part.color.r,part.color.g,part.color.b,part.color.a},part.oneSidedPairedAtlas});
+    for (const auto& part : imported.parts) gpu->parts.push_back({part.firstIndex,part.indexCount,part.diffuse,{part.color.r,part.color.g,part.color.b,part.color.a},part.oneSidedPairedAtlas,part.embeddedDiffuse,part.opaque});
     Log::Debug("Mesh visual anchor: " + imported.anchor + " parts=" + std::to_string(imported.parts.size()) + " ignoredHelperNodes=" + std::to_string(imported.ignoredMeshNodes));
     D3D11_BUFFER_DESC vb{}; vb.ByteWidth = static_cast<UINT>(vertices.size() * sizeof(Vertex)); vb.Usage = D3D11_USAGE_IMMUTABLE; vb.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     D3D11_SUBRESOURCE_DATA vd{vertices.data()};
@@ -604,22 +604,45 @@ std::shared_ptr<SceneRenderer::TextureGpu> SceneRenderer::LoadTexture(const std:
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
     }
+    return DecodeTexture(decoder.Get(),key,{1,1,1,1},false,warning);
+}
+
+std::shared_ptr<SceneRenderer::TextureGpu> SceneRenderer::LoadEmbeddedTexture(const MeshPart& part, std::string& warning) {
+    if(!part.embeddedDiffuse || part.embeddedDiffuse->empty())return {};
+    // The mesh owns the encoded data for at least as long as this renderer's cache.
+    const auto& bytes=*part.embeddedDiffuse;
+    const auto& f=part.color;
+    const std::string key="glb:"+std::to_string(reinterpret_cast<std::uintptr_t>(part.embeddedDiffuse.get()))+
+        ":"+std::to_string(f.x)+":"+std::to_string(f.y)+":"+std::to_string(f.z)+":"+std::to_string(f.w)+":"+std::to_string(part.opaque);
+    if(const auto it=textureCache_.find(key);it!=textureCache_.end())return it->second;
+    ComPtr<IWICStream> stream;
+    ComPtr<IWICBitmapDecoder> decoder;
+    if(bytes.size()>64u*1024u*1024u || FAILED(wic_->CreateStream(&stream)) ||
+       FAILED(stream->InitializeFromMemory(const_cast<BYTE*>(bytes.data()),static_cast<DWORD>(bytes.size()))) ||
+       FAILED(wic_->CreateDecoderFromStream(stream.Get(),nullptr,WICDecodeMetadataCacheOnLoad,&decoder))) {
+        warning="Cannot decode embedded GLB base-color image";return {};
+    }
+    return DecodeTexture(decoder.Get(),key,part.color,part.opaque,warning);
+}
+
+std::shared_ptr<SceneRenderer::TextureGpu> SceneRenderer::DecodeTexture(IWICBitmapDecoder* decoder,
+    const std::string& key,const XMFLOAT4& factor,bool opaque,std::string& warning) {
     ComPtr<IWICBitmapFrameDecode> frame;
     if (FAILED(decoder->GetFrame(0, &frame))) {
-        warning = "WIC could not read frame: " + file.string();
+        warning = "WIC could not read frame: " + key;
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
     }
     UINT width = 0, height = 0; frame->GetSize(&width, &height);
-    if (!width || !height) {
-        warning = "Texture has zero dimensions: " + file.string();
+    if (!width || !height || width>8192 || height>8192) {
+        warning = "Texture dimensions must be between 1 and 8192: " + key;
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
     }
     ComPtr<IWICFormatConverter> converter;
     if (FAILED(wic_->CreateFormatConverter(&converter)) ||
         FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom))) {
-        warning = "WIC pixel conversion failed: " + file.string();
+        warning = "WIC pixel conversion failed: " + key;
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
     }
@@ -627,9 +650,15 @@ std::shared_ptr<SceneRenderer::TextureGpu> SceneRenderer::LoadTexture(const std:
     const UINT stride = width * 4;
     std::vector<uint8_t> pixels(static_cast<size_t>(stride) * height);
     if (FAILED(converter->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()))) {
-        warning = "WIC pixel copy failed: " + file.string();
+        warning = "WIC pixel copy failed: " + key;
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
+    }
+
+    for(size_t i=0;i<pixels.size();i+=4) {
+        const float f[4]={factor.x,factor.y,factor.z,factor.w};
+        for(unsigned c=0;c<4;++c)pixels[i+c]=static_cast<uint8_t>(std::clamp(pixels[i+c]*f[c],0.f,255.f)+.5f);
+        if(opaque)pixels[i+3]=255;
     }
 
     D3D11_TEXTURE2D_DESC td{};
@@ -641,7 +670,7 @@ std::shared_ptr<SceneRenderer::TextureGpu> SceneRenderer::LoadTexture(const std:
     D3D11_SUBRESOURCE_DATA data{pixels.data(), stride, 0};
     ComPtr<ID3D11Texture2D> texture;
     if (FAILED(device_->CreateTexture2D(&td, &data, &texture))) {
-        warning = "GPU texture upload failed: " + file.string();
+        warning = "GPU texture upload failed: " + key;
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
     }
@@ -652,12 +681,12 @@ std::shared_ptr<SceneRenderer::TextureGpu> SceneRenderer::LoadTexture(const std:
     auto gpu = std::make_shared<TextureGpu>(); gpu->width = width; gpu->height = height;
     gpu->translucent = fractionalAlpha > static_cast<size_t>(width)*height/100;
     if (FAILED(device_->CreateShaderResourceView(texture.Get(), nullptr, &gpu->srv))) {
-        warning = "GPU texture view failed: " + file.string();
+        warning = "GPU texture view failed: " + key;
         textureCache_.insert_or_assign(key, fallbackTexture_);
         return fallbackTexture_;
     }
     textureCache_.insert_or_assign(key, gpu);
-    Log::Debug("Texture loaded: " + Log::PathUtf8(file) + " size=" + std::to_string(width) + "x" + std::to_string(height));
+    Log::Debug("Texture loaded: " + key + " size=" + std::to_string(width) + "x" + std::to_string(height));
     return gpu;
 }
 
@@ -868,7 +897,7 @@ void SceneRenderer::ApplyDraftPreviewTint(const std::array<float,3>& tint) {
     for(auto& batch:meshBatches_) {
         for(size_t i=0;i<batch.mesh->parts.size() && i<batch.textures.size();++i) {
             const auto& part=batch.mesh->parts[i];
-            if (!part.diffuse.empty()) continue; // existing texture is not altered
+            if (!part.diffuse.empty() || part.embeddedDiffuse) continue; // existing texture is not altered
             const XMFLOAT4 color{part.color.x*tint[0],part.color.y*tint[1],part.color.z*tint[2],part.color.w};
             batch.textures[i]=SolidTexture(color);
         }
@@ -895,7 +924,11 @@ bool SceneRenderer::BuildAssetPreview(const AssetDefinition& asset, const std::s
         if (!mesh) { error = warning.empty() ? "Could not load preview mesh." : warning; return false; }
         std::vector<std::shared_ptr<TextureGpu>> textures;
         for (const auto& part : mesh->parts) {
-            auto texture = ResolveTexture(asset, textureVariant, part.diffuse, warning);
+            auto texture = part.embeddedDiffuse ? LoadEmbeddedTexture(part,warning) :
+                ResolveTexture(asset, textureVariant, part.diffuse, warning);
+            if(part.embeddedDiffuse && (!texture || texture==fallbackTexture_)) {
+                error=warning.empty()?"GLB texture upload failed":warning;ClearScene();return false;
+            }
             textures.push_back(texture ? texture : SolidTexture(part.color));
         }
         meshBatches_.push_back({mesh, std::move(textures)});

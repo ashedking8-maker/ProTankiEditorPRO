@@ -90,6 +90,7 @@ int App::Run() {
         if (PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); continue; }
         ProcessPendingOperations(); // Previous frame has finished rendering; GPU/UI references are no longer live.
         ImGui_ImplDX11_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
+        ui_.SetMapTabs(workspace_.Tabs(map_),workspace_.ActiveId());
         ui_.Draw(map_, assets_, scene_, previewScene_);
         DrawUnsavedChangesDialog();
 
@@ -110,6 +111,32 @@ int App::Run() {
     return static_cast<int>(msg.wParam);
 }
 
+void App::ShowActiveMap(bool newlyOpened) {
+    // XML stays untouched; renderer converts legacy handedness only for display.
+    ui_.OnMapLoaded(map_.Path(),true); // history and cross-map clipboard survive
+    const auto view=mapViews_.find(workspace_.ActiveId());
+    if(newlyOpened || view==mapViews_.end())scene_.ResetReferenceViewDirection();
+    if(assets_.AssetCount())RebuildScene(newlyOpened || view==mapViews_.end());
+    else scene_.ClearScene();
+    if(view!=mapViews_.end())scene_.RestoreView(view->second);
+}
+
+void App::ActivateMap(MapWorkspace::Id id) {
+    if(id==workspace_.ActiveId())return;
+    mapViews_[workspace_.ActiveId()]=scene_.CaptureView();
+    if(workspace_.Activate(id,map_,ui_.MapHistory()))ShowActiveMap();
+}
+
+void App::ContinueExit() {
+    // Do not destroy any tabs until ALL dirty maps have been approved. Cancel
+    // therefore retains even maps previously marked Don't save in this dialog.
+    for(const auto& tab:workspace_.Tabs(map_)) {
+        if(!tab.dirty || std::find(exitApprovedMaps_.begin(),exitApprovedMaps_.end(),tab.id)!=exitApprovedMaps_.end())continue;
+        ActivateMap(tab.id);transition_=Transition::Close;unsavedPopupOpened_=false;return;
+    }
+    PostQuitMessage(0);
+}
+
 void App::CompleteTransition() {
     const auto operation=transition_;
     const auto requestedPath=transitionMapPath_;
@@ -117,29 +144,30 @@ void App::CompleteTransition() {
     transitionApproved_=false;
     unsavedPopupOpened_=false;
     transitionMapPath_.clear();
-    if(operation==Transition::Close) { PostQuitMessage(0); return; }
+    if(operation==Transition::Close) {
+        exitApprovedMaps_.push_back(workspace_.ActiveId());ContinueExit();return;
+    }
+    if(operation==Transition::CloseTab) {
+        mapViews_.erase(workspace_.ActiveId());
+        workspace_.CloseActive(map_,ui_.MapHistory());ShowActiveMap();return;
+    }
     if(operation==Transition::NewMap) {
-        map_.CreateBlank();
-        ui_.OnNewMap();
-        scene_.ResetReferenceViewDirection();
-        if(assets_.AssetCount()) RebuildScene(); else scene_.ClearScene();
-        ui_.SetMessage("New empty legacy map. File > Save As to choose an XML path.");
-        return;
+        MapDocument fresh;fresh.CreateBlank();
+        mapViews_[workspace_.ActiveId()]=scene_.CaptureView();
+        workspace_.Add(std::move(fresh),map_,ui_.MapHistory());ShowActiveMap(true);
+        ui_.SetMessage("NewProject opened in a new tab. File > Save As chooses its XML name.");return;
     }
     if(operation==Transition::OpenMap) {
+        if(const auto open=workspace_.FindPath(requestedPath,map_)) {ActivateMap(*open);return;}
         std::string err;
         SplashScreen::Open(GetModuleHandleW(nullptr));
         SplashScreen::Status(L"Loading map and GPU assets...");
         Log::Info("User opened map: " + Log::PathUtf8(requestedPath));
-        // Parse the replacement before touching the live document. A load failure
-        // never drops unsaved in-memory data or corrupts the existing GPU scene.
         MapDocument candidate;
         if(candidate.Load(requestedPath,err)) {
-                map_=std::move(candidate);
-            ui_.OnMapLoaded(map_.Path());
-            scene_.ResetReferenceViewDirection(); // XML stays untouched; renderer converts legacy handedness only for display
-            if(assets_.AssetCount()) RebuildScene();
-            else {scene_.ClearScene();ui_.SetMessage("Map loaded. Select the original 'library' folder to render assets.");}
+            mapViews_[workspace_.ActiveId()]=scene_.CaptureView();
+            workspace_.Add(std::move(candidate),map_,ui_.MapHistory());ShowActiveMap(true);
+            if(!assets_.AssetCount())ui_.SetMessage("Map loaded. Select the original 'library' folder to render assets.");
         } else {Log::Error("Map load failed: "+err);ui_.SetMessage(err,true);}
         SplashScreen::Close();
     }
@@ -156,16 +184,18 @@ void App::ProcessPendingOperations() {
 
     // Map-changing operations must not execute from inside an ImGui frame or a
     // native window-message callback. Stage them and resolve the dialog first.
-    if(closeRequested_) {closeRequested_=false;transition_=Transition::Close;}
-    else if(ui_.ConsumeNewMapRequest()) transition_=Transition::NewMap;
+    if(closeRequested_) {closeRequested_=false;exitApprovedMaps_.clear();ContinueExit();return;}
+    if(const auto close=ui_.ConsumeMapTabClose()) {
+        ActivateMap(*close);if(workspace_.ActiveId()!=*close)return;
+        transition_=Transition::CloseTab;unsavedPopupOpened_=false;
+        if(!map_.Dirty())CompleteTransition();return;
+    }
+    if(const auto tab=ui_.ConsumeMapTabSwitch())ActivateMap(*tab);
+    if(ui_.ConsumeNewMapRequest()) transition_=Transition::NewMap;
     else if(!ui_.PendingMap().empty()) {
         transitionMapPath_=ui_.PendingMap();ui_.ClearPendingMap();transition_=Transition::OpenMap;
     }
-    if(transition_!=Transition::None) {
-        unsavedPopupOpened_=false;
-        if(!map_.Dirty()) CompleteTransition();
-        return;
-    }
+    if(transition_!=Transition::None) {CompleteTransition();return;}
     if(!ui_.PendingLibrary().empty()) {
         std::string err;
         SplashScreen::Open(GetModuleHandleW(nullptr));
@@ -188,7 +218,9 @@ void App::DrawUnsavedChangesDialog() {
     if(ImGui::BeginPopupModal("Unsaved map changes##editor",nullptr,
             ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoMove)) {
         ImGui::Spacing();
-        ImGui::TextWrapped("Save changes to the current map before continuing?");
+        const auto tabs=workspace_.Tabs(map_);
+        const auto current=std::find_if(tabs.begin(),tabs.end(),[&](const auto& tab){return tab.id==workspace_.ActiveId();});
+        ImGui::TextWrapped("Save changes to %s before closing?",current==tabs.end()?"map":current->title.c_str());
         ImGui::TextDisabled("Cancel returns to the editor without changing the map.");
         ImGui::Spacing();ImGui::Separator();
         if(ImGui::Button("Save changes",ImVec2(140,0))) {
@@ -201,7 +233,7 @@ void App::DrawUnsavedChangesDialog() {
         }
         ImGui::SameLine();
         if(ImGui::Button("Cancel",ImVec2(110,0)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-            transition_=Transition::None;transitionMapPath_.clear();
+            transition_=Transition::None;transitionMapPath_.clear();exitApprovedMaps_.clear();
             unsavedPopupOpened_=false;ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

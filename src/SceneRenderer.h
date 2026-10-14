@@ -31,6 +31,9 @@ struct SceneRenderStats {
 
 class SceneRenderer {
 public:
+    struct ViewState {DirectX::XMFLOAT3 target;float yaw,pitch,distance;};
+    ViewState CaptureView() const {return {cameraTarget_,cameraYaw_,cameraPitch_,cameraDistance_};}
+    void RestoreView(const ViewState& v) {cameraTarget_=v.target;cameraYaw_=v.yaw;cameraPitch_=v.pitch;cameraDistance_=v.distance;cameraFocusAnimating_=false;}
     bool Initialize(ID3D11Device* device, ID3D11DeviceContext* context, std::string& error);
     void Shutdown();
 
@@ -126,6 +129,8 @@ private:
         std::filesystem::path diffuse;
         DirectX::XMFLOAT4 color{1,1,1,1};
         bool oppositeFaceAtlas{};
+        std::shared_ptr<const std::vector<std::uint8_t>> embeddedDiffuse;
+        bool opaque{true};
     };
     struct MeshGpu {
         std::vector<MeshPart> parts;
@@ -208,6 +213,8 @@ private:
     std::shared_ptr<MeshGpu> LoadMesh(const std::filesystem::path& file, std::string& warning,const std::string& objectName={});
     std::shared_ptr<TextureGpu> SolidTexture(const DirectX::XMFLOAT4& color);
     std::shared_ptr<TextureGpu> LoadTexture(const std::filesystem::path& file, std::string& warning);
+    std::shared_ptr<TextureGpu> LoadEmbeddedTexture(const MeshPart& part, std::string& warning);
+    std::shared_ptr<TextureGpu> DecodeTexture(IWICBitmapDecoder* decoder, const std::string& key, const DirectX::XMFLOAT4& factor, bool opaque, std::string& warning);
     std::shared_ptr<TextureGpu> ResolveTexture(const AssetDefinition& asset, const std::string& variant, const std::filesystem::path& materialTexture, std::string& warning);
     static std::string PathKey(const std::filesystem::path& path);
     static InstanceData MakeInstance(const PropInstance& prop);

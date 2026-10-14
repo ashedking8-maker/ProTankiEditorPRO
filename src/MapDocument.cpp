@@ -5,7 +5,9 @@
 #include "VerifiedGroundCollision.h"
 #include "VerifiedMeshSurface.h"
 #include <pugixml.hpp>
+#ifdef _WIN32
 #include <windows.h>
+#endif
 #include <algorithm>
 #include <array>
 #include <utility>
@@ -1843,12 +1845,20 @@ bool MapDocument::SaveLegacyAs(const std::filesystem::path& file, std::string& e
         }
     }
 
+#ifdef _WIN32
     if (!MoveFileExW(temp.c_str(), file.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
         const DWORD code = GetLastError();
         std::filesystem::remove(temp, ec);
         error = "Could not replace the destination map file (Windows error " + std::to_string(code) + ").";
         return false;
     }
+#else
+    std::error_code replaceError;std::filesystem::rename(temp,file,replaceError);
+    if(replaceError) {
+        std::error_code ignored;std::filesystem::remove(temp,ignored);
+        error="Could not replace the destination map file: "+replaceError.message();return false;
+    }
+#endif
 
     path_ = file;
     sourceXml_ = std::make_shared<const std::string>(std::move(xml));

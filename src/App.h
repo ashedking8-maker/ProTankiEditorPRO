@@ -5,6 +5,8 @@
 #include "MapDocument.h"
 #include "AssetRegistry.h"
 #include <windows.h>
+#include <unordered_map>
+#include <vector>
 
 class App {
 public:
@@ -16,7 +18,13 @@ public:
 private:
     void ProcessPendingOperations();
     void RebuildScene(bool frameScene = true);
-    enum class Transition { None, NewMap, OpenMap, Close };
+    enum class Transition { None, NewMap, OpenMap, Close, CloseTab };
+    void ActivateMap(MapWorkspace::Id id);
+    void ShowActiveMap(bool newlyOpened=false);
+    void ContinueExit();
+    MapWorkspace workspace_;
+    std::unordered_map<MapWorkspace::Id,SceneRenderer::ViewState> mapViews_;
+    std::vector<MapWorkspace::Id> exitApprovedMaps_;
     void CompleteTransition();
     void DrawUnsavedChangesDialog();
     void RefreshTitle();

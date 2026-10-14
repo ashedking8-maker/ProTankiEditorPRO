@@ -4,6 +4,7 @@
 #include "AssetRegistry.h"
 #include "SceneRenderer.h"
 #include "EditHistory.h"
+#include "MapWorkspace.h"
 #include "GuidanceState.h"
 #include "ObjectDraft.h"
 #include "BugReport.h"
@@ -30,7 +31,11 @@ public:
     bool SaveForTransition(MapDocument& map) { return Save(map, map.Path().empty()); }
     void OnNewMap() { OnMapLoaded(); }
     void SetMessage(std::string text, bool error = false) { message_ = std::move(text); messageError_ = error; }
-    void OnMapLoaded(const std::filesystem::path& successfulMapPath = {});
+    void OnMapLoaded(const std::filesystem::path& successfulMapPath = {},bool preserveWorkspace=false);
+    EditHistory& MapHistory() {return history_;}
+    void SetMapTabs(std::vector<MapWorkspace::Tab> tabs,MapWorkspace::Id active) {mapTabs_=std::move(tabs);activeMapTab_=active;}
+    std::optional<MapWorkspace::Id> ConsumeMapTabSwitch() {auto result=mapTabSwitch_;mapTabSwitch_.reset();return result;}
+    std::optional<MapWorkspace::Id> ConsumeMapTabClose() {auto result=mapTabClose_;mapTabClose_.reset();return result;}
     void OnLibraryLoaded(SceneRenderer& previewScene, const std::filesystem::path& successfulLibraryRoot = {});
     // Native dialogs run between ImGui frames, never while a popup is drawing.
     void ProcessPendingNativeDialogs();
@@ -53,6 +58,9 @@ public:
     bool LaunchExternalTester();
 
 private:
+    std::vector<MapWorkspace::Tab> mapTabs_;
+    MapWorkspace::Id activeMapTab_{};
+    std::optional<MapWorkspace::Id> mapTabSwitch_,mapTabClose_;
     enum class ToolMode { Select, Move, Rotate };
     using FunctionalType=GameplaySelection::Kind;
     GameplaySelection::Visibility SelectionVisibility() const;
@@ -253,6 +261,7 @@ private:
     int objectSelectedVertex_{-1};
     bool objectVertexDragActive_{};
     bool objectShowVertices_{true};
+    bool objectAutoFitNewGlb_{};
     bool objectShowBoxes_{}; // no unsolicited red collider over an imported mesh
     bool objectMeshEditable_{};
     bool objectShowMeshEdges_=true; // actual imported visual triangles, NOT inferred native colliders
@@ -308,6 +317,7 @@ private:
     int selected_ = -1;
     std::vector<int> selectedItems_;
     std::vector<PropInstance> clipboard_;
+    MapWorkspace::Id clipboardSourceMap_{};
     DirectX::XMFLOAT3 clipboardAnchor_{};
     bool clipboardPlacement_{};
     // When Ctrl+C covers every static prop, copy the COMPLETE native collision

@@ -39,7 +39,7 @@ set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
 # Keep the dependency small and deterministic: only the legacy 3DS importer.
 set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_3DS_IMPORTER ON CACHE BOOL "" FORCE)
-# GLB is imported ONLY in the isolated Object Editor preview.
+# GLB is imported in the isolated Object Editor for preview/explicit conversion.
 set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "" FORCE)
 FetchContent_Declare(assimp
   GIT_REPOSITORY https://github.com/assimp/assimp.git
@@ -78,12 +78,12 @@ add_executable(GTanksNextEditor WIN32
   src/Logger.cpp src/Logger.h src/BugReport.cpp src/BugReport.h
   src/App.cpp src/App.h
   src/Theme.cpp src/Theme.h
-  src/MapDocument.cpp src/MapDocument.h
+  src/MapDocument.cpp src/MapDocument.h src/MapWorkspace.h
   src/EditHistory.cpp src/EditHistory.h
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/Native3DSScene.h src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
+  src/Native3DSScene.h src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/GlbNativeExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
   src/EditorUi.cpp src/EditorUi.h src/GameplaySelection.h src/PlacementSnap.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -211,6 +211,19 @@ if(BUILD_TESTING)
   target_compile_definitions(NativeObjectExportIntegration PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
   add_test(NAME NativeLand01EndToEndExport COMMAND NativeObjectExportIntegration
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/native_helpers")
+  add_executable(GlbNativeExportRegression tests/glb_native_export_regression.cpp)
+  target_include_directories(GlbNativeExportRegression PRIVATE src tests)
+  target_link_libraries(GlbNativeExportRegression PRIVATE pugixml::pugixml assimp::assimp)
+  target_compile_definitions(GlbNativeExportRegression PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  add_test(NAME GlbEmbeddedTextureNativeRoundTrip COMMAND GlbNativeExportRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/glb")
+  add_executable(MapWorkspaceRegression tests/map_workspace_regression.cpp
+    src/MapDocument.cpp src/EditHistory.cpp src/Logger.cpp)
+  target_include_directories(MapWorkspaceRegression PRIVATE src tests)
+  target_link_libraries(MapWorkspaceRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(MapWorkspaceRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  add_test(NAME MultiMapClipboardAndUndo COMMAND MapWorkspaceRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/lossless_clone")
   add_executable(BrowseCachePolicyRegression tests/browse_cache_policy_regression.cpp src/BrowseCachePolicy.h)
   target_include_directories(BrowseCachePolicyRegression PRIVATE src tests)
   add_test(NAME BrowseSessionCacheByteBudgets COMMAND BrowseCachePolicyRegression)
