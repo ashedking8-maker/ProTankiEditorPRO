@@ -114,6 +114,7 @@ int App::Run() {
 void App::ShowActiveMap(bool newlyOpened) {
     // XML stays untouched; renderer converts legacy handedness only for display.
     ui_.OnMapLoaded(map_.Path(),true); // history and cross-map clipboard survive
+    if(newlyOpened)mapViews_.erase(workspace_.ActiveId());
     const auto view=mapViews_.find(workspace_.ActiveId());
     if(newlyOpened || view==mapViews_.end())scene_.ResetReferenceViewDirection();
     if(assets_.AssetCount())RebuildScene(newlyOpened || view==mapViews_.end());
@@ -152,13 +153,19 @@ void App::CompleteTransition() {
         workspace_.CloseActive(map_,ui_.MapHistory());ShowActiveMap();return;
     }
     if(operation==Transition::NewMap) {
-        MapDocument fresh;fresh.CreateBlank();
+        MapDocument fresh;fresh.CreateBlank("1.0.Light",false);
         mapViews_[workspace_.ActiveId()]=scene_.CaptureView();
         workspace_.Add(std::move(fresh),map_,ui_.MapHistory());ShowActiveMap(true);
         ui_.SetMessage("NewProject opened in a new tab. File > Save As chooses its XML name.");return;
     }
     if(operation==Transition::OpenMap) {
-        if(const auto open=workspace_.FindPath(requestedPath,map_)) {ActivateMap(*open);return;}
+        if(const auto open=workspace_.FindPath(requestedPath,map_)) {
+            workspace_.PruneInactiveEmpty(*open);
+            if(*open!=workspace_.ActiveId() && MapWorkspace::IsUntouchedEmpty(map_,ui_.MapHistory())) {
+                mapViews_.erase(workspace_.ActiveId());workspace_.CloseActive(map_,ui_.MapHistory());ShowActiveMap();
+            }
+            ActivateMap(*open);return;
+        }
         std::string err;
         SplashScreen::Open(GetModuleHandleW(nullptr));
         SplashScreen::Status(L"Loading map and GPU assets...");
@@ -166,7 +173,7 @@ void App::CompleteTransition() {
         MapDocument candidate;
         if(candidate.Load(requestedPath,err)) {
             mapViews_[workspace_.ActiveId()]=scene_.CaptureView();
-            workspace_.Add(std::move(candidate),map_,ui_.MapHistory());ShowActiveMap(true);
+            workspace_.Open(std::move(candidate),map_,ui_.MapHistory());ShowActiveMap(true);
             if(!assets_.AssetCount())ui_.SetMessage("Map loaded. Select the original 'library' folder to render assets.");
         } else {Log::Error("Map load failed: "+err);ui_.SetMessage(err,true);}
         SplashScreen::Close();

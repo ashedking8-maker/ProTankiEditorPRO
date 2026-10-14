@@ -15,6 +15,26 @@ public:
     MapWorkspace(){entries_.push_back({nextId_++});}
     Id ActiveId() const {return entries_[active_].id;}
     size_t Size() const {return entries_.size();}
+    static bool IsUntouchedEmpty(const MapDocument& doc,const EditHistory& history) {
+        const auto& s=doc.Stats();
+        return !doc.Dirty() && !history.CanUndo() && !history.CanRedo() &&
+            s.props==0 && s.collisionPlanes==0 && s.collisionBoxes==0 && s.collisionTriangles==0 &&
+            s.spawnPoints==0 && s.bonusRegions==0 && s.specialBoxes==0 && s.lights==0 &&
+            s.wayPoints==0 && s.dominationPoints==0 && s.ctfFlags==0;
+    }
+    void PruneInactiveEmpty(std::optional<Id> keep={}) {
+        for(size_t i=entries_.size();i-->0;)if(i!=active_ && entries_[i].id!=keep && IsUntouchedEmpty(entries_[i].document,entries_[i].history)) {
+            entries_.erase(entries_.begin()+static_cast<std::ptrdiff_t>(i));
+            if(i<active_)--active_;
+        }
+    }
+    Id Open(MapDocument document,MapDocument& current,EditHistory& history) {
+        PruneInactiveEmpty();
+        if(IsUntouchedEmpty(current,history)) {
+            current=std::move(document);history.Clear();return ActiveId();
+        }
+        return Add(std::move(document),current,history);
+    }
     static bool SamePath(const std::filesystem::path& a,const std::filesystem::path& b) {
         if(a.empty()||b.empty())return false;
         std::error_code ec;

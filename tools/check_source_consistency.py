@@ -431,7 +431,7 @@ def main() -> int:
                 'Independent first-use guidance and persistence missing')
         require('ProcessPendingNativeDialogs();' in app and
                 'nativePickerRequest_=kind' in ui and
-                'ui_.OnMapLoaded(map_.Path(),true)' in app and 'workspace_.Add(std::move(candidate)' in app and
+                'ui_.OnMapLoaded(map_.Path(),true)' in app and 'workspace_.Open(std::move(candidate)' in app and
                 'ui_.OnLibraryLoaded(previewScene_,assets_.Root())' in app,
                 'Native picker must run between frames and only successful loads count')
         # Catch misspelled Logger API calls before the expensive MSVC build.

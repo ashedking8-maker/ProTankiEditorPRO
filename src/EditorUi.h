@@ -5,6 +5,7 @@
 #include "SceneRenderer.h"
 #include "EditHistory.h"
 #include "MapWorkspace.h"
+#include "MapTabsUi.h"
 #include "GuidanceState.h"
 #include "ObjectDraft.h"
 #include "BugReport.h"
@@ -59,6 +60,7 @@ public:
 
 private:
     std::vector<MapWorkspace::Tab> mapTabs_;
+    MapTabsUi mapTabsUi_;
     MapWorkspace::Id activeMapTab_{};
     std::optional<MapWorkspace::Id> mapTabSwitch_,mapTabClose_;
     enum class ToolMode { Select, Move, Rotate };

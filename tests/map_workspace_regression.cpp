@@ -63,5 +63,30 @@ int main(int argc,char**argv) {
     workspace.CloseActive(current,history);
     PT_REQUIRE(workspace.Size()==1 && current.Props().empty() && current.Path().empty() && !current.Dirty());
     PT_REQUIRE(workspace.Tabs(current)[0].title=="NewProject" && !history.CanUndo());
+    // Opening replaces an untouched startup/loaded-empty map, not edited work.
+    MapDocument opened;PT_REQUIRE(opened.Load(fixture,error));
+    const auto blankId=workspace.ActiveId();
+    PT_REQUIRE(workspace.Open(opened,current,history)==blankId && workspace.Size()==1);
+    MapDocument empty;empty.CreateBlank("1.0.Light",false);
+    workspace.Add(std::move(empty),current,history);
+    PT_REQUIRE(current.SaveLegacyAs(root/"empty.xml",error));
+    PT_REQUIRE(MapWorkspace::IsUntouchedEmpty(current,history));
+    const auto emptyId=workspace.ActiveId();
+    workspace.Open(opened,current,history);
+    PT_REQUIRE(workspace.Size()==2 && workspace.ActiveId()==emptyId);
+    MapDocument beforeDelete=current;
+    current.CreateBlank("1.0.Light",false);history.PushSnapshot(beforeDelete,current);
+    PT_REQUIRE(!MapWorkspace::IsUntouchedEmpty(current,history));
+    workspace.Open(opened,current,history);PT_REQUIRE(workspace.Size()==3);
+    // Empty geometry with gameplay is still a meaningful map.
+    MapDocument gameplay;gameplay.CreateBlank("1.0.Light",false);
+    SpawnMarker spawn;spawn.type="dm";gameplay.AddSpawn(spawn);
+    PT_REQUIRE(gameplay.SaveLegacyAs(root/"gameplay.xml",error));
+    EditHistory noHistory;PT_REQUIRE(!MapWorkspace::IsUntouchedEmpty(gameplay,noHistory));
+    MapWorkspace placeholders;MapDocument blank;blank.CreateBlank("1.0.Light",false);
+    MapDocument anotherBlank;anotherBlank.CreateBlank("1.0.Light",false);
+    placeholders.Add(std::move(anotherBlank),blank,noHistory);
+    PT_REQUIRE(placeholders.Size()==2);
+    placeholders.Open(opened,blank,noHistory);PT_REQUIRE(placeholders.Size()==1);
     std::cout<<"PASS: map tabs, isolated undo, cross-map XML/collision clipboard, stable Save As identity and close\n";
 }

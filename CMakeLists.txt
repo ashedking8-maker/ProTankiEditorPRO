@@ -217,6 +217,11 @@ if(BUILD_TESTING)
   target_compile_definitions(GlbNativeExportRegression PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
   add_test(NAME GlbEmbeddedTextureNativeRoundTrip COMMAND GlbNativeExportRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/glb")
+  add_executable(MapDockTabsRegression tests/map_dock_tabs_regression.cpp)
+  target_include_directories(MapDockTabsRegression PRIVATE src tests)
+  target_link_libraries(MapDockTabsRegression PRIVATE imgui)
+  target_compile_definitions(MapDockTabsRegression PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  add_test(NAME SingleNativeMapTabRow COMMAND MapDockTabsRegression)
   add_executable(MapWorkspaceRegression tests/map_workspace_regression.cpp
     src/MapDocument.cpp src/EditHistory.cpp src/Logger.cpp)
   target_include_directories(MapWorkspaceRegression PRIVATE src tests)
