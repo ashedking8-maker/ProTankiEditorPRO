@@ -51,10 +51,10 @@ public:
     void SetGridColor(const DirectX::XMFLOAT3& rgb);
     void SetNativeLights(const std::vector<LightMarker>& lights) { nativeLights_=lights; }
     void SetLightPreviewScale(float scale) { previewLightScale_=std::clamp(scale,1.0f,500.0f); } // editor-only; native XML unchanged
-    // Overlay layer bits: spawns=1, flags=2, control points=4, bonuses=8, zones=16.
+    // Overlay layer bits: spawns=1, flags=2, points=4, bonuses=8, kill=16, kick=64.
     // Mode bits: DM=1, TDM=2, CTF=4, DOM/CP=8; 15 displays all game modes.
     void Render(bool showGrid, bool showBounds = false, bool showGameplay = false, bool showZones = false,
-                unsigned overlayMask = 31u, unsigned modeMask = 15u, bool collisionView = false, bool showLights = false, bool previewNativeLighting = false);
+                unsigned overlayMask = 95u, unsigned modeMask = 15u, bool collisionView = false, bool showLights = false, bool previewNativeLighting = false);
 
     ID3D11ShaderResourceView* Output() const { return colorSrv_.Get(); }
     ID3D11Device* Device() const { return device_; }

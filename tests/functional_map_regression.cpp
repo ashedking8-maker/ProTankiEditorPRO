@@ -260,6 +260,23 @@ int main() {
     if(!bulkHistory.Redo(bulk,restored)||bulk.Spawns().size()!=4)return Fail(119);
     if(!bulk.SaveLegacyAs(folder/"bulk.xml",error))return Fail(120);
     MapDocument bulkRead;if(!bulkRead.Load(folder/"bulk.xml",error)||bulkRead.Spawns().size()!=4||bulkRead.SpecialBoxes().size()!=1)return Fail(121);
+    // Kill/kick filtering is shared by rendering and selection. Hidden zones
+    // must never enter bulk delete; unknown actions require both switches.
+    MapDocument separateZones;separateZones.CreateBlank();
+    for(const auto action:{"kill","kick","legacy_custom"}) {
+        SpecialBox b;b.action=action;b.min={0,0,0};b.max={100,100,100};separateZones.AddSpecialBox(b);
+    }
+    GameplaySelection::Visibility zonesView;zonesView.gameplay=true;zonesView.mode=0;
+    if(!GameplaySelection::Visible(separateZones,zonesView).empty())return Fail(122);
+    zonesView.zones=true;auto killOnly=GameplaySelection::Visible(separateZones,zonesView);
+    if(killOnly.size()!=1 || killOnly[0].item.index!=0)return Fail(123);
+    zonesView.zones=false;zonesView.kickZones=true;
+    auto kickOnly=GameplaySelection::Visible(separateZones,zonesView);
+    if(kickOnly.size()!=1 || kickOnly[0].item.index!=1)return Fail(124);
+    zonesView.zones=true;if(GameplaySelection::Visible(separateZones,zonesView).size()!=3)return Fail(125);
+    if(!GameplaySelection::Delete(separateZones,{kickOnly[0].item}) || separateZones.SpecialBoxes().size()!=2 ||
+       separateZones.SpecialBoxes()[0].action!="kill" || separateZones.SpecialBoxes()[1].action!="legacy_custom")return Fail(126);
+    if(!GameplayZoneVisibility::Visible("KICK",false,true) || GameplayZoneVisibility::Visible("kick",true,false))return Fail(127);
     std::filesystem::remove_all(folder,ec);
     std::cout<<"Functional XML, compact zone undo/redo, shared-source isolation and blank map regression OK\n";
     return 0;

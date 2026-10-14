@@ -268,6 +268,15 @@ std::filesystem::path ControlsPath() {
     return std::filesystem::path(local) / L"GTanksNextEditor" / L"controls.ini";
 }
 
+std::filesystem::path CustomBrowseFiltersPath() {
+    const auto controls=ControlsPath();
+    return controls.empty()?std::filesystem::path{}:controls.parent_path()/L"browse-custom-filters.xml";
+}
+BrowseCustomFilters::Key BrowseFilterKey(const AssetDefinition& asset,size_t variant) {
+    return BrowseCustomFilters::Canonical({asset.library,asset.group,asset.name,
+        variant<asset.textures.size()?asset.textures[variant].name:std::string{}});
+}
+
 const char* GestureName(int i) {
     static constexpr const char* names[] = {"Right mouse", "Middle mouse", "Alt + left mouse", "Space + left mouse", "Shift + right mouse"};
     return names[std::clamp(i,0,4)];
@@ -297,7 +306,7 @@ void EditorUi::OnMapLoaded(const std::filesystem::path& successfulMapPath,bool p
     allowOpaqueMetadataCopy_=false;dragBefore_.clear();
 
     placementItems_.clear(); ghostProps_.clear(); ghostValid_=false; selectionBoxActive_=false; placementActive_ = false;
-    gameplayMode_ = -1; showGameplay_ = false; showSpawns_=showFlags_=showPoints_=showBonuses_=false; showZones_ = false; browseLibraryOpen_=false;
+    gameplayMode_ = -1; showGameplay_ = false; showSpawns_=showFlags_=showPoints_=showBonuses_=false; showKillZones_=showKickZones_=false; browseLibraryOpen_=false;
     functionalSelection_.clear();
     functionalSelected_=FunctionalType::None; functionalPlacement_=FunctionalPlacement::None;
     // A new map must not inherit an unverified native bonus identifier from
@@ -375,6 +384,7 @@ void EditorUi::OnLibraryLoaded(SceneRenderer& previewScene, const std::filesyste
     }
     selectedAsset_ = -1; selectedTextureVariant_ = 0; assetPreviewReady_ = false; placementActive_ = false;
     axAddedAt_.clear();recentAssets_.clear(); axCurrent_=0; axPinned_=false; axConfirmRemove_=false; ghostProps_.clear();
+    browseCreatingCustom_=false;browseCustomSelection_.clear();browseCustomError_.clear();
     browseLibraryOpen_=false; browseWasOpen_=false; browseThumbnails_.clear(); browseCpuThumbnails_.clear(); browseFrame_=0;
     previewScene.ClearScene();
 }
@@ -394,6 +404,9 @@ float EditorUi::SnapRotation(float radians) const {
 EditorUi::EditorUi() {
     ResetCustomBindings();
     LoadControls();
+    std::string filterError;
+    if(!CustomBrowseFiltersPath().empty() && !browseCustomFilters_.Load(CustomBrowseFiltersPath(),filterError))
+        Log::Warning("Cannot load custom browse filters: "+filterError);
     // Remove the obsolete persisted library path from 0.5.26 preferences.
     // Only UI preferences may survive a restart; library selection never does.
     SaveControls();
@@ -655,7 +668,8 @@ void EditorUi::SelectAllStaticProps(const MapDocument& map, SceneRenderer& scene
 }
 
 void EditorUi::SetGameplayOverlays(bool enabled) {
-    showGameplay_=showSpawns_=showFlags_=showPoints_=showBonuses_=showZones_=enabled;
+    showGameplay_=showSpawns_=showFlags_=showPoints_=showBonuses_=enabled;
+    if(!enabled)showKillZones_=showKickZones_=false;
     if(enabled && gameplayMode_<0)gameplayMode_=0;
 }
 
@@ -687,7 +701,8 @@ void EditorUi::BeginFunctionalPlacement(FunctionalPlacement type, SceneRenderer&
         showLights_=true;
     } else {
         showGameplay_=true; if(gameplayMode_<0)gameplayMode_=0;
-        if(type==FunctionalPlacement::KillZone || type==FunctionalPlacement::KickZone) showZones_=true;
+        if(type==FunctionalPlacement::KillZone)showKillZones_=true;
+        else if(type==FunctionalPlacement::KickZone)showKickZones_=true;
         else if(type==FunctionalPlacement::BonusRegion) showBonuses_=true;
         else if(type==FunctionalPlacement::RedFlag || type==FunctionalPlacement::BlueFlag) showFlags_=true;
         else if(type==FunctionalPlacement::ControlPoint) showPoints_=true;
@@ -846,7 +861,7 @@ void EditorUi::CommitFunctionalPlacement(MapDocument& map, SceneRenderer& scene)
 }
 
 GameplaySelection::Visibility EditorUi::SelectionVisibility() const {
-    return {showGameplay_,showFlags_,showSpawns_,showPoints_,showBonuses_,showZones_,showLights_,gameplayMode_};
+    return {showGameplay_,showFlags_,showSpawns_,showPoints_,showBonuses_,showKillZones_,showLights_,gameplayMode_,showKickZones_};
 }
 void EditorUi::PruneFunctionalSelection(const MapDocument& map){
     const auto visible=GameplaySelection::Visible(map,SelectionVisibility());
@@ -1385,7 +1400,11 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
     if (Pressed(Action::Fullscreen)) fullscreenToggleRequested_=true;
     if (browseLibraryOpen_) {
         axTabHeld_=false; placementWheel_=0.0f;
-        if (!io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Escape,false)) browseLibraryOpen_=false;
+        if (!io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Escape,false) &&
+            !ImGui::IsPopupOpen(nullptr,ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel)) {
+            if(browseCreatingCustom_) {browseCreatingCustom_=false;browseCustomSelection_.clear();browseCustomError_.clear();}
+            else browseLibraryOpen_=false;
+        }
         return; // Browse Library owns the whole editing workspace until closed.
     }
     // Tab is momentary: do not steal typing from any input or modal.
@@ -1564,7 +1583,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
     if (Pressed(Action::Grid)) showGrid_=!showGrid_;
     if (Pressed(Action::Bounds)) showBounds_=!showBounds_;
     if (Pressed(Action::Gameplay)) SetGameplayOverlays(!showGameplay_);
-    if (Pressed(Action::Zones)) {showZones_=!showZones_; if(showZones_) showGameplay_=true;}
+    if (Pressed(Action::Zones)) {showKillZones_=!showKillZones_;if(showKillZones_){showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}}
     if (Pressed(Action::Frame)) { if(selected_>=0) scene.FrameSelection(); else scene.FrameScene(); }
     if (placementActive_ && (ImGui::IsKeyPressed(ImGuiKey_Space,false) || Pressed(Action::Place))) {
         placementCommitRequested_=true; return;
@@ -1773,6 +1792,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
     DrawMenu(map, scene); DrawToolbar(map, scene);
     browseWorkspaceY_=ImGui::GetCursorScreenPos().y;
     const ImGuiID dock = ImGui::GetID("GTanksDockspace");
+    mapTabsUi_.PrepareTabOrder();
     ImGui::DockSpace(dock, {0, -23}, ImGuiDockNodeFlags_PassthruCentralNode);
 
     static bool first = true;
@@ -1851,7 +1871,8 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
         ImGui::MenuItem("Grid",shortcut(Action::Grid).c_str(),&showGrid_);
         ImGui::MenuItem("Bounds",shortcut(Action::Bounds).c_str(),&showBounds_);
         if(ImGui::MenuItem("Gameplay overlays",shortcut(Action::Gameplay).c_str(),&showGameplay_)) SetGameplayOverlays(showGameplay_);
-        if(ImGui::MenuItem("Special / kill zones",shortcut(Action::Zones).c_str(),&showZones_) && showZones_) showGameplay_=true;
+        if(ImGui::MenuItem("Kill zones",shortcut(Action::Zones).c_str(),&showKillZones_) && showKillZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
+        if(ImGui::MenuItem("Kick zones",nullptr,&showKickZones_) && showKickZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
         ImGui::MenuItem("Status popups",nullptr,&showToastOverlay_);
         if(ImGui::MenuItem("Viewport background..."))showBackgroundPopup_=true;
         if (ImGui::BeginMenu("Editor theme")) {
@@ -2364,19 +2385,67 @@ void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
     ImGui::TextUnformatted("Browse Library");
     ImGui::SameLine(); ImGui::TextDisabled("| Open a library to load its visible thumbnails");
     ImGui::SameLine(ImGui::GetWindowWidth()-90.0f);
-    if (ImGui::Button("X Close##browse")) { browseLibraryOpen_=false; browsePreviewNeedsRestore_=true; }
+    if (ImGui::Button("X Close##browse")) { browseLibraryOpen_=false; browsePreviewNeedsRestore_=true;browseCreatingCustom_=false;browseCustomSelection_.clear(); }
     ImGui::Separator();
     ImGui::SetNextItemWidth(std::min(400.0f,ImGui::GetContentRegionAvail().x));
     ImGui::InputTextWithHint("##browse_search","Filter library / objects...",browseSearch_,sizeof(browseSearch_));
     static constexpr const char* kinds[]={"All types","Ground / tiles","Walls / fences","Buildings","Bridges / ramps","Vegetation / rocks","Props / other","Sprites"};
-    ImGui::SetNextItemWidth(200.0f);ImGui::Combo("Type##browse",&browseCategory_,kinds,IM_ARRAYSIZE(kinds));
+    const auto& customFilters=browseCustomFilters_.Filters();
+    if(browseCustomActive_>=static_cast<int>(customFilters.size()))browseCustomActive_=-1;
+    const char* currentType=browseCustomActive_>=0?customFilters[browseCustomActive_].name.c_str():kinds[std::clamp(browseCategory_,0,7)];
+    ImGui::SetNextItemWidth(200.0f);
+    if(ImGui::BeginCombo("Type##browse",currentType)) {
+        for(int i=0;i<IM_ARRAYSIZE(kinds);++i)if(ImGui::Selectable(kinds[i],browseCustomActive_<0&&browseCategory_==i)) {
+            browseCategory_=i;browseCustomActive_=-1;
+        }
+        if(!customFilters.empty())ImGui::Separator();
+        for(size_t i=0;i<customFilters.size();++i) {
+            ImGui::PushID(static_cast<int>(i));
+            if(ImGui::Selectable(customFilters[i].name.c_str(),browseCustomActive_==static_cast<int>(i))) {
+                browseCustomActive_=static_cast<int>(i);browseCategory_=0;browseExpandCustom_=true;
+                browseCreatingCustom_=false;browseCustomSelection_.clear();
+                if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)||ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                    browseCustomDeleteIndex_=static_cast<int>(i);browseDeleteCustomRequested_=true;browseCustomError_.clear();
+                }
+            }
+            HoverHelp("Select this custom filter. Left click also asks whether to delete it; Keep filter uses it without deleting.");
+            ImGui::PopID();
+        }
+        ImGui::Separator();
+        if(ImGui::Selectable("Create custom...")) {
+            browseCreatingCustom_=true;browseCustomActive_=-1;browseCategory_=0;
+            browseCustomSelection_.clear();browseCustomError_.clear();browseCustomName_[0]=0;
+            browseSearch_[0]=0;browseExpandCustom_=true;
+        }
+        ImGui::EndCombo();
+    }
     ImGui::SameLine();
     static constexpr const char* sorts[]={"Library order","Name A-Z","Type, then name"};
     ImGui::SetNextItemWidth(170.0f);ImGui::Combo("Order##browse",&browseSort_,sorts,IM_ARRAYSIZE(sorts));
     ImGui::SameLine();
     ImGui::SetNextItemWidth(145.f);ImGui::SliderFloat("Thumbnail size##browse",&browseThumbnailScale_,0.7f,1.65f,"%.2fx");
     if(ImGui::IsItemDeactivatedAfterEdit())SaveControls();
+    if(browseCreatingCustom_) {
+        ImGui::Text("Custom filter: %zu selected",browseCustomSelection_.size());ImGui::SameLine();
+        ImGui::BeginDisabled(browseCustomSelection_.empty());
+        if(ImGui::Button("Finish selection [Enter]"))browseNameCustomRequested_=true;
+        ImGui::EndDisabled();ImGui::SameLine();
+        if(ImGui::Button("Cancel selection")) {browseCreatingCustom_=false;browseCustomSelection_.clear();browseCustomError_.clear();}
+        if(ImGui::IsKeyPressed(ImGuiKey_Enter,false) &&
+           !ImGui::IsPopupOpen(nullptr,ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel)) {
+            if(browseCustomSelection_.empty())browseCustomError_="Select at least one object first.";
+            else browseNameCustomRequested_=true;
+        }
+        if(!browseCustomError_.empty())ImGui::TextWrapped("%s",browseCustomError_.c_str());
+    }
     ImGui::Separator();
+    const auto matches=[&](const AssetDefinition& a,size_t variant) {
+        if(browseCategory_ && BrowseKind(a)!=browseCategory_)return false;
+        if(browseCustomActive_>=0 && !customFilters[browseCustomActive_].Contains(BrowseFilterKey(a,variant)))return false;
+        const std::string name=a.library+" / "+a.group+" / "+a.name+" / "+
+            (variant<a.textures.size()?a.textures[variant].name:std::string("default"));
+        return !browseSearch_[0] || ContainsInsensitive(name,browseSearch_);
+    };
     const auto& items=assets.Assets();
     if (items.empty()) ImGui::TextDisabled("Set the external ProTanki library folder in File first.");
     ImGui::BeginChild("##browse_scroll",{0,0},false,ImGuiWindowFlags_AlwaysVerticalScrollbar);
@@ -2385,31 +2454,18 @@ void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
         const auto& library=items[start].library;
         size_t finish=start+1;
         while (finish<items.size()&&items[finish].library==library)++finish;
-        size_t matched=0;
-        const bool filter=browseSearch_[0]!=0;
-        for (size_t i=start;i<finish;++i) {
+        struct BrowseTile { size_t asset, variant; };
+        std::vector<BrowseTile> visible;
+        for(size_t i=start;i<finish;++i) {
             const auto& a=items[i];
-            if ((!filter || ContainsInsensitive(a.library+" / "+a.group+" / "+a.name,browseSearch_)) &&
-                (browseCategory_==0 || BrowseKind(a)==browseCategory_))++matched;
+            for(size_t variant=0;variant<std::max(size_t{1},a.textures.size());++variant)
+                if(matches(a,variant))visible.push_back({i,variant});
         }
-        if (!matched) {start=finish;continue;}
+        if(visible.empty()){start=finish;continue;}
         ImGui::PushID(library.c_str());
-        // UI is deliberately flat beneath each library: the native `group`
-        // remains intact in AssetDefinition and therefore in exported XML.
-        const std::string heading=library+"  ("+std::to_string(matched)+" objects)";
+        const std::string heading=library+"  ("+std::to_string(visible.size())+" objects)";
+        if(browseExpandCustom_)ImGui::SetNextItemOpen(true,ImGuiCond_Always);
         if (ImGui::TreeNodeEx(heading.c_str(),ImGuiTreeNodeFlags_SpanAvailWidth)) {
-            struct BrowseTile { size_t asset, variant; };
-            std::vector<BrowseTile> visible;
-            for (size_t i=start;i<finish;++i) {
-                const auto& a=items[i];
-                if (browseCategory_!=0 && BrowseKind(a)!=browseCategory_) continue;
-                const size_t count=std::max(size_t{1},a.textures.size());
-                for (size_t variant=0;variant<count;++variant) {
-                    const std::string name=a.library+" / "+a.group+" / "+a.name+" / "+
-                        (a.textures.empty()?std::string("default"):a.textures[variant].name);
-                    if (!filter || ContainsInsensitive(name,browseSearch_)) visible.push_back({i,variant});
-                }
-            }
             if (browseSort_!=0) std::stable_sort(visible.begin(),visible.end(),[&](const BrowseTile& a,const BrowseTile& b) {
                 if(browseSort_==2 && BrowseKind(items[a.asset])!=BrowseKind(items[b.asset]))
                     return BrowseKind(items[a.asset])<BrowseKind(items[b.asset]);
@@ -2450,6 +2506,11 @@ void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
                         }
                         ImGui::SetCursorScreenPos(startPos);
                         if (ImGui::InvisibleButton("##select_asset",{thumbnailSize.x,189.f*browseThumbnailScale_})) {
+                            if(browseCreatingCustom_) {
+                                const auto key=BrowseFilterKey(a,tile.variant);
+                                if(!browseCustomSelection_.erase(key))browseCustomSelection_.insert(key);
+                                browseCustomError_.clear();
+                            } else {
                             SelectAsset(assets,index,previewScene);
                             selectedTextureVariant_=static_cast<int>(tile.variant);
                             if(!recentAssets_.empty() && recentAssets_.front().index==index) {
@@ -2459,9 +2520,14 @@ void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
                             RebuildAssetPreview(assets,previewScene);
                             BeginPlacement(assets);
                             browseLibraryOpen_=false; browsePreviewNeedsRestore_=false;
+                            }
                         }
-                        HandleAxLibraryItem(assets,index,static_cast<int>(tile.variant),previewScene);
-                        if(selectedAsset_==static_cast<int>(index) && selectedTextureVariant_==static_cast<int>(tile.variant))
+                        if(!browseCreatingCustom_)HandleAxLibraryItem(assets,index,static_cast<int>(tile.variant),previewScene);
+                        if(browseCreatingCustom_ && browseCustomSelection_.contains(BrowseFilterKey(a,tile.variant))) {
+                            ImGui::GetWindowDrawList()->AddRect(startPos,{startPos.x+thumbnailSize.x,startPos.y+189.f*browseThumbnailScale_},IM_COL32(80,220,130,255),3.f,0,3.f);
+                            ImGui::GetWindowDrawList()->AddText({startPos.x+6,startPos.y+6},IM_COL32(80,255,145,255),"Selected");
+                        }
+                        if(!browseCreatingCustom_ && selectedAsset_==static_cast<int>(index) && selectedTextureVariant_==static_cast<int>(tile.variant))
                             ImGui::GetWindowDrawList()->AddRect(startPos,{startPos.x+thumbnailSize.x,startPos.y+189.f*browseThumbnailScale_},IM_COL32(95,165,235,220),3.f,0,2.f);
                         ImGui::SetCursorScreenPos({startPos.x,startPos.y+150.f*browseThumbnailScale_});
                         const std::string caption=a.name+(a.textures.empty()?std::string{}:" / "+a.textures[tile.variant].name);
@@ -2480,7 +2546,46 @@ void EditorUi::DrawBrowseLibrary(MapDocument& map, const AssetRegistry& assets,
         }
         ImGui::PopID();start=finish;
     }
+    browseExpandCustom_=false;
     ImGui::EndChild();
+    if(browseNameCustomRequested_) {ImGui::OpenPopup("Name custom filter");browseNameCustomRequested_=false;browseCustomError_.clear();}
+    if(ImGui::BeginPopupModal("Name custom filter",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+        const bool appearing=ImGui::IsWindowAppearing();if(appearing)ImGui::SetKeyboardFocusHere();
+        const bool entered=ImGui::InputText("Filter name",browseCustomName_,sizeof(browseCustomName_),ImGuiInputTextFlags_EnterReturnsTrue);
+        if(!browseCustomError_.empty())ImGui::TextWrapped("%s",browseCustomError_.c_str());
+        if(ImGui::Button("Save filter") || (entered&&!appearing)) {
+            auto candidate=browseCustomFilters_;
+            if(candidate.Add(browseCustomName_,browseCustomSelection_,browseCustomError_) &&
+               candidate.Save(CustomBrowseFiltersPath(),browseCustomError_)) {
+                browseCustomFilters_=std::move(candidate);browseCustomActive_=static_cast<int>(browseCustomFilters_.Filters().size())-1;
+                browseCreatingCustom_=false;browseCustomSelection_.clear();browseCategory_=0;browseSearch_[0]=0;browseExpandCustom_=true;
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::SameLine();if(ImGui::Button("Back to selection") || ImGui::IsKeyPressed(ImGuiKey_Escape,false)) {
+            browseCustomError_.clear();ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    if(browseDeleteCustomRequested_) {ImGui::OpenPopup("Delete custom filter?");browseDeleteCustomRequested_=false;}
+    if(ImGui::BeginPopupModal("Delete custom filter?",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+        const auto& all=browseCustomFilters_.Filters();
+        if(browseCustomDeleteIndex_>=0 && static_cast<size_t>(browseCustomDeleteIndex_)<all.size())
+            ImGui::Text("Delete filter: %s?",all[browseCustomDeleteIndex_].name.c_str());
+        if(!browseCustomError_.empty())ImGui::TextWrapped("%s",browseCustomError_.c_str());
+        if(ImGui::Button("Delete filter")) {
+            auto candidate=browseCustomFilters_;
+            if(candidate.Erase(static_cast<size_t>(browseCustomDeleteIndex_),browseCustomError_) &&
+               candidate.Save(CustomBrowseFiltersPath(),browseCustomError_)) {
+                browseCustomFilters_=std::move(candidate);browseCustomActive_=-1;browseCategory_=0;
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::SameLine();if(ImGui::Button("Keep filter") || ImGui::IsKeyPressed(ImGuiKey_Escape,false)) {
+            browseCustomError_.clear();ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
     ImGui::End(); ImGui::PopStyleColor(); ImGui::PopStyleVar();
 }
 
@@ -3351,7 +3456,7 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
     if (ImGui::Button("DOM red spawn",{-1,0})) BeginFunctionalPlacement(FunctionalPlacement::SpawnDomRed,scene);
     if (ImGui::Button("DOM blue spawn",{-1,0})) BeginFunctionalPlacement(FunctionalPlacement::SpawnDomBlue,scene);
     if (ImGui::Button("DOM / control point",{-1,0})) BeginFunctionalPlacement(FunctionalPlacement::ControlPoint,scene);
-    if (ImGui::Button("Bonus / drop region",{-1,0})) gameplayPaletteOpen_=true;
+    if (ImGui::Button("Add bonus / drop region",{-1,0})) gameplayPaletteOpen_=true;
     if (ImGui::Button("Kill zone",{-1,0})) BeginFunctionalPlacement(FunctionalPlacement::KillZone,scene);
     if (ImGui::Button("Kick zone",{-1,0})) BeginFunctionalPlacement(FunctionalPlacement::KickZone,scene);
     ImGui::EndChild();ImGui::TreePop();}
@@ -3369,7 +3474,8 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
         ImGui::Checkbox("Control point markers",&showPoints_);
         ImGui::Checkbox("Bonus region wireframes",&showBonuses_);
     }
-    if(showGameplay_) ImGui::Checkbox("Special kill/kick volumes",&showZones_);
+    if(ImGui::Checkbox("Kill zones",&showKillZones_) && showKillZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
+    if(ImGui::Checkbox("Kick zones",&showKickZones_) && showKickZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
     if (ImGui::Button("Hide all overlays")) { SetGameplayOverlays(false);gameplayMode_=-1; }
     ImGui::SeparatorText("Map elements");
     if (map.Version().empty()) { ImGui::TextDisabled("Open or create a map to inspect gameplay data."); ImGui::End(); return; }
@@ -3439,18 +3545,24 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
         if (!shown) ImGui::TextDisabled("No bonus regions for this game mode.");
         ImGui::TreePop();
     }
-    if (ImGui::TreeNodeEx("Kill / kick / special zones")) {
-        if (map.SpecialBoxes().empty()) ImGui::TextDisabled("No special volumes.");
+    for(const auto& category:std::array<std::pair<const char*,unsigned>,3>{{{"Kill zones",16u},{"Kick zones",64u},{"Other special zones",80u}}}) {
+    if(category.second==80u && std::none_of(map.SpecialBoxes().begin(),map.SpecialBoxes().end(),[](const auto& box){return GameplayZoneVisibility::Layer(box.action)==80u;}))continue;
+    if (ImGui::TreeNodeEx(category.first)) {
+        bool anyZone=false;
         for (size_t i=0;i<map.SpecialBoxes().size();++i) {
             const auto& b=map.SpecialBoxes()[i];
+            if(GameplayZoneVisibility::Layer(b.action)!=category.second)continue;
+            anyZone=true;
             const std::string name="Zone "+std::to_string(i+1)+" / "+b.action+"##special"+std::to_string(i);
             if (ImGui::Selectable(name.c_str(),functionalSelected_==FunctionalType::Zone && functionalIndex_==i)) {
                 functionalSelected_=FunctionalType::Zone;functionalIndex_=i;
-                functionalPropertyBefore_.reset();zonePropertyBefore_.reset();SelectOnly(-1,scene);showZones_=true;showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;
+                functionalPropertyBefore_.reset();zonePropertyBefore_.reset();SelectOnly(-1,scene);if(Lower(b.action)=="kick")showKickZones_=true;else if(Lower(b.action)=="kill")showKillZones_=true;else showKillZones_=showKickZones_=true;showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;
                 ImGui::SetWindowFocus("Properties");scene.FocusLegacyPoint({(b.min.x+b.max.x)*0.5f,(b.min.y+b.max.y)*0.5f,(b.min.z+b.max.z)*0.5f},2400.0f);
             }
         }
+        if(!anyZone)ImGui::TextDisabled("No zones of this type.");
         ImGui::TreePop();
+    }
     }
     ImGui::Separator();
     ImGui::End();
@@ -3469,6 +3581,8 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
             ImGui::SeparatorText("Flags and objectives");
             if(ImGui::Button("Red CTF flag##palette")) BeginFunctionalPlacement(FunctionalPlacement::RedFlag,scene);
             ImGui::SameLine(); if(ImGui::Button("Blue CTF flag##palette")) BeginFunctionalPlacement(FunctionalPlacement::BlueFlag,scene);
+            if(ImGui::Button("Kill zone##palette")) BeginFunctionalPlacement(FunctionalPlacement::KillZone,scene);
+            ImGui::SameLine(); if(ImGui::Button("Kick zone##palette")) BeginFunctionalPlacement(FunctionalPlacement::KickZone,scene);
             if(ImGui::Button("DOM / CP point##palette")) BeginFunctionalPlacement(FunctionalPlacement::ControlPoint,scene);
             ImGui::SeparatorText("Volumes");
             static constexpr const char* newBonusKinds[]={"armorup","damageup","nitro","crystal","crystal_100","medkit","crystal_500"};
@@ -3512,10 +3626,8 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
             if(!validBonusType)
                 HoverHelp("Bonus type must contain 1-64 letters, digits, underscore or hyphen.");
             ImGui::BeginDisabled(!anyBonusModes || !validBonusType);
-            if(ImGui::Button("Bonus / drop region##palette")) BeginFunctionalPlacement(FunctionalPlacement::BonusRegion,scene);
+            if(ImGui::Button("Add bonus / drop region##palette")) BeginFunctionalPlacement(FunctionalPlacement::BonusRegion,scene);
             ImGui::EndDisabled();
-            if(ImGui::Button("Kill zone##palette")) BeginFunctionalPlacement(FunctionalPlacement::KillZone,scene);
-            ImGui::SameLine(); if(ImGui::Button("Kick zone##palette")) BeginFunctionalPlacement(FunctionalPlacement::KickZone,scene);
             HoverHelp("Select an existing gameplay item to edit its native XML bounds in Properties.");
         }
         ImGui::End();
@@ -3609,7 +3721,7 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
     }
     if(functionalSelected_==FunctionalType::Bonus && functionalIndex_<map.Bonuses().size()) {
         auto region=map.Bonuses()[functionalIndex_];
-        ImGui::SeparatorText("Bonus / drop region details");
+        ImGui::SeparatorText("Add bonus / drop region details");
         char nameBuffer[128]{};
         std::snprintf(nameBuffer,sizeof(nameBuffer),"%s",region.name.c_str());
         if(ImGui::InputText("Region name",nameBuffer,sizeof(nameBuffer)))
@@ -3666,7 +3778,8 @@ if(functionalSelected_==FunctionalType::Light && functionalIndex_<map.Lights().s
         int action=region.action=="kill"?0:region.action=="kick"?1:2;
         if(ImGui::Combo("Action",&action,"Kill\0Kick\0Other (preserved)\0")) {
             if(action<2) {const auto before=region;region.action=action==0?"kill":"kick";
-                map.SetSpecialBox(functionalIndex_,region);history_.PushZone(functionalIndex_,before,region);RequestSceneRebuild(true);}
+                map.SetSpecialBox(functionalIndex_,region);history_.PushZone(functionalIndex_,before,region);RequestSceneRebuild(true);
+                if(action==0)showKillZones_=true;else showKickZones_=true;}
         }
         if(ImGui::Checkbox("Free",&region.free)) {
             const auto before=map.SpecialBoxes()[functionalIndex_];map.SetSpecialBox(functionalIndex_,region);
@@ -3950,12 +4063,12 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
             scene.SetFunctionalGhost(functionalGhostPosition_,kind,true);
         } else scene.SetFunctionalGhost({},0,false);
     } else if (functionalPlacement_==FunctionalPlacement::None) scene.SetFunctionalGhost({},0,false);
-    const unsigned layerMask=(showSpawns_?1u:0u)|(showFlags_?2u:0u)|(showPoints_?4u:0u)|(showBonuses_?8u:0u)|(showZones_?16u:0u);
+    const unsigned layerMask=(showSpawns_?1u:0u)|(showFlags_?2u:0u)|(showPoints_?4u:0u)|(showBonuses_?8u:0u)|(showKillZones_?16u:0u)|(showKickZones_?64u:0u);
     const unsigned modeMask=gameplayMode_<0?0u:gameplayMode_==0?15u:1u<<static_cast<unsigned>(gameplayMode_-1);
     scene.SetNativeLights(map.Lights());
     scene.SetLightPreviewScale(previewLightReach_);
     scene.Render(showGrid_ && !showCollision_,showBounds_,showGameplay_ && gameplayMode_>=0,
-        showGameplay_ && showZones_ && !(functionalDragActive_ && functionalSelected_==FunctionalType::Zone),
+        showGameplay_ && ZonesVisible() && !(functionalDragActive_ && functionalSelected_==FunctionalType::Zone),
         layerMask,modeMask,showCollision_,showLights_,previewNativeLighting_);
     if (scene.Output()) ImGui::Image((ImTextureID)scene.Output(),size);
     else { ImGui::InvisibleButton("##viewport_empty",size); ImGui::GetWindowDrawList()->AddRectFilled(origin,{origin.x+size.x,origin.y+size.y},IM_COL32(8,10,12,255)); }
@@ -4167,9 +4280,10 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
                         for(int k=0;k<4;++k)
                             test(FunctionalType::Bonus,i,{(k==1 || k==2)?p.max.x:p.min.x,k>=2?p.max.y:p.min.y,p.max.z});
                     }
-                if(showZones_)
+                if(ZonesVisible())
                     for(size_t i=0;i<map.SpecialBoxes().size();++i) {
                         const auto& p=map.SpecialBoxes()[i];
+                        if(!ZoneVisible(p))continue;
                         testVolume(FunctionalType::Zone,i,p.min,p.max);
                         test(FunctionalType::Zone,i,{(p.min.x+p.max.x)*0.5f,(p.min.y+p.max.y)*0.5f,(p.min.z+p.max.z)*0.5f});
                         const DirectX::XMFLOAT3 corners[8]={{p.min.x,p.min.y,p.min.z},{p.max.x,p.min.y,p.min.z},
@@ -4420,7 +4534,7 @@ void EditorUi::DrawViewport(MapDocument& map, const AssetRegistry& assets, Scene
     }
     // Project the ACTUAL current XML box every frame. No delayed scene rebuild,
     // stale circular proxy or guesswork while dragging a kill/kick zone.
-    if(showGameplay_ && ((showZones_ && functionalSelected_==FunctionalType::Zone && functionalIndex_<map.SpecialBoxes().size()) ||
+    if(showGameplay_ && ((functionalSelected_==FunctionalType::Zone && functionalIndex_<map.SpecialBoxes().size() && ZoneVisible(map.SpecialBoxes()[functionalIndex_])) ||
                          (showBonuses_ && functionalSelected_==FunctionalType::Bonus && functionalIndex_<map.Bonuses().size()))) {
         const DirectX::XMFLOAT3 zoneMin=functionalSelected_==FunctionalType::Zone?map.SpecialBoxes()[functionalIndex_].min:map.Bonuses()[functionalIndex_].min;
         const DirectX::XMFLOAT3 zoneMax=functionalSelected_==FunctionalType::Zone?map.SpecialBoxes()[functionalIndex_].max:map.Bonuses()[functionalIndex_].max;

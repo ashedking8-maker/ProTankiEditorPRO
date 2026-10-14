@@ -1,5 +1,6 @@
 #pragma once
 #include "MapDocument.h"
+#include "GameplayZoneVisibility.h"
 #include <algorithm>
 #include <cctype>
 #include <limits>
@@ -7,7 +8,7 @@
 namespace GameplaySelection {
 enum class Kind { None, Flag, Spawn, Point, Bonus, Zone, Light };
 struct Item {Kind kind{Kind::None};size_t index{};bool operator==(const Item&)const=default;};
-struct Visibility {bool gameplay{},flags{},spawns{},points{},bonuses{},zones{},lights{};int mode{-1};};
+struct Visibility {bool gameplay{},flags{},spawns{},points{},bonuses{},zones{},lights{};int mode{-1};bool kickZones{};};
 struct Candidate {Item item;DirectX::XMFLOAT3 min{},max{};};
 inline std::string Lower(std::string s){for(auto& c:s)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));return s;}
 inline bool SpawnVisible(int mode,const std::string& type){const auto s=Lower(type);return mode==0||(mode==1&&s=="dm")||((mode==2||mode==3)&&(s=="red"||s=="blue"))||(mode==4&&(s=="dom"||s=="cp"||s=="ctp"));}
@@ -26,7 +27,7 @@ inline std::vector<Candidate> Visible(const MapDocument& map,Visibility v){
     if(v.spawns)for(size_t i=0;i<map.Spawns().size();++i)if(SpawnVisible(v.mode,map.Spawns()[i].type))point(Kind::Spawn,i,map.Spawns()[i].position);
     if(v.points&&(v.mode==0||v.mode==4))for(size_t i=0;i<map.ControlPoints().size();++i)point(Kind::Point,i,map.ControlPoints()[i].position);
     if(v.bonuses)for(size_t i=0;i<map.Bonuses().size();++i){const auto& b=map.Bonuses()[i];if(BonusVisible(v.mode,b.modes))result.push_back({{Kind::Bonus,i},b.min,b.max});}
-    if(v.zones)for(size_t i=0;i<map.SpecialBoxes().size();++i){const auto& b=map.SpecialBoxes()[i];result.push_back({{Kind::Zone,i},b.min,b.max});}
+    if(v.zones||v.kickZones)for(size_t i=0;i<map.SpecialBoxes().size();++i){const auto& b=map.SpecialBoxes()[i];if(GameplayZoneVisibility::Visible(b.action,v.zones,v.kickZones))result.push_back({{Kind::Zone,i},b.min,b.max});}
     return result;
 }
 inline void Add(std::vector<Item>& items,Item value,bool toggle=false){

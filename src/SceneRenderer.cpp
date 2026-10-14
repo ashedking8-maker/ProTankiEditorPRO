@@ -1,5 +1,6 @@
 #include "SceneRenderer.h"
 #include "CollisionPreview.h"
+#include "GameplayZoneVisibility.h"
 #include "LegacyTransform.h"
 #include "GeometrySnap.h"
 #include "LegacyMeshImport.h"
@@ -1106,7 +1107,7 @@ void SceneRenderer::BuildDebugGeometry(const MapDocument& map) {
         const std::string action = Lower(box.action);
         const XMFLOAT4 color = action == "kick" ? XMFLOAT4{1.0f,0.63f,0.18f,0.50f} : XMFLOAT4{1.0f,0.22f,0.20f,0.46f};
         addBox(Min3(a,b),Max3(a,b),color);
-        finishRange(start,16u,15u);
+        finishRange(start,GameplayZoneVisibility::Layer(action),15u);
     }
     zoneVertexCount_ = static_cast<uint32_t>(debugVertices_.size()) - boundsVertexCount_ - gameplayVertexCount_;
     // Read-only light visualization. Radius is symbolic: native attenuationEnd
@@ -1595,8 +1596,8 @@ void SceneRenderer::RenderDebugOverlay(bool showBounds, bool showGameplay, bool 
     const float blendFactor[4]{}; context_->OMSetBlendState(alphaBlend_.Get(),blendFactor,0xFFFFFFFFu);
     if (showBounds && boundsVertexCount_) context_->Draw(boundsVertexCount_, 0);
     for (const auto& range : gameplayRanges_) {
-        const bool enabled = range.layer == 32u ? showLights : range.layer == 16u ? showZones : showGameplay;
-        if (enabled && ((overlayMask & range.layer) || range.layer==32u) && ((modeMask & range.modes) || range.layer==32u || (range.layer==8u && range.modes==0u && modeMask==15u)))
+        const bool enabled = range.layer == 32u ? showLights : (range.layer & 80u) ? showZones : showGameplay;
+        if (enabled && (GameplayZoneVisibility::LayerVisible(range.layer,overlayMask) || range.layer==32u) && ((modeMask & range.modes) || range.layer==32u || (range.layer==8u && range.modes==0u && modeMask==15u)))
             context_->Draw(range.count, range.start);
     }
 }

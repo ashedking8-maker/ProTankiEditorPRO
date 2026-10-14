@@ -84,7 +84,7 @@ add_executable(GTanksNextEditor WIN32
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
   src/Native3DSScene.h src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/GlbNativeExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
-  src/EditorUi.cpp src/EditorUi.h src/GameplaySelection.h src/PlacementSnap.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
+  src/EditorUi.cpp src/EditorUi.h src/GameplaySelection.h src/GameplayZoneVisibility.h src/BrowseCustomFilters.h src/MapTabsUi.h src/PlacementSnap.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
 target_include_directories(GTanksNextEditor PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -217,6 +217,11 @@ if(BUILD_TESTING)
   target_compile_definitions(GlbNativeExportRegression PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
   add_test(NAME GlbEmbeddedTextureNativeRoundTrip COMMAND GlbNativeExportRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/glb")
+  add_executable(BrowseCustomFiltersRegression tests/browse_custom_filters_regression.cpp)
+  target_include_directories(BrowseCustomFiltersRegression PRIVATE src tests)
+  target_link_libraries(BrowseCustomFiltersRegression PRIVATE pugixml::pugixml)
+  target_compile_definitions(BrowseCustomFiltersRegression PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  add_test(NAME PersistentBrowseCustomFilters COMMAND BrowseCustomFiltersRegression)
   add_executable(MapDockTabsRegression tests/map_dock_tabs_regression.cpp)
   target_include_directories(MapDockTabsRegression PRIVATE src tests)
   target_link_libraries(MapDockTabsRegression PRIVATE imgui)

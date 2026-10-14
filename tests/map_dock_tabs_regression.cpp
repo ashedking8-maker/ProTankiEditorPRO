@@ -18,7 +18,7 @@ int main() {
             dock=ImGui::GetID("Dock");ImGui::DockBuilderAddNode(dock,ImGuiDockNodeFlags_DockSpace);
             ImGui::DockBuilderSetNodeSize(dock,{1000,600});ui.SetDockId(dock);
         }
-        ImGui::DockSpace(dock);ImGui::End();
+        ui.PrepareTabOrder();ImGui::DockSpace(dock);ImGui::End();
         if(ui.Begin(tabs,active,activate,close,opened))ImGui::TextUnformatted("Canvas");
         ImGui::End();ImGui::Render();
     };
@@ -34,6 +34,15 @@ int main() {
     tabs.push_back({2,{},"Arena",true});active=2;
     for(int i=0;i<4;++i)frame();
     PT_REQUIRE(node->TabBar->Tabs.Size==3 && !activate && !close);
+    PT_REQUIRE(node->TabBar->Tabs.back().Flags&ImGuiTabItemFlags_Button);
+    for(const auto& tab:node->TabBar->Tabs)if(tab.Window)PT_REQUIRE(!(tab.Window->Flags&ImGuiWindowFlags_UnsavedDocument));
+    tabs.push_back({3,{},"Third map",false});active=3;
+    for(int i=0;i<4;++i)frame();
+    PT_REQUIRE(node->TabBar->Tabs.Size==4 && (node->TabBar->Tabs.back().Flags&ImGuiTabItemFlags_Button));
+    const float plusOffset=node->TabBar->Tabs.back().Offset;
+    for(const auto& tab:node->TabBar->Tabs)if(tab.Window)PT_REQUIRE(tab.Offset<plusOffset);
+    tabs.pop_back();active=2;for(int i=0;i<4;++i)frame();
+    PT_REQUIRE(node->TabBar->Tabs.Size==3 && (node->TabBar->Tabs.back().Flags&ImGuiTabItemFlags_Button));
     const auto clickTab=[&](const char* name) {
         ImGuiTabItem* item=nullptr;
         for(auto& tab:node->TabBar->Tabs)if(std::string(ImGui::TabBarGetTabName(node->TabBar,&tab))==name)item=&tab;

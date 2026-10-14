@@ -62,7 +62,7 @@ def main() -> int:
         require(ui.count('case A::')==31,'Expected 31 default keyboard mappings')
         for name in ('src/EditorUi.cpp','src/SceneRenderer.cpp','src/MapDocument.cpp'):
             require(brace_check(text(name)),f'{name}: unbalanced source delimiters')
-        require('unsigned overlayMask = 31u, unsigned modeMask = 15u' in scene_hdr, 'Overlay API mismatch in header')
+        require('unsigned overlayMask = 95u, unsigned modeMask = 15u' in scene_hdr, 'Overlay API mismatch in header')
         require('RenderDebugOverlay(showBounds, showGameplay, showZones, overlayMask, modeMask, showLights)' in scene,'Overlay API mismatch in implementation')
         require('map.child("spawn-points")' in doc and 'map.child("dom-keypoints")' in doc,'Missing gameplay parser')
         require('src/EditorUi.cpp src/EditorUi.h' in cmake,'CMake does not compile the full EditorUi.cpp')

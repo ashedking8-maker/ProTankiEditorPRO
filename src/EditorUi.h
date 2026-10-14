@@ -6,6 +6,7 @@
 #include "EditHistory.h"
 #include "MapWorkspace.h"
 #include "MapTabsUi.h"
+#include "BrowseCustomFilters.h"
 #include "GuidanceState.h"
 #include "ObjectDraft.h"
 #include "BugReport.h"
@@ -284,6 +285,12 @@ private:
     float browseWorkspaceY_{};
     char browseSearch_[128]{};
     int browseCategory_{}; // metadata-only heuristic category filter
+    BrowseCustomFilters::Store browseCustomFilters_;
+    int browseCustomActive_{-1},browseCustomDeleteIndex_{-1};
+    bool browseCreatingCustom_{},browseExpandCustom_{},browseNameCustomRequested_{},browseDeleteCustomRequested_{};
+    std::set<BrowseCustomFilters::Key> browseCustomSelection_;
+    char browseCustomName_[128]{};
+    std::string browseCustomError_;
     int browseSort_{};
     float browseThumbnailScale_{1.f};
     struct BrowseThumbnail {
@@ -305,7 +312,9 @@ private:
     void TrimBrowseGpuCache(size_t budgetBytes);
     void TrimBrowseCpuCache();
     bool browsePreviewNeedsRestore_{};
-    bool showZones_ = false;
+    bool showKillZones_{},showKickZones_{};
+    bool ZonesVisible() const {return showKillZones_||showKickZones_;}
+    bool ZoneVisible(const SpecialBox& box) const {return GameplayZoneVisibility::Visible(box.action,showKillZones_,showKickZones_);}
     bool snap_ = true;
     bool absoluteGridSnap_ = true; // one Grid snap: lattice + discrete edge nodes
     float edgeSnapClearance_{0.02f}; // horizontal separation; NOT vertical surface offset
