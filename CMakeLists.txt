@@ -87,6 +87,8 @@ add_executable(GTanksNextEditor WIN32
   src/EditorUi.cpp src/EditorUi.h src/GameplaySelection.h src/GameplayZoneVisibility.h src/BrowseCustomFilters.h src/MapTabsUi.h src/PlacementSnap.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
+set_target_properties(GTanksNextEditor PROPERTIES OUTPUT_NAME "ProTankiEditorPRO")
+
 target_include_directories(GTanksNextEditor PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(GTanksNextEditor PRIVATE
   imgui pugixml::pugixml assimp::assimp

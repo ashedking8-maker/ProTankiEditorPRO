@@ -669,7 +669,7 @@ void EditorUi::SelectAllStaticProps(const MapDocument& map, SceneRenderer& scene
 
 void EditorUi::SetGameplayOverlays(bool enabled) {
     showGameplay_=showSpawns_=showFlags_=showPoints_=showBonuses_=enabled;
-    if(!enabled)showKillZones_=showKickZones_=false;
+    if(!enabled) {showKillZones_=showKickZones_=false;gameplayMode_=-1;}
     if(enabled && gameplayMode_<0)gameplayMode_=0;
 }
 
@@ -3473,10 +3473,10 @@ void EditorUi::DrawGameplay(MapDocument& map, SceneRenderer& scene) {
         ImGui::Checkbox("CTF flag objects",&showFlags_);
         ImGui::Checkbox("Control point markers",&showPoints_);
         ImGui::Checkbox("Bonus region wireframes",&showBonuses_);
+        // The zone trees below share the visible labels, but must not share widget IDs.
+        if(ImGui::Checkbox("Kill zones##overlay_visibility",&showKillZones_) && showKillZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
+        if(ImGui::Checkbox("Kick zones##overlay_visibility",&showKickZones_) && showKickZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
     }
-    // The zone trees below share the visible labels, but must not share widget IDs.
-    if(ImGui::Checkbox("Kill zones##overlay_visibility",&showKillZones_) && showKillZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
-    if(ImGui::Checkbox("Kick zones##overlay_visibility",&showKickZones_) && showKickZones_) {showGameplay_=true;if(gameplayMode_<0)gameplayMode_=0;}
     if (ImGui::Button("Hide all overlays")) { SetGameplayOverlays(false);gameplayMode_=-1; }
     ImGui::SeparatorText("Map elements");
     if (map.Version().empty()) { ImGui::TextDisabled("Open or create a map to inspect gameplay data."); ImGui::End(); return; }
@@ -4829,7 +4829,7 @@ void EditorUi::DrawControlHelp() {
             ImGui::SeparatorText("Game modes and editor overlays");
             ImGui::TextWrapped("Gameplay > Add gameplay element opens a persistent palette (X closes it). Create native flags, spawns, DOM points, bonus/drop regions and kill/kick zones on blank or existing maps; place with Space. Normal dragging moves an existing region; Ctrl+Shift + dragging an upper corner handle resizes its X/Y extent. Edit min/max Z, bonus type and modes in Properties. Visibility filters do not change game modes or native XML element types.");
             ImGui::SeparatorText("Fullscreen, preferences and safety");
-            ImGui::TextWrapped("F11 or View > Fullscreen uses borderless fullscreen. Controls > Show shortcuts toggles the optional key labels (off by default). Custom bindings are stored in your LocalAppData GTanksNextEditor/controls.ini. The controls manual does not open automatically on application launch.");
+            ImGui::TextWrapped("F11 or View > Fullscreen uses borderless fullscreen. Controls > Show shortcuts toggles the optional key labels (off by default). Custom bindings are saved automatically in your local application settings. The controls manual does not open automatically on application launch.");
             ImGui::EndChild(); ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Camera and mouse")) {

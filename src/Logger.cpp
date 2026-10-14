@@ -52,7 +52,7 @@ std::filesystem::path SessionName() {
     SYSTEMTIME st{};
     GetLocalTime(&st);
     wchar_t name[96]{};
-    swprintf_s(name, L"GTanksNextEditor-%04u%02u%02u-%02u%02u%02u-pid%lu.log",
+    swprintf_s(name, L"ProTankiEditorPRO-%04u%02u%02u-%02u%02u%02u-pid%lu.log",
         st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, GetCurrentProcessId());
     return name;
 }
