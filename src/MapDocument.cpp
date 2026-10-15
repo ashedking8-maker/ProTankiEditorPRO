@@ -878,7 +878,7 @@ bool MapDocument::AddImportedCollisionForProp(size_t index,const NativeCollision
     stats_.collisionPlanes=collisionPlanes_.size();stats_.collisionBoxes=collisionBoxes_.size();
     stats_.collisionTriangles=collisionTriangles_.size();
     collisionDirty_=dirty_=true;
-    Log::Info("3DS native helper collision authored: "+p.library+"/"+p.group+"/"+p.name+
+    Log::Info(std::string(source.meshDerived ? "Visual mesh derived collision authored: " : "3DS native helper collision authored: ")+p.library+"/"+p.group+"/"+p.name+
         " planes="+std::to_string(source.planes.size())+
         " boxes="+std::to_string(source.boxes.size())+
         " triangles="+std::to_string(source.triangles.size())+

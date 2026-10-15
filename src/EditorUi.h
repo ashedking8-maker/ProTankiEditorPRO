@@ -153,7 +153,8 @@ private:
     void SetGameplayOverlays(bool enabled);
     void CommitPlacement(MapDocument&, const AssetRegistry&, SceneRenderer&);
     bool AuthorCollisionForPlacement(MapDocument&,const AssetRegistry&,size_t,std::string&,
-                                     bool sourceVerifiedCoincident=false,size_t stagedStart=0);
+                                     bool sourceVerifiedCoincident=false,size_t stagedStart=0,
+                                     bool* meshDerivedUsed=nullptr);
     void StartClipboardPlacement();
     void CaptureRecentThumbnail(SceneRenderer& previewScene);
     void RememberCopiedAssets(const AssetRegistry& assets);

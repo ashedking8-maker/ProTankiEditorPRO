@@ -83,7 +83,7 @@ add_executable(GTanksNextEditor WIN32
   src/AssetRegistry.cpp src/AssetRegistry.h
   src/Renderer.cpp src/Renderer.h
   src/SceneRenderer.cpp src/SceneRenderer.h
-  src/Native3DSScene.h src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/GlbNativeExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
+  src/Native3DSScene.h src/MeshDerivedCollision.h src/LegacyTransform.h src/LegacyMeshImport.h src/VerifiedCollisionTemplates.h src/NativeCollisionImport.h src/VerifiedGroundCollision.h src/DraftMeshImport.h src/CollisionPreview.h src/ObjectDraft.h src/Native3DSWriter.h src/Native3DSVisualMetadata.h src/NativeTerrainDelta.h src/NativeExportCollisionPolicy.h src/NativeTaraWriter.h src/NativeObjectExport.h src/GlbNativeExport.h src/PreviewThumbnailCodec.h src/BrowseCachePolicy.h src/AxRecentFilter.h
   src/EditorUi.cpp src/EditorUi.h src/GameplaySelection.h src/GameplayZoneVisibility.h src/BrowseCustomFilters.h src/MapTabsUi.h src/PlacementSnap.h src/GuidanceState.h src/GameplayAuthoring.h src/GridStep.h src/GeometrySnap.h
   assets/GTanksNextEditor.rc assets/GTanksNextEditor.ico assets/startup-tank.png)
 
@@ -441,6 +441,11 @@ if(BUILD_TESTING)
   target_include_directories(CollisionPlacementPolicyRegression PRIVATE src tests)
   add_test(NAME NoSilentVisualOnlyPlacement COMMAND CollisionPlacementPolicyRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
+  add_executable(MeshDerivedCollisionRegression tests/mesh_derived_collision_regression.cpp)
+  target_include_directories(MeshDerivedCollisionRegression PRIVATE src tests)
+  add_test(NAME FogtownHelperlessVisualCollisionFallback COMMAND MeshDerivedCollisionRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_missing_helpers"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/native_helpers")
   add_executable(VerifiedMeshSurfaceRegression tests/verified_mesh_surface_regression.cpp)
   target_include_directories(VerifiedMeshSurfaceRegression PRIVATE src tests)
   add_test(NAME OriginalFogtownSlopedSurfaces COMMAND VerifiedMeshSurfaceRegression

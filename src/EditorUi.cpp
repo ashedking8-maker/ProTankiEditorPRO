@@ -1,3 +1,4 @@
+#include "MeshDerivedCollision.h"
 #include "EditorUi.h"
 #include "NativeObjectExport.h"
 #include "BugReport.h"
@@ -972,7 +973,9 @@ void EditorUi::StartClipboardPlacement() {
 
 bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry& assets,
                                            size_t index,std::string& explanation,
-                                           bool sourceVerifiedCoincident,size_t stagedStart) {
+                                           bool sourceVerifiedCoincident,size_t stagedStart,
+                                           bool* meshDerivedUsed) {
+    if(meshDerivedUsed)*meshDerivedUsed=false;
     const auto& prop=map.Props()[index];
     if(prop.hasInvalidNativeMetadata) {
         explanation="Malformed native game flags cannot be copied even with opaque XML approval.";
@@ -1024,7 +1027,17 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         explanation="Original Fogtown verified ground XML: one owned native collision plane.";
         return true;
     }
-    const auto imported=learned.Valid()?learned:VerifiedMeshSurface::Read(asset->mesh,asset->meshObject,SourceCollisionCatalog::Identity(asset->library,asset->group,asset->name));
+    auto imported=learned.Valid()?learned:VerifiedMeshSurface::Read(asset->mesh,asset->meshObject,SourceCollisionCatalog::Identity(asset->library,asset->group,asset->name));
+    // Automatic, visible-geometry approximation for helperless models. This is
+    // not a claim that these triangles match the original game's physics.
+    // Native 3DS helpers, verified source-map templates, and explicit native
+    // with_collision=0 always retain priority. The fallback refuses any
+    // detected unresolved helpers or complex hierarchy rather than losing them.
+    if(!imported.Valid() && imported.error==NativeCollisionImport::NoNativeHelpersError) {
+        auto derived=MeshDerivedCollision::Read(asset->mesh,asset->meshObject);
+        if(derived.Valid())imported=std::move(derived);
+        else if(!derived.error.empty())imported.error=derived.error;
+    }
     if(!imported.Valid()) {
         Native3DSScene::Scene source;
         Native3DSScene::Selection selection;
@@ -1066,7 +1079,16 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         explanation="Native helper collision refused (overlapping duplicate or unsupported transform).";
         return false;
     }
-    explanation="Native collision geometry: "+std::to_string(imported.planes.size())+" planes / "+
+    if(imported.meshDerived) {
+        if(meshDerivedUsed)*meshDerivedUsed=true;
+        Log::Warning("Visual mesh collision approximation authored: identity="+
+            prop.library+"/"+prop.group+"/"+prop.name+
+            " triangles="+std::to_string(imported.triangles.size())+
+            " ignoredDegenerateFaces="+std::to_string(imported.ignoredDegenerateFaces)+
+            " (NOT source-verified game collision; test in ProTLVK)");
+        explanation="Approximate collision generated from "+std::to_string(imported.triangles.size())+
+            " visible mesh triangles. Not original gameplay physics; in-game verification required.";
+    } else explanation="Native collision geometry: "+std::to_string(imported.planes.size())+" planes / "+
         std::to_string(imported.triangles.size())+" triangles; in-game test pending.";
     return true;
 }
@@ -1118,7 +1140,7 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     }
     MapDocument before=map;
     std::vector<int> inserted;
-    size_t nativeCount=0,visualOnly=0;
+    size_t nativeCount=0,visualOnly=0,meshDerivedCount=0;
     size_t planes=0,triangles=0;
     std::string failure;
     const size_t stagedStart=before.Props().size();
@@ -1225,8 +1247,10 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
         const auto index=map.AddProp(std::move(p));
         const auto oldPlanes=map.CollisionPlanes().size(),oldTriangles=map.CollisionTriangles().size();
         std::string info;
+        bool meshDerivedUsed=false;
         if(AuthorCollisionForPlacement(map,assets,index,info,
-                                       sourceVerifiedCoincident,stagedStart)) {
+                                       sourceVerifiedCoincident,stagedStart,&meshDerivedUsed)) {
+            if(meshDerivedUsed)++meshDerivedCount;
             ++nativeCount;
             planes+=map.CollisionPlanes().size()-oldPlanes;
             triangles+=map.CollisionTriangles().size()-oldTriangles;
@@ -1283,11 +1307,15 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
     }
     Log::Info("Placement committed: "+std::to_string(inserted.size())+
         " props, native="+std::to_string(nativeCount)+
+        " meshDerived="+std::to_string(meshDerivedCount)+
         " visualOnly="+std::to_string(visualOnly));
     selectedItems_=inserted; selected_=inserted.back(); scene.SetSelection(selectedItems_);
     history_.PushSnapshot(std::move(before),map); RequestSceneRebuild(true);
     if(visualOnly)SetMessage("Placed "+std::to_string(inserted.size())+" props; "+
         std::to_string(visualOnly)+" without authored native collision (tank may pass through them).",true);
+    else if(meshDerivedCount)SetMessage("Placed "+std::to_string(nativeCount)+
+        " props ("+std::to_string(meshDerivedCount)+
+        " with approximate VISUAL-mesh collision, not original physics). Verify in ProTLVK.",true);
     else SetMessage("Placed "+std::to_string(nativeCount)+" props with "+
         std::to_string(planes)+" native planes and "+std::to_string(map.CollisionBoxes().size())+" total boxes and "+std::to_string(triangles)+
         " native triangles. Validate new 3DS helper types in ProTLVK.");

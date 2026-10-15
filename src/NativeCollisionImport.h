@@ -28,6 +28,8 @@ struct Result {
     std::vector<Box> boxes;
     size_t occlusionHelpers{};
     std::string visualAnchor;
+    bool meshDerived{}; // Fallback from visible faces, never original/native physics.
+    size_t ignoredDegenerateFaces{};
     std::string error;
     bool Valid() const { return error.empty() && (!planes.empty() || !triangles.empty() || !boxes.empty()); }
 };
