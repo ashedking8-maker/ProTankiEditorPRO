@@ -439,6 +439,16 @@ if(BUILD_TESTING)
   target_include_directories(VerifiedMeshSurfaceRegression PRIVATE src tests)
   add_test(NAME OriginalFogtownSlopedSurfaces COMMAND VerifiedMeshSurfaceRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_surface")
+  add_executable(CtiSourceMapRegression tests/cti_source_map_regression.cpp
+    src/MapDocument.cpp src/EditHistory.cpp src/Logger.cpp)
+  target_include_directories(CtiSourceMapRegression PRIVATE src tests)
+  target_link_libraries(CtiSourceMapRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(CtiSourceMapRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(MSVC)
+    target_compile_options(CtiSourceMapRegression PRIVATE /W4 /permissive- /utf-8)
+  endif()
+  add_test(NAME CtiOriginalMapCollision COMMAND CtiSourceMapRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/cti_collision")
   add_executable(FogtownSurfaceDocumentRegression tests/fogtown_surface_document_regression.cpp
     src/MapDocument.cpp src/EditHistory.cpp src/Logger.cpp)
   target_include_directories(FogtownSurfaceDocumentRegression PRIVATE src tests)
