@@ -10,6 +10,8 @@
 #include "CollisionPlacementPolicy.h"
 #include "VerifiedGroundCollision.h"
 #include "VerifiedMeshSurface.h"
+#include "SourceCollisionLearning.h"
+#include "SourceCollisionStorage.h"
 #include "Theme.h"
 #include "Logger.h"
 #include "SplashScreen.h"
@@ -290,6 +292,7 @@ const char* EditorUi::EffectName(int mode) {
 }
 
 void EditorUi::OnMapLoaded(const std::filesystem::path& successfulMapPath,bool preserveWorkspace) {
+    placementFailureOpen_=placementFailurePopupRequested_=false;
     edgeGuideActive_=false;placementZ_=placementRayZ_=0;placementKeyboardOffset_={};
     collisionBindingsPending_=true;
     if(!preserveWorkspace)history_.Clear();
@@ -402,6 +405,18 @@ float EditorUi::SnapRotation(float radians) const {
 }
 
 EditorUi::EditorUi() {
+    wchar_t executable[32768]{};
+    const DWORD executableLength=GetModuleFileNameW(nullptr,executable,ARRAYSIZE(executable));
+    if(executableLength&&executableLength<ARRAYSIZE(executable)) {
+        std::string error;
+        if(!SourceCollisionStorage::Load(std::filesystem::path(executable).parent_path()/L"assets"/L"source-collision-catalog.xml",error))Log::Warning(error);
+    }
+    const auto controls=ControlsPath();
+    if(!controls.empty()) {
+        std::string error;
+        if(!SourceCollisionStorage::Load(controls.parent_path()/L"source-collision-catalog.xml",error,true))Log::Warning(error);
+    }
+
     ResetCustomBindings();
     LoadControls();
     std::string filterError;
@@ -992,8 +1007,11 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
     // Original Fogtown ground uses separate map XML planes, not 3DS helpers.
     // Its authored footprint is certified against the complete source map AND
     // verified against the user's current 3DS geometry before writing anything.
+    const auto learned=SourceCollisionCatalog::Read(asset->mesh,asset->meshObject,
+        SourceCollisionCatalog::Identity(asset->library,asset->group,asset->name));
+    if(learned.error=="Source maps disagree about collision for this mesh.") {explanation=learned.error;return false;}
     const auto* ground=VerifiedGroundCollision::Find(prop.library,prop.group,prop.name);
-    if(ground) {
+    if(ground && !learned.Valid()) {
         const auto proof=VerifiedGroundCollision::Inspect(asset->mesh,ground);
         if(!proof.matchesNativeReference) {
             explanation="Source-verified floor cannot be authored: "+proof.reason;
@@ -1006,7 +1024,7 @@ bool EditorUi::AuthorCollisionForPlacement(MapDocument& map,const AssetRegistry&
         explanation="Original Fogtown verified ground XML: one owned native collision plane.";
         return true;
     }
-    const auto imported=VerifiedMeshSurface::Read(asset->mesh,asset->meshObject);
+    const auto imported=learned.Valid()?learned:VerifiedMeshSurface::Read(asset->mesh,asset->meshObject,SourceCollisionCatalog::Identity(asset->library,asset->group,asset->name));
     if(!imported.Valid()) {
         Native3DSScene::Scene source;
         Native3DSScene::Selection selection;
@@ -1258,7 +1276,9 @@ void EditorUi::CommitPlacement(MapDocument& map, const AssetRegistry& assets, Sc
         Log::Warning("Placement transaction rolled back: "+failure+location+
             " (candidate additions were staged, not committed).");
         map=std::move(before); // all-or-nothing, no ghost wall left in the document
-        SetMessage("Placement blocked: "+failure+". Check the advanced opaque-copy and visual-only options before retrying.",true);
+        placementFailureReason_=failure;
+        placementFailurePopupRequested_=placementFailureOpen_=true;
+        SetMessage("Placement needs source collision: "+failure,true);
         return;
     }
     Log::Info("Placement committed: "+std::to_string(inserted.size())+
@@ -1282,6 +1302,7 @@ void EditorUi::SetSnapGuide(const PlacementSnap::Match& match,float elevation) {
 }
 
 void EditorUi::UpdatePlacementGhost(SceneRenderer& scene, const AssetRegistry& assets, const MapDocument& map, float x, float y) {
+    if(placementFailureOpen_)return;
     edgeGuideActive_=false;
     if (!placementActive_ || placementItems_.empty()) { ghostValid_=false; ghostProps_.clear(); scene.ClearGhost(); return; }
     DirectX::XMFLOAT3 target{};
@@ -1396,6 +1417,7 @@ bool EditorUi::CaptureNativeWheel(short delta) {
 }
 
 void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, const AssetRegistry& assets) {
+    if(placementFailureOpen_)return;
     ImGuiIO& io=ImGui::GetIO();
     if (Pressed(Action::Fullscreen)) fullscreenToggleRequested_=true;
     if (browseLibraryOpen_) {
@@ -1692,6 +1714,13 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
     }
     if(collisionBindingsPending_ && !assets.Root().empty() && !map.Version().empty()) {
         collisionBindingsPending_=false;
+        const auto learned=SourceCollisionLearning::Learn(map,assets);
+        if(learned.checked)Log::Info("Source-map collision learning: checked="+std::to_string(learned.checked)+
+            " learned="+std::to_string(learned.learned)+" unresolved="+std::to_string(learned.rejected));
+        if(learned.changed) {
+            const auto controls=ControlsPath();std::string error;
+            if(!controls.empty()&&!SourceCollisionStorage::Save(controls.parent_path()/L"source-collision-catalog.xml",error))Log::Warning(error);
+        }
         size_t bound=0;
         std::unordered_map<std::string,NativeCollisionImport::Result> meshCache;
         for(size_t i=0;i<map.Props().size();++i) {
@@ -1701,7 +1730,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
             if(!asset||asset->mesh.empty())continue;
             const auto key=asset->mesh.string()+"\x1f"+asset->meshObject;
             auto it=meshCache.find(key);
-            if(it==meshCache.end())it=meshCache.emplace(key,VerifiedMeshSurface::Read(asset->mesh,asset->meshObject)).first;
+            if(it==meshCache.end())it=meshCache.emplace(key,VerifiedMeshSurface::Read(asset->mesh,asset->meshObject,SourceCollisionCatalog::Identity(asset->library,asset->group,asset->name))).first;
             const bool matched=it->second.Valid()&&map.BindImportedCollisionForProp(i,it->second);
             if(matched)++bound;
             // No-helper decorative models are valid. A recognized helper set
@@ -1714,7 +1743,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
     // Prioritize RMB cancellation BEFORE any docked/AX widget sees this frame.
     // The AX history confirmation may be left open behind an active ghost; it
     // must never steal RMB from placement or delete a recent asset instead.
-    const bool cancelPlacementByRmb = !browseLibraryOpen_ && !objectEditorOpen_ &&
+    const bool cancelPlacementByRmb = !placementFailureOpen_ && !browseLibraryOpen_ && !objectEditorOpen_ &&
         ImGui::IsMouseClicked(ImGuiMouseButton_Right) &&
         (placementActive_ || lightPlacementActive_ || functionalPlacement_!=FunctionalPlacement::None);
     if (cancelPlacementByRmb) {
@@ -1738,7 +1767,7 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
     // AX only-used is a navigation filter as well as a visual filter.  A
     // previously clicked but never placed object must NOT be selectable by Tab.
     // Empty filtered history must not reactivate a stale placement ghost.
-    if (axTabHeld_ && !browseLibraryOpen_) {
+    if (axTabHeld_ && !browseLibraryOpen_ && !placementFailureOpen_) {
         const auto visible=AxRecentFilter::VisiblePositions(recentAssets_,assets.Assets(),map.Props(),axOnlyUsed_);
         axCurrent_=AxRecentFilter::ClampRow(axCurrent_,visible.size());
         if (axOnlyUsed_ && visible.empty()) {
@@ -1818,6 +1847,23 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
         browsePreviewNeedsRestore_=false; RebuildAssetPreview(assets,previewScene);
     }
     if (!browseLibraryOpen_) DrawAxLibrary(map, assets, scene, previewScene);
+    if(placementFailurePopupRequested_) {
+        ImGui::OpenPopup("Placement needs source data");placementFailurePopupRequested_=false;
+    }
+    ImGui::SetNextWindowSize({600,0},ImGuiCond_Appearing);
+    if(ImGui::BeginPopupModal("Placement needs source data",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
+        if(!placementFailureOpen_)ImGui::CloseCurrentPopup();
+        ImGui::TextWrapped("%s",placementFailureReason_.c_str());
+        ImGui::Separator();
+        ImGui::TextWrapped("Nothing was added or removed. Open a source map with this model and its original collision to learn a verified template, or copy the complete original geometry. Missing physics will not be replaced with an invisible box or a pass-through object.");
+        if(ImGui::Button("Keep preview")){placementFailureOpen_=false;ImGui::CloseCurrentPopup();}
+        ImGui::SameLine();
+        if(ImGui::Button("Cancel placement")) {
+            placementFailureOpen_=false;placementActive_=false;ghostValid_=false;placementCommitRequested_=false;
+            placementItems_.clear();ghostProps_.clear();scene.ClearGhost();ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
     if(showCustomThemePopup_) { ImGui::OpenPopup("Custom editor theme"); showCustomThemePopup_=false; }
     if(ImGui::BeginPopupModal("Custom editor theme",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
         const bool a=ImGui::ColorEdit3("Panel color",customSurface_.data());
@@ -3843,7 +3889,7 @@ void EditorUi::DrawProperties(MapDocument& map, const AssetRegistry& assets, Sce
             inspectedCollisionObject=asset->meshObject;
             inspectedCollisionMesh=asset->mesh;
             if(!ec)inspectedCollisionTimestamp=timestamp;
-            inspectedCollisionInfo=VerifiedMeshSurface::Read(asset->mesh,asset->meshObject);
+            inspectedCollisionInfo=VerifiedMeshSurface::Read(asset->mesh,asset->meshObject,SourceCollisionCatalog::Identity(asset->library,asset->group,asset->name));
         }
     }
     if(!p.texture.empty()) {

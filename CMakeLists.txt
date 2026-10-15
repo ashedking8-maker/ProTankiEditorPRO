@@ -108,6 +108,12 @@ endif()
 # directory is intentionally NOT bundled; users select their own copy on first run.
 install(TARGETS GTanksNextEditor RUNTIME DESTINATION . COMPONENT Runtime)
 install(DIRECTORY assets/functional DESTINATION assets COMPONENT Runtime)
+install(FILES assets/source-collision-catalog.xml DESTINATION assets COMPONENT Runtime)
+add_custom_command(TARGET GTanksNextEditor POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:GTanksNextEditor>/assets"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/source-collision-catalog.xml"
+    "$<TARGET_FILE_DIR:GTanksNextEditor>/assets/source-collision-catalog.xml")
 install(FILES
   README.md
   docs/LEGACY_OUTPUT_COMPATIBILITY.md
@@ -439,6 +445,17 @@ if(BUILD_TESTING)
   target_include_directories(VerifiedMeshSurfaceRegression PRIVATE src tests)
   add_test(NAME OriginalFogtownSlopedSurfaces COMMAND VerifiedMeshSurfaceRegression
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fogtown_surface")
+  add_executable(SourceCollisionCatalogRegression tests/source_collision_catalog_regression.cpp
+    src/AssetRegistry.cpp src/MapDocument.cpp src/Logger.cpp)
+  target_include_directories(SourceCollisionCatalogRegression PRIVATE src tests)
+  target_link_libraries(SourceCollisionCatalogRegression PRIVATE pugixml::pugixml shell32 ole32 dbghelp)
+  target_compile_definitions(SourceCollisionCatalogRegression PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(MSVC)
+    target_compile_options(SourceCollisionCatalogRegression PRIVATE /W4 /permissive- /utf-8)
+  endif()
+  add_test(NAME GenericSourceCollisionCatalog COMMAND SourceCollisionCatalogRegression
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/source-collision-catalog.xml"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/cti_collision/cti.3ds")
   add_executable(CtiSourceMapRegression tests/cti_source_map_regression.cpp
     src/MapDocument.cpp src/EditHistory.cpp src/Logger.cpp)
   target_include_directories(CtiSourceMapRegression PRIVATE src tests)

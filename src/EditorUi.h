@@ -77,6 +77,9 @@ private:
     float viewportGridColor_[3]{0.52f,0.56f,0.60f};
     bool showCustomThemePopup_{};
     bool showPlacementSettings_{}; // Tools > Placement settings
+    bool placementFailurePopupRequested_{};
+    bool placementFailureOpen_{};
+    std::string placementFailureReason_;
     bool allowVisualOnlyPlacement_{}; // explicit opt-in; no silent pass-through walls
     bool allowOpaqueMetadataCopy_{}; // next-placement approval; auto-resets, never a gameplay property
     bool collisionBindingsPending_{true};

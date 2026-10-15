@@ -3,7 +3,7 @@
 // map_fogtown.xml. Every visual face matches a same-winding native triangle.
 // Only certified LOCAL geometry is eligible, never a name/bounds heuristic.
 #include "NativeCollisionImport.h"
-#include "SourceMapMeshCollision.h"
+#include "SourceCollisionCatalog.h"
 #include <map>
 namespace VerifiedMeshSurface {
 using namespace NativeCollisionImport;
@@ -52,13 +52,13 @@ inline Result ReadVerified(const std::filesystem::path& file,const std::string& 
     }
     out.visualAnchor=node.name;out.error.clear();return out;
 }
-inline Result Read(const std::filesystem::path& file,const std::string& objectName={}) {
+inline Result Read(const std::filesystem::path& file,const std::string& objectName={},const std::string& identity={}) {
     auto original=NativeCollisionImport::Read(file,objectName);
     if(original.error!=NoNativeHelpersError)return original;
+    const auto learned=SourceCollisionCatalog::Read(file,objectName,identity);
+    if(learned.Valid()||learned.error=="Source maps disagree about collision for this mesh.")return learned;
     auto verified=ReadVerified(file,objectName);
-    if(verified.Valid())return verified;
-    const auto mapped=SourceMapMeshCollision::Read(file,objectName);
-    return mapped.Valid()?mapped:original;
+    return verified.Valid()?verified:original;
 }
 // Same matching policy is used by the document repair and portable regressions.
 using Corners=std::array<V,3>;

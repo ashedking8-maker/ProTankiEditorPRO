@@ -1,6 +1,7 @@
 #include "MapDocument.h"
 #include "EditHistory.h"
 #include "VerifiedMeshSurface.h"
+#include "SourceCollisionLearning.h"
 #include "ReleaseTestCheck.h"
 #include <filesystem>
 #include <fstream>
@@ -8,10 +9,17 @@
 #include <iostream>
 int main(int argc,char**argv) {
     PT_REQUIRE(argc==2);const auto dir=std::filesystem::path(argv[1]);std::string error;
-    const auto source=VerifiedMeshSurface::Read(dir/"cti.3ds");
+    const auto identity=SourceCollisionCatalog::Identity("Fogtown","b","cti");
+    MapDocument reference;PT_REQUIRE(reference.Load(dir/"reference.xml",error));
+    SourceCollisionCatalog::Mesh mesh;PT_REQUIRE(SourceCollisionCatalog::Capture(dir/"cti.3ds","",mesh));
+    SourceCollisionLearning::Index index(reference);
+    auto learned=SourceCollisionLearning::Infer(reference,0,mesh,index);PT_REQUIRE(learned.Valid());
+    for(size_t i=1;i<reference.Props().size();++i)
+        PT_REQUIRE(SourceCollisionCatalog::Equivalent(learned,SourceCollisionLearning::Infer(reference,i,mesh,index)));
+    PT_REQUIRE(SourceCollisionCatalog::Register(mesh,learned,identity));
+    const auto source=VerifiedMeshSurface::Read(dir/"cti.3ds","",identity);
     PT_REQUIRE(source.Valid()&&source.planes.size()==12&&source.triangles.size()==58&&source.boxes.empty());
     PT_REQUIRE(!NativeCollisionImport::Read(dir/"cti.3ds").Valid());
-    MapDocument reference;PT_REQUIRE(reference.Load(dir/"reference.xml",error));
     PT_REQUIRE(reference.Props().size()==11&&reference.CollisionPlanes().size()==132&&reference.CollisionTriangles().size()==638);
     // Independently copied source XML must bind the complete template at every occurrence.
     for(size_t i=0;i<reference.Props().size();++i)PT_REQUIRE(reference.BindImportedCollisionForProp(i,source));
@@ -44,6 +52,6 @@ int main(int argc,char**argv) {
     }
     PT_REQUIRE(edited);const auto altered=std::filesystem::temp_directory_path()/"cti_modified.3ds";
     {std::ofstream out(altered,std::ios::binary);out.write(bytes.data(),static_cast<std::streamsize>(bytes.size()));PT_REQUIRE(bool(out));}
-    PT_REQUIRE(!VerifiedMeshSurface::Read(altered).Valid());std::filesystem::remove(altered);
+    PT_REQUIRE(!VerifiedMeshSurface::Read(altered,"",identity).Valid());std::filesystem::remove(altered);
     std::cout<<"PASS: 11 original instances; 132 planes + 638 triangles; save/reload; transformed copy; undo/redo/delete; changed-mesh rejection\n";
 }
