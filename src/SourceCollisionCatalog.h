@@ -30,17 +30,17 @@ inline bool SameMesh(const Mesh& a,const Mesh& b) {
     }
     return true;
 }
-using Polygon=std::vector<V>;
-inline Polygon Corners(const VerifiedCollisionTemplates::Plane& p) {
-    Polygon out;
+using CollisionPolygon=std::vector<V>;
+inline CollisionPolygon Corners(const VerifiedCollisionTemplates::Plane& p) {
+    CollisionPolygon out;
     for(V v: {V{-p.width/2,-p.length/2,0},V{p.width/2,-p.length/2,0},V{p.width/2,p.length/2,0},V{-p.width/2,p.length/2,0}})
         out.push_back(Add(p.offset,Native3DSScene::Rotate(v,p.rotation)));
     return out;
 }
-inline Polygon Corners(const VerifiedCollisionTemplates::Triangle& t) {
-    Polygon out;for(V v:{t.v0,t.v1,t.v2})out.push_back(Add(t.offset,Native3DSScene::Rotate(v,t.rotation)));return out;
+inline CollisionPolygon Corners(const VerifiedCollisionTemplates::Triangle& t) {
+    CollisionPolygon out;for(V v:{t.v0,t.v1,t.v2})out.push_back(Add(t.offset,Native3DSScene::Rotate(v,t.rotation)));return out;
 }
-inline bool SamePolygon(const Polygon& a,const Polygon& b) {
+inline bool SamePolygon(const CollisionPolygon& a,const CollisionPolygon& b) {
     if(a.size()!=b.size()||a.size()<3)return false;
     const auto na=Cross(Sub(a[1],a[0]),Sub(a[2],a[0])),nb=Cross(Sub(b[1],b[0]),Sub(b[2],b[0]));
     if(Norm(na)<.01f||Norm(nb)<.01f||Dot(Unit(na),Unit(nb))<.999f)return false;

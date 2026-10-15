@@ -41,7 +41,7 @@ inline bool PlainXml(const std::shared_ptr<const std::string>& xml,bool plane) {
 }
 // Area sums alone are insufficient: overlapping visible triangles could hide
 // an uncovered region. Reject positive-area overlap inside a source plane.
-inline double OverlapArea(const Polygon& a,const Polygon& b,V origin,V x,V y) {
+inline double OverlapArea(const CollisionPolygon& a,const CollisionPolygon& b,V origin,V x,V y) {
     struct P {double x,y;};
     const auto project=[&](V v){v=Sub(v,origin);return P{Dot(v,x),Dot(v,y)};};
     std::vector<P> polygon;for(auto v:a)polygon.push_back(project(v));
@@ -68,7 +68,7 @@ inline Result Infer(const MapDocument& map,size_t propIndex,const Mesh& mesh,con
     const auto world=[&](V v){return Add(p.position,Native3DSScene::Rotate(v,{0,0,p.rotation.z}));};
     const auto local=[&](V v){return Native3DSScene::Rotate(Sub(v,p.position),{0,0,-p.rotation.z});};
     V lo{1.e7f,1.e7f,1.e7f},hi{-1.e7f,-1.e7f,-1.e7f};
-    std::vector<Polygon> faces;std::vector<float> areas;std::vector<V> normals;
+    std::vector<CollisionPolygon> faces;std::vector<float> areas;std::vector<V> normals;
     for(auto v:mesh.vertices){v=world(v);if(!Finite(v))return out;lo={std::min(lo.x,v.x-.1f),std::min(lo.y,v.y-.1f),std::min(lo.z,v.z-.1f)};hi={std::max(hi.x,v.x+.1f),std::max(hi.y,v.y+.1f),std::max(hi.z,v.z+.1f)};}
     // Boxes cannot be reconstructed from visible triangle coverage safely.
     for(const auto& b:map.CollisionBoxes()) {
@@ -77,13 +77,13 @@ inline Result Infer(const MapDocument& map,size_t propIndex,const Mesh& mesh,con
     }
     for(auto f:mesh.faces) {
         if(f[0]>=mesh.vertices.size()||f[1]>=mesh.vertices.size()||f[2]>=mesh.vertices.size())return out;
-        Polygon tri{mesh.vertices[f[0]],mesh.vertices[f[1]],mesh.vertices[f[2]]};
+        CollisionPolygon tri{mesh.vertices[f[0]],mesh.vertices[f[1]],mesh.vertices[f[2]]};
         auto n=Cross(Sub(tri[1],tri[0]),Sub(tri[2],tri[0]));const float area=Norm(n)*.5f;
         if(area<.01f)return out;faces.push_back(std::move(tri));areas.push_back(area);normals.push_back(Unit(n));
     }
     std::vector<unsigned> covered(faces.size());Result found;
     for(const auto& candidate:index.Query(lo,hi)) {
-        Polygon corners;VerifiedCollisionTemplates::Plane plane{};VerifiedCollisionTemplates::Triangle triangle{};
+        CollisionPolygon corners;VerifiedCollisionTemplates::Plane plane{};VerifiedCollisionTemplates::Triangle triangle{};
         bool plain=false;
         if(candidate.plane) {
             const auto& c=map.CollisionPlanes()[candidate.index];
@@ -123,7 +123,7 @@ inline Result Infer(const MapDocument& map,size_t propIndex,const Mesh& mesh,con
     for(size_t i=0;i<faces.size();++i)if(!covered[i]) {
         // Coincident opposite internal faces may be absent in the original physics.
         // They must occur as an exact isolated pair; no exterior hole is accepted.
-        Polygon reverse=faces[i];std::swap(reverse[0],reverse[1]);size_t partners=0;
+        CollisionPolygon reverse=faces[i];std::swap(reverse[0],reverse[1]);size_t partners=0;
         for(size_t j=0;j<faces.size();++j)if(j!=i&&!covered[j]&&SamePolygon(reverse,faces[j]))++partners;
         if(partners!=1)return out;
     }

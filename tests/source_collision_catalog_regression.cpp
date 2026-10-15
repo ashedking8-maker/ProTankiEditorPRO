@@ -1,3 +1,8 @@
+// Windows GDI declares a global Polygon function. Keep that name visible on
+// portable builds too, so accidental unqualified Polygon types fail here.
+#ifndef _WIN32
+int Polygon(void*, const void*, int);
+#endif
 #include "SourceCollisionLearning.h"
 #include "SourceCollisionStorage.h"
 #include "VerifiedMeshSurface.h"
@@ -7,7 +12,7 @@
 int main(int argc,char**argv){
     PT_REQUIRE(argc==3);
     using namespace SourceCollisionCatalog;
-    const Polygon t{{0,0,0},{2,0,0},{0,2,0}},adjacent{{2,0,0},{2,2,0},{0,2,0}};
+    const CollisionPolygon t{{0,0,0},{2,0,0},{0,2,0}},adjacent{{2,0,0},{2,2,0},{0,2,0}};
     PT_REQUIRE(SourceCollisionLearning::OverlapArea(t,t,{0,0,0},{1,0,0},{0,1,0})>1.99);
     PT_REQUIRE(SourceCollisionLearning::OverlapArea(t,adjacent,{0,0,0},{1,0,0},{0,1,0})<.0001);
     const auto identity=Identity("Custom","Unknown","Any name");
