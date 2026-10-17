@@ -10,7 +10,7 @@ class AxOnlyUsedWheelAudit(unittest.TestCase):
     def test_shared_filter_for_wheel_and_overlay(self):
         src=self.ui
         expression='AxRecentFilter::VisiblePositions(recentAssets_,assets.Assets(),map.Props(),axOnlyUsed_)'
-        self.assertEqual(src.count(expression),2)
+        self.assertEqual(src.count(expression),3) # includes removal-time re-clamp
         wheel=src[src.index('    // AX only-used is a navigation filter'):src.index('    axTabWasHeld_=axTabHeld_;',src.index('    // AX only-used is a navigation filter'))]
         self.assertIn('ActivateRecent(visible[static_cast<size_t>(axCurrent_)],assets,previewScene);',wheel)
         self.assertIn('if (placementWheel_!=0.0f)',wheel)
@@ -18,7 +18,7 @@ class AxOnlyUsedWheelAudit(unittest.TestCase):
     def test_no_secondary_unfiltered_wheel_in_overlay(self):
         overlay=self.ui[self.ui.index('void EditorUi::DrawAxLibrary('):]
         self.assertNotIn('ImGui::GetIO().MouseWheel',overlay)
-        self.assertNotIn('ActivateRecent(',overlay)
+        self.assertIn('ActivateRecent(at,assets,previewScene);',overlay) # click chooses the exact AX entry
         self.assertIn('const auto visible=AxRecentFilter::VisiblePositions(',overlay)
     def test_filter_toggle_resets_row_and_tab_activation(self):
         self.assertIn('axCurrent_=0; axTabWasHeld_=false;',self.ui)

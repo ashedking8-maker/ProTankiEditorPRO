@@ -928,28 +928,6 @@ void EditorUi::DeleteSelected(MapDocument& map, SceneRenderer& scene) {
     SetMessage("Deleted "+std::to_string(indices.size())+" props and "+std::to_string(gameplay.size())+" gameplay items. Undo restores the complete selection.");
 }
 
-void EditorUi::RememberCopiedAssets(const AssetRegistry& assets) {
-    // AX Library stores asset identities, not independently invented game objects.
-    // Keep the copied prop's exact library/group/name for later placement.
-    for(const auto& prop:clipboard_) {
-        const auto& all=assets.Assets();
-        const auto asset=std::find_if(all.begin(),all.end(),[&](const AssetDefinition& a){
-            return a.library==prop.library && a.group==prop.group && a.name==prop.name;
-        });
-        if(asset==all.end())continue;
-        const size_t id=static_cast<size_t>(asset-all.begin());
-        const auto old=std::find_if(recentAssets_.begin(),recentAssets_.end(),[&](const RecentAsset& entry){return entry.index==id;});
-        if(old!=recentAssets_.end()) {RecentAsset existing=*old;recentAssets_.erase(old);recentAssets_.insert(recentAssets_.begin(),std::move(existing));}
-        else recentAssets_.insert(recentAssets_.begin(),RecentAsset{id,{}});
-        if(!recentAssets_.empty() && recentAssets_.front().index==id) {
-            const auto variant=std::find_if(asset->textures.begin(),asset->textures.end(),[&](const TextureVariant& v){return v.name==prop.texture;});
-            recentAssets_.front().textureVariant=variant==asset->textures.end()?0:static_cast<int>(variant-asset->textures.begin());
-        }
-        TrimRecentAssets();
-    }
-    axCurrent_=0;
-}
-
 void EditorUi::StartClipboardPlacement() {
     if (clipboard_.empty()) return;
     functionalPlacement_=FunctionalPlacement::None;functionalSelected_=FunctionalType::None;functionalSelection_.clear();
@@ -1571,7 +1549,8 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
             }
             // The target plane matches the original selection height.
             placementZ_=center.z;
-            RememberCopiedAssets(assets); // identical original library assets appear in AX recents
+            // Copying map props must not alter the user's AX palette/history.
+            // Ctrl+V acts only on clipboard_; it never implicitly adds assets to AX.
             if(clipboardHasNativeStaticBundle_)
                 SetMessage("Copied native selection losslessly: "+std::to_string(clipboard_.size())+" props + "+
                     std::to_string(clipboardCollisionPlanes_.size())+" planes + "+
@@ -1810,7 +1789,8 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
         if (!visible.empty()) {
             const auto recentAt=visible[static_cast<size_t>(axCurrent_)];
             const bool staleSelected=selectedAsset_<0 ||
-                recentAssets_[recentAt].index!=static_cast<size_t>(selectedAsset_);
+                recentAssets_[recentAt].index!=static_cast<size_t>(selectedAsset_) ||
+                recentAssets_[recentAt].textureVariant!=selectedTextureVariant_;
             if (!axTabWasHeld_ || staleSelected) {
                 // A filtered-out selection (including one deleted from the
                 // map during an active Tab hold) must never remain placeable.
@@ -2168,18 +2148,18 @@ void EditorUi::TrimRecentAssets() {
 }
 void EditorUi::AddAssetToAx(const AssetRegistry& assets,size_t index,int variant,SceneRenderer& previewScene) {
     if(index>=assets.Assets().size())return;
-    const auto found=std::find_if(recentAssets_.begin(),recentAssets_.end(),[&](const RecentAsset& r){return r.index==index;});
-    if(found!=recentAssets_.end())found->manuallyAdded=true;
-    else recentAssets_.insert(recentAssets_.begin(),RecentAsset{index,{},variant,true});
     SelectAsset(assets,index,previewScene);
+    AxRecentFilter::Pin(recentAssets_,index,variant);
+    auto& recent=recentAssets_.front();
+    recent.thumbnail.Reset(); // variant-specific thumbnail is captured after preview renders
     selectedTextureVariant_=variant;
-    if(!recentAssets_.empty() && recentAssets_.front().index==index){
-        auto& recent=recentAssets_.front();recent.manuallyAdded=true;recent.textureVariant=variant;recent.thumbnail.Reset();
-    }
-    RebuildAssetPreview(assets,previewScene);BeginPlacement(assets);
+    RebuildAssetPreview(assets,previewScene);
+    BeginPlacement(assets);
     const uint64_t key=(static_cast<uint64_t>(index)<<32)|static_cast<uint32_t>(variant);
-    axAddedAt_[key]=ImGui::GetTime();axCurrent_=0;
-    Log::Info("Manually added to AX: "+assets.Assets()[index].name);
+    axAddedAt_[key]=ImGui::GetTime(); axCurrent_=0;
+    Log::Info("Manually added to AX: "+assets.Assets()[index].library+"/"+
+              assets.Assets()[index].group+"/"+assets.Assets()[index].name+
+              " variant="+std::to_string(selectedTextureVariant_));
 }
 void EditorUi::HandleAxLibraryItem(const AssetRegistry& assets,size_t index,int variant,SceneRenderer& previewScene) {
     // Capture the item rect before selection/preview code changes any state.
@@ -2198,9 +2178,9 @@ void EditorUi::SelectAsset(const AssetRegistry& assets, size_t index, SceneRende
     if (index >= assets.Assets().size()) return;
     selectedAsset_ = static_cast<int>(index); selectedTextureVariant_ = 0;
     RebuildAssetPreview(assets, previewScene);
-    const auto old=std::find_if(recentAssets_.begin(),recentAssets_.end(),[&](const RecentAsset& item){return item.index==index;});
-    if (old!=recentAssets_.end()) { RecentAsset entry=*old; recentAssets_.erase(old); recentAssets_.insert(recentAssets_.begin(),std::move(entry)); }
-    else recentAssets_.insert(recentAssets_.begin(),RecentAsset{index,{}});
+    // Regular Browse use must not reorder explicitly pinned AX entries.
+    // Manual order stays stable while auto-history is kept below the pinned set.
+    AxRecentFilter::Touch(recentAssets_,index);
     TrimRecentAssets();
     axCurrent_=0; BeginPlacement(assets);
 }
@@ -5055,11 +5035,17 @@ void EditorUi::CaptureRecentThumbnail(SceneRenderer& previewScene) {
 
 void EditorUi::ActivateRecent(size_t recentPosition, const AssetRegistry& assets, SceneRenderer& previewScene) {
     if (recentPosition>=recentAssets_.size()) return;
-    const size_t asset=recentAssets_[recentPosition].index;
-    if (asset>=assets.Assets().size()) return;
-    selectedAsset_=static_cast<int>(asset); selectedTextureVariant_=recentAssets_[recentPosition].textureVariant;
+    const auto& recent=recentAssets_[recentPosition];
+    if (recent.index>=assets.Assets().size()) return;
+    selectedAsset_=static_cast<int>(recent.index);
+    selectedTextureVariant_=recent.textureVariant;
     RebuildAssetPreview(assets,previewScene);
     BeginPlacement(assets);
+    const auto& asset=assets.Assets()[recent.index];
+    Log::Info("AX asset activated: "+asset.library+"/"+asset.group+"/"+asset.name+
+              " variant="+std::to_string(selectedTextureVariant_)+
+              " assetId="+std::to_string(recent.index)+
+              " historyPos="+std::to_string(recentPosition));
 }
 
 void EditorUi::DrawAxLibrary(const MapDocument& map, const AssetRegistry& assets, SceneRenderer& scene, SceneRenderer& previewScene) {
@@ -5090,44 +5076,63 @@ void EditorUi::DrawAxLibrary(const MapDocument& map, const AssetRegistry& assets
         ImGui::SetCursorPosX(ImGui::GetWindowWidth()-35.0f);
         if (ImGui::SmallButton("X##close_ax")) axPinned_=false;
     } else ImGui::Dummy({0,20});
-    // Read-only overlay: the same filtered view is used by Tab+wheel above.
-    // Never process wheel a second time here (native WM_MOUSEWHEEL is routed
-    // before ImGui NewFrame, and double-handling can select a hidden asset).
+    // This is an active picker: clicking a row must activate EXACTLY that
+    // entry (including its texture variant), never a stale previous ghost.
+    // Tab+wheel and the overlay share the same filtered history positions.
     const auto visible=AxRecentFilter::VisiblePositions(recentAssets_,assets.Assets(),map.Props(),axOnlyUsed_);
     axCurrent_=AxRecentFilter::ClampRow(axCurrent_,visible.size());
-    if (ImGui::BeginChild("##axlist",{0,-(axConfirmRemove_?67.0f:8.0f)},false,ImGuiWindowFlags_NoScrollWithMouse)) {
+    if (ImGui::BeginChild("##axlist",{0,-(axConfirmRemove_?83.0f:8.0f)},false,ImGuiWindowFlags_NoScrollWithMouse)) {
         for (size_t row=0;row<visible.size();++row) {
-            const size_t at=visible[row]; const auto& recent=recentAssets_[at];
+            const size_t at=visible[row];
+            const auto& recent=recentAssets_[at];
             const auto& asset=assets.Assets()[recent.index];
             ImGui::PushID(static_cast<int>(at));
             const bool active=static_cast<int>(row)==axCurrent_;
+            bool choose=false;
             if (recent.thumbnail) {
                 ImGui::Image((ImTextureID)recent.thumbnail.Get(),{76,58});
-                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) { axRemovalIndex_=static_cast<int>(at); axConfirmRemove_=true; }
+                choose=ImGui::IsItemClicked(ImGuiMouseButton_Left);
                 ImGui::SameLine();
             }
-            if (ImGui::Selectable((asset.name+"##axitem").c_str(),active,0,{0,58})) {
+            const std::string variant=asset.textures.empty()?std::string{}:
+                " / "+asset.textures[static_cast<size_t>(std::clamp(recent.textureVariant,0,
+                    static_cast<int>(asset.textures.size())-1))].name;
+            const float labelWidth=std::max(75.0f,ImGui::GetContentRegionAvail().x-32.0f);
+            choose=ImGui::Selectable((asset.name+variant+"##axitem").c_str(),active,0,{labelWidth,58}) || choose;
+            ImGui::SameLine();
+            if (ImGui::SmallButton("X##ax_remove")) {
                 axRemovalIndex_=static_cast<int>(at); axConfirmRemove_=true;
+            }
+            if (choose) {
+                axCurrent_=static_cast<int>(row);
+                axConfirmRemove_=false; axRemovalIndex_=-1;
+                ActivateRecent(at,assets,previewScene);
             }
             ImGui::PopID();
         }
-        if (visible.empty()) ImGui::TextDisabled("No recent objects yet. Select an asset in Library.");
+        if (visible.empty()) ImGui::TextDisabled("No AX objects. Right-click an asset in Browse Library to add it.");
     }
     ImGui::EndChild();
     if (axConfirmRemove_ && axRemovalIndex_>=0 && axRemovalIndex_<static_cast<int>(recentAssets_.size())) {
         ImGui::Separator();
-        ImGui::TextWrapped("Remove this entry from history? RMB confirms.");
-        if (ImGui::Button("Cancel")) { axConfirmRemove_=false; axRemovalIndex_=-1; }
-        if (!rmbPlacementCancelPendingRelease_ &&
-            ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) &&
-            ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+        ImGui::TextWrapped("Remove selected object from AX Library?");
+        if (ImGui::Button("Remove##ax_confirm")) {
+            const size_t removedAsset=recentAssets_[static_cast<size_t>(axRemovalIndex_)].index;
             recentAssets_.erase(recentAssets_.begin()+axRemovalIndex_);
-            axConfirmRemove_=false; axRemovalIndex_=-1; axCurrent_=0;
+            if (placementActive_ && !clipboardPlacement_ && selectedAsset_>=0 &&
+                static_cast<size_t>(selectedAsset_)==removedAsset) {
+                placementActive_=false; placementCommitRequested_=false; ghostValid_=false;
+                placementItems_.clear();ghostProps_.clear();scene.ClearGhost();
+            }
+            axConfirmRemove_=false; axRemovalIndex_=-1;
+            const auto remaining=AxRecentFilter::VisiblePositions(recentAssets_,assets.Assets(),map.Props(),axOnlyUsed_);
+            axCurrent_=AxRecentFilter::ClampRow(axCurrent_,remaining.size());
         }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel##ax_remove_cancel")) { axConfirmRemove_=false; axRemovalIndex_=-1; }
     }
     if (axPinned_ && !axTabHeld_ && ImGui::GetTime()-axPinnedOpenedAt_>0.12 &&
         ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
         !ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows)) axPinned_=false;
     ImGui::End(); ImGui::PopStyleVar();
-    (void)scene; (void)previewScene;
 }

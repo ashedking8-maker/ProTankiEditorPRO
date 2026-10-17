@@ -4,14 +4,42 @@
 // Deliberately no Win32/ImGui dependencies: native regression can exercise it.
 #include <algorithm>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace AxRecentFilter {
-inline float FeedbackAlpha(double elapsed){return elapsed<0?0.f:elapsed<=1.0?1.f:static_cast<float>(std::clamp((1.6-elapsed)/.6,0.0,1.0));}
 template<class Recent> bool ManuallyAdded(const Recent& r){
     if constexpr(requires { r.manuallyAdded; })return r.manuallyAdded;
     else return false;
 }
+// Pinned AX objects are an explicitly ordered palette, not an accidental
+// side effect of copy/paste or browsing. Auto-history stays below pins.
+// These helpers work on lightweight structs in native regression tests too.
+template<class Recent>
+void Touch(std::vector<Recent>& recent, std::size_t index) {
+    const auto boundary=[&]{return static_cast<std::size_t>(std::count_if(recent.begin(),recent.end(),
+        [](const Recent& r){return ManuallyAdded(r);}));};
+    auto it=std::find_if(recent.begin(),recent.end(),[&](const Recent& r){return r.index==index;});
+    if(it==recent.end()){
+        recent.insert(recent.begin()+static_cast<std::ptrdiff_t>(boundary()),Recent{index});
+    }else if(!ManuallyAdded(*it)){
+        Recent entry=std::move(*it);
+        recent.erase(it);
+        recent.insert(recent.begin()+static_cast<std::ptrdiff_t>(boundary()),std::move(entry));
+    }
+}
+
+template<class Recent>
+void Pin(std::vector<Recent>& recent, std::size_t index, int textureVariant) {
+    Recent entry{index};
+    const auto it=std::find_if(recent.begin(),recent.end(),[&](const Recent& r){return r.index==index;});
+    if(it!=recent.end()) {entry=std::move(*it);recent.erase(it);}
+    entry.manuallyAdded=true;
+    entry.textureVariant=textureVariant;
+    recent.insert(recent.begin(),std::move(entry));
+}
+
+inline float FeedbackAlpha(double elapsed){return elapsed<0?0.f:elapsed<=1.0?1.f:static_cast<float>(std::clamp((1.6-elapsed)/.6,0.0,1.0));}
 template <class Recent, class Asset, class Prop>
 std::vector<std::size_t> VisiblePositions(const std::vector<Recent>& recent,
                                           const std::vector<Asset>& assets,

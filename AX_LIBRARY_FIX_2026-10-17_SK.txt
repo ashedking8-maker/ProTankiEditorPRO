@@ -1,0 +1,52 @@
+AX LIBRARY – OPRAVA NESPRÁVNEHO VÝBERU A KOPÍROVANIA
+17. 10. 2026
+
+VÝCHODISKOVÝ PROJEKT
+Súbory src/EditorUi.cpp a src/EditorUi.h vychádzajú zo skoršej dodanej
+opravy Fogtown Mesh Import FIX z 16. 10. 2026, a teda ju zachovávajú.
+Balík obsahuje iba zmenené/pridané súbory so zachovanými cestami.
+
+OPRAVY
+1. Kliknutie ľavým tlačidlom na riadok či náhľad objektu v AX Library
+   teraz aktivuje presne zvolený asset a jeho textúrový variant.
+   Predtým kliknutie iba ponúklo odstránenie položky a vkladanie
+   pokračovalo s predchádzajúcim objektom.
+2. Odstraňovanie z AX Library má samostatné tlačidlo X na riadku,
+   potvrdené tlačidlom Remove. Pravé tlačidlo už nepotvrdzuje mazanie.
+3. Ručne pripnuté položky AX zostávajú na stabilných pozíciách,
+   ak znovu vyberiete existujúci asset z Browse Library.
+   Bežná história vybratých objektov zostáva zachovaná pod pripnutými.
+4. Ctrl+C / Ctrl+V kopíruje objekty a kolízie mapy bez pridávania
+   kopírovaných assetov do AX histórie.
+5. Pri prepínaní cez Tab + koliesko sa kontroluje aj textúrový variant.
+6. Log teraz zaznamenáva pri aktivácii AX názov, knižnicu, variant,
+   assetId a historyPos. Uľahčí to diagnostiku.
+
+OVLÁDANIE
+- Browse Library: pravý klik na asset – ručne pridať/presunúť do AX.
+- AX: ľavý klik na asset – zvoliť a začať vkladať správny model.
+- AX: tlačidlo X – vyžiadať odstránenie, Remove – potvrdiť.
+- Tab + koliesko: prechádzanie rovnakého filtrovaného zoznamu.
+- Ctrl+C a Ctrl+V: pracujú iba so schránkou mapy, nie s AX.
+- Bežné kliknutie v Browse Library naďalej registruje posledné použité
+  objekty do automatickej histórie, ak je táto viditeľná. To je pôvodné
+  správanie editoru a je odlišné od nežiaduceho dopĺňania pri kopírovaní.
+
+INŠTALÁCIA
+1. Zálohujte existujúci projekt a zatvorte editor.
+2. Rozbaľte obsah ZIP-u do KOREŇA zdrojového projektu.
+   Potvrďte prepísanie súborov pri zachovaní src/ a tests/.
+3. Zostavte novú Windows aplikáciu/installer zo zdroja (napr. GitHub Actions).
+   Samotné rozbalenie ZIP-u do už nainštalovaného programu neprepíše EXE.
+4. Otestujte najprv na kópii mapy a znovu pridajte Land01 ... Land09.
+   Vyskúšajte klik na Land09 a Land07, Tab+koliesko a Ctrl+C/V.
+
+TESTOVANIE
+- Natívne C++ regresie AxPaletteIdentityRegression a
+  AxOnlyUsedWheelRegression: PASS (g++ C++20, Linux).
+- Zdrojové Python audity: PASS (84).
+- Celý Windows program / ImGui / skutočný import-export v tejto relácii
+  nebolo možné zostaviť ani interaktívne spustiť; výsledok v EXE je
+  potrebné overiť po Windows builde.
+- Import 3DS, generovanie pôvodných/odvodených kolízií, XML ukladanie
+  a vykresľovací engine neboli touto opravou cielene zmenené.

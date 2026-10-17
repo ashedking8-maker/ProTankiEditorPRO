@@ -157,7 +157,6 @@ private:
                                      bool* meshDerivedUsed=nullptr);
     void StartClipboardPlacement();
     void CaptureRecentThumbnail(SceneRenderer& previewScene);
-    void RememberCopiedAssets(const AssetRegistry& assets);
     void ActivateRecent(size_t recentPosition, const AssetRegistry&, SceneRenderer& previewScene);
     void BeginFunctionalPlacement(FunctionalPlacement type, SceneRenderer& scene);
     void CommitFunctionalPlacement(MapDocument&, SceneRenderer&);
