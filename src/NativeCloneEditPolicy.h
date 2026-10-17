@@ -11,4 +11,12 @@ inline constexpr bool MayEdit(bool unresolvedOwnership, bool hasExactOwnedCollis
 inline constexpr bool MayEraseOpaque(bool allRemainingClonePropsSelected) noexcept {
     return allRemainingClonePropsSelected;
 }
+// An explicitly unresolved owner can only be deleted as part of a complete
+// clone group when the ambiguous primitives are tagged as belonging to that
+// group. Merely being the last item in an owner-only group proves nothing
+// about untracked source collision elsewhere in the document.
+inline constexpr bool MayEraseUnresolved(bool allRemainingClonePropsSelected,
+                                          bool batchContainsOpaqueCollision) noexcept {
+    return allRemainingClonePropsSelected && batchContainsOpaqueCollision;
+}
 }

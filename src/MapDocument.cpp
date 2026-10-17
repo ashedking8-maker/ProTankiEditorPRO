@@ -508,6 +508,7 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
     // a reason to lock ALL the props, even the ones with verified owners.
     std::unordered_set<int> selectedCloneBatches;
     std::unordered_set<int> fullySelectedCloneBatches;
+    std::unordered_set<int> opaqueCloneBatches;
     for(const auto i:indices)if(props_[i].nativeCloneBatchId>=0)
         selectedCloneBatches.insert(props_[i].nativeCloneBatchId);
     for(const int batch:selectedCloneBatches) {
@@ -518,6 +519,7 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
         const auto opaqueCount=[&](const auto& items){return static_cast<size_t>(std::count_if(items.begin(),items.end(),
             [&](const auto& c){return c.nativeCloneBatchId==batch && c.authoredOwnerIndex<0;}));};
         const size_t opaque=opaqueCount(collisionPlanes_)+opaqueCount(collisionBoxes_)+opaqueCount(collisionTriangles_);
+        if(opaque>0)opaqueCloneBatches.insert(batch);
         if(selected==total) {
             fullySelectedCloneBatches.insert(batch);
             continue; // Whole clone group: all its remaining opaque colliders go too.
@@ -546,11 +548,23 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
     auto same=[&](const DirectX::XMFLOAT3& a,const DirectX::XMFLOAT3& b) {
         return std::fabs(a.x-b.x)<=0.1f && std::fabs(a.y-b.y)<=0.1f && std::fabs(a.z-b.z)<=0.1f;
     };
-    for(const auto i:indices)if(props_[i].collisionOwnershipUnresolved &&
-        (props_[i].nativeCloneBatchId<0 ||
-         fullySelectedCloneBatches.count(props_[i].nativeCloneBatchId)==0)) {
+    // An explicit unresolved-ownership flag is stronger than an ordinary missing
+    // owner. Deleting the LAST member of a clone batch is safe only when the
+    // ambiguous collider primitives are actually scoped to that same batch;
+    // otherwise a different, untracked source collider may be left behind.
+    // In particular, a fully selected, owner-only clone batch must NOT bypass
+    // SetCollisionOwnershipUnresolved(true) simply because it has one member.
+    for(const auto i:indices)if(props_[i].collisionOwnershipUnresolved) {
+        const int batch=props_[i].nativeCloneBatchId;
+        const bool safeOpaqueBatchCleanup=batch>=0 &&
+            NativeCloneEditPolicy::MayEraseUnresolved(
+                fullySelectedCloneBatches.count(batch)!=0,
+                opaqueCloneBatches.count(batch)!=0);
+        if(safeOpaqueBatchCleanup)continue;
         reason="Deletion blocked: source collision ownership is unresolved for prop "+
-            std::to_string(i)+". Select the complete copied batch or recover this model's collision ownership.";
+            std::to_string(i)+" ("+props_[i].library+"/"+props_[i].group+"/"+
+            props_[i].name+"). Recover the collision owner first, or select the "
+            "complete clone batch if it includes its own opaque collision data.";
         Log::Warning(reason);return false;
     }
     // Refuse partial deletion when a source floor has ambiguous ownership.

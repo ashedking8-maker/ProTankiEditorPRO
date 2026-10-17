@@ -55,7 +55,9 @@ int main() {
     // A second verified prop can be removed without wiping the opaque island.
     PT_REQUIRE(target.DeletePropsWithCollision({1},error));
     PT_REQUIRE(target.Props().size()==2 && target.CollisionBoxes().empty());
-    PT_REQUIRE(!target.DeletePropsWithCollision({1},error));
+    // The sole remaining clone member is now the whole remaining batch.
+    // Rejecting it here would contradict the full-batch cleanup rule; the
+    // ambiguous partial deletion was already checked above (with {1,3}).
     // Removing the LAST remaining clone member is a full batch deletion,
     // so its opaque native collision must disappear with it.
     PT_REQUIRE(target.DeletePropsWithCollision({1},error));

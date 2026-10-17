@@ -8,6 +8,8 @@ cmake = (root / 'CMakeLists.txt').read_text()
 policy = (root / 'src/NativeCloneEditPolicy.h').read_text()
 assert 'NativeCloneEditPolicy::MayEdit' in cpp
 assert 'NativeCloneEditPolicy::MayEraseOpaque' in cpp
+assert 'NativeCloneEditPolicy::MayEraseUnresolved' in cpp
+assert 'batchContainsOpaqueCollision' in policy
 assert 'c.nativeCloneBatchId>=0 || !same(c.position)' in cpp
 assert 'fullySelectedCloneBatches.insert(batch)' in cpp
 assert 'has no individually verified collision owner' in cpp
