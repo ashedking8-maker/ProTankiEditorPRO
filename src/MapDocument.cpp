@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "VerifiedCollisionTemplates.h"
 #include "NativeCollisionImport.h"
+#include "NativeCloneEditPolicy.h"
 #include "VerifiedGroundCollision.h"
 #include "VerifiedMeshSurface.h"
 #include <pugixml.hpp>
@@ -358,10 +359,21 @@ bool MapDocument::SetPropTransform(size_t index, const DirectX::XMFLOAT3& positi
     const bool changed = p.position.x != position.x || p.position.y != position.y || p.position.z != position.z ||
         p.rotation.x != rotation.x || p.rotation.y != rotation.y || p.rotation.z != rotation.z;
     if (!changed) return true;
-    const auto unownedBatch=[&](const auto& items){return p.nativeCloneBatchId>=0 &&
+    // A lossless full-map paste can contain independent, opaque colliders. Their
+    // presence must NOT immobilize every verified prop in the same clone batch.
+    // The edited prop is safe only when its collision was rebound to this exact
+    // owner (or there is no opaque collision remaining in that clone batch).
+    const auto opaqueInBatch=[&](const auto& items){return p.nativeCloneBatchId>=0 &&
         std::any_of(items.begin(),items.end(),[&](const auto& c){return c.nativeCloneBatchId==p.nativeCloneBatchId && c.authoredOwnerIndex<0;});};
-    if(p.collisionOwnershipUnresolved || unownedBatch(collisionPlanes_) || unownedBatch(collisionBoxes_) || unownedBatch(collisionTriangles_)) {
-        Log::Warning("Transform refused: collision ownership is unresolved; use a lossless full-map copy or resolve the source library.");return false;
+    const bool hasOpaqueCloneCollision=opaqueInBatch(collisionPlanes_) ||
+        opaqueInBatch(collisionBoxes_) || opaqueInBatch(collisionTriangles_);
+    if(!NativeCloneEditPolicy::MayEdit(p.collisionOwnershipUnresolved,
+            HasNativeCollisionForProp(index),hasOpaqueCloneCollision)) {
+        Log::Warning("Transform refused: copied prop index="+std::to_string(index)+
+            " identity="+p.library+"/"+p.group+"/"+p.name+
+            " batch="+std::to_string(p.nativeCloneBatchId)+
+            ": no individually verified collision owner; other verified members "
+            "of this clone batch are independently editable.");return false;
     }
     if((rotation.x!=p.rotation.x || rotation.y!=p.rotation.y) && HasNativeCollisionForProp(index)) {
         Log::Warning("Transform refused: bound native props support Z rotation only.");return false;
@@ -399,7 +411,9 @@ bool MapDocument::SetPropTransform(size_t index, const DirectX::XMFLOAT3& positi
     }
     if(!sharedOrigin) {
         auto moveCollider=[&](auto& c) {
-            if(c.authoredOwnerIndex>=0 || !same(c.position))return;
+            // Opaque clone primitives must NEVER be moved by an exact-origin
+            // guess; they may belong to another prop or the map background.
+            if(c.authoredOwnerIndex>=0 || c.nativeCloneBatchId>=0 || !same(c.position))return;
             c.position.x+=position.x-old.x;
             c.position.y+=position.y-old.y;
             c.position.z+=position.z-old.z;
@@ -488,11 +502,12 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
             std::to_string(removed)+" static collision primitives. Functional map elements are preserved.";
         Log::Info(reason);return true;
     }
-    // A lossless native clone may contain collision primitives whose legacy
-    // source format has no prop->collider relation. Keep those primitives tied
-    // to the clone BATCH: partial deletion would otherwise leave invisible
-    // geometry or erase data that belongs to a surviving copied prop.
+    // Lossless copied maps can contain a mixture of precisely bound colliders
+    // and opaque map-level primitives. Preserve the latter on partial edits.
+    // The old guard treated a SINGLE opaque triangle anywhere in the batch as
+    // a reason to lock ALL the props, even the ones with verified owners.
     std::unordered_set<int> selectedCloneBatches;
+    std::unordered_set<int> fullySelectedCloneBatches;
     for(const auto i:indices)if(props_[i].nativeCloneBatchId>=0)
         selectedCloneBatches.insert(props_[i].nativeCloneBatchId);
     for(const int batch:selectedCloneBatches) {
@@ -500,20 +515,42 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
         for(size_t i=0;i<props_.size();++i)if(props_[i].nativeCloneBatchId==batch) {
             ++total;if(std::binary_search(indices.begin(),indices.end(),i))++selected;
         }
-        const auto opaque=[&](const auto& items){return std::any_of(items.begin(),items.end(),
-            [&](const auto& c){return c.nativeCloneBatchId==batch && c.authoredOwnerIndex<0;});};
-        if(selected!=total && (opaque(collisionPlanes_)||opaque(collisionBoxes_)||opaque(collisionTriangles_))) {
-            reason="Deletion blocked: lossless native clone batch "+std::to_string(batch)+
-                " is only partially selected ("+std::to_string(selected)+"/"+
-                std::to_string(total)+"). Select the whole copied group so opaque collision data cannot be orphaned.";
+        const auto opaqueCount=[&](const auto& items){return static_cast<size_t>(std::count_if(items.begin(),items.end(),
+            [&](const auto& c){return c.nativeCloneBatchId==batch && c.authoredOwnerIndex<0;}));};
+        const size_t opaque=opaqueCount(collisionPlanes_)+opaqueCount(collisionBoxes_)+opaqueCount(collisionTriangles_);
+        if(selected==total) {
+            fullySelectedCloneBatches.insert(batch);
+            continue; // Whole clone group: all its remaining opaque colliders go too.
+        }
+        if(opaque==0)continue;
+        // Verified owner means the SOURCE 3DS's entire helper set was matched to
+        // the source XML without ambiguous duplicates. Editing this prop does
+        // not alter any of the other, still-opaque collision primitives.
+        for(const size_t i:indices) {
+            const auto& p=props_[i];
+            if(p.nativeCloneBatchId!=batch)continue;
+            if(NativeCloneEditPolicy::MayEdit(p.collisionOwnershipUnresolved,
+                    HasNativeCollisionForProp(i),true))continue;
+            reason="Deletion blocked: copied prop "+std::to_string(i)+" ("+p.library+"/"+
+                p.group+"/"+p.name+") has no individually verified collision owner, " +
+                "while clone batch "+std::to_string(batch)+" retains "+std::to_string(opaque)+
+                " opaque collision primitives. Verified props in this batch CAN be edited "
+                "separately; this unverified prop requires complete ownership recovery "
+                "or deleting the remaining clone batch together.";
             Log::Warning(reason);return false;
         }
+        Log::Info("Verified partial clone deletion: batch="+std::to_string(batch)+
+            " selected="+std::to_string(selected)+"/"+std::to_string(total)+
+            " opaqueBatchPrimitivesPreserved="+std::to_string(opaque));
     }
     auto same=[&](const DirectX::XMFLOAT3& a,const DirectX::XMFLOAT3& b) {
         return std::fabs(a.x-b.x)<=0.1f && std::fabs(a.y-b.y)<=0.1f && std::fabs(a.z-b.z)<=0.1f;
     };
-    for(const auto i:indices)if(props_[i].collisionOwnershipUnresolved){
-        reason="Deletion blocked: source collision ownership is unresolved. Resolve the original library or select the full static map.";
+    for(const auto i:indices)if(props_[i].collisionOwnershipUnresolved &&
+        (props_[i].nativeCloneBatchId<0 ||
+         fullySelectedCloneBatches.count(props_[i].nativeCloneBatchId)==0)) {
+        reason="Deletion blocked: source collision ownership is unresolved for prop "+
+            std::to_string(i)+". Select the complete copied batch or recover this model's collision ownership.";
         Log::Warning(reason);return false;
     }
     // Refuse partial deletion when a source floor has ambiguous ownership.
@@ -569,7 +606,10 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
     const auto eraseCloneBatch=[&](auto& items) {
         const auto old=items.size();
         items.erase(std::remove_if(items.begin(),items.end(),[&](const auto& c){
-            return c.nativeCloneBatchId>=0 && selectedCloneBatches.count(c.nativeCloneBatchId)!=0 &&
+            // Never erase an opaque primitive from a partially selected batch.
+            // DeleteProp() removes the exact owner-bound primitives below.
+            return c.nativeCloneBatchId>=0 && NativeCloneEditPolicy::MayEraseOpaque(
+                fullySelectedCloneBatches.count(c.nativeCloneBatchId)!=0) &&
                 (c.authoredOwnerIndex<0 || std::binary_search(indices.begin(),indices.end(),static_cast<size_t>(c.authoredOwnerIndex)));
         }),items.end());
         batchColliderRemoved+=old-items.size();
@@ -668,6 +708,15 @@ bool MapDocument::AppendLosslessNativeStaticClone(std::vector<PropInstance> prop
     stats_.collisionPlanes=collisionPlanes_.size();stats_.collisionBoxes=collisionBoxes_.size();
     stats_.collisionTriangles=collisionTriangles_.size();
     collisionDirty_=dirty_=true;
+    const auto countOpaque=[&](const auto& items){return std::count_if(items.begin(),items.end(),
+        [batch](const auto& c){return c.nativeCloneBatchId==batch && c.authoredOwnerIndex<0;});};
+    size_t verifiedProps=0;
+    for(int id:inserted)if(HasNativeCollisionForProp(static_cast<size_t>(id)))++verifiedProps;
+    Log::Info("Lossless clone ownership: batch="+std::to_string(batch)+
+        " verifiedProps="+std::to_string(verifiedProps)+"/"+std::to_string(inserted.size())+
+        " opaquePlanes="+std::to_string(countOpaque(collisionPlanes_))+
+        " opaqueBoxes="+std::to_string(countOpaque(collisionBoxes_))+
+        " opaqueTriangles="+std::to_string(countOpaque(collisionTriangles_)));
     Log::Info("Lossless native static clone appended: batch="+std::to_string(batch)+
         " props="+std::to_string(inserted.size())+
         " planes="+std::to_string(planes.size())+
