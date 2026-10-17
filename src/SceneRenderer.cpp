@@ -989,6 +989,13 @@ bool SceneRenderer::BuildAssetPreview(const AssetDefinition& asset, const std::s
     return true;
 }
 
+void SceneRenderer::RefreshCollisionGeometry(const MapDocument& map) {
+    // BuildCollisionGeometry owns the GPU diagnostic buffers. No map mutation,
+    // asset reload, camera reset, or scene-wide rebuild is required.
+    if (!device_ || !context_) return;
+    BuildCollisionGeometry(map);
+}
+
 void SceneRenderer::BuildCollisionGeometry(const MapDocument& map) {
     collisionFaceBuffer_.Reset(); collisionEdgeBuffer_.Reset();
     collisionFaceVertices_=collisionEdgeVertices_=0;

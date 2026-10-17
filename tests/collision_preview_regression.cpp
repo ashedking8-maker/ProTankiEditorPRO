@@ -1,5 +1,6 @@
 #include "CollisionPreview.h"
 #include "MapDocument.h"
+#include "NativeCollisionImport.h"
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -53,6 +54,41 @@ int main() {
         if(!Check(CollisionPreview::Finite(vertex.position),"all GPU vertices finite"))return 9;
     if(!Check(!map.Dirty() && map.Props().size()==1,
               "render preview cannot change props, original XML, or dirty state"))return 10;
-    std::cout<<"PASS: native XML collision diagnostic vertices, colors, counts, bounds and read-only rendering.\n";
+
+    // An exact-origin legacy plane must follow its prop in the document.
+    // Geometry View rebuilds its GPU buffers from this newly computed shape.
+    PropInstance floor;floor.library="Test";floor.name="Floor";
+    floor.position={100.f,200.f,300.f};
+    const auto floorIndex=map.AddProp(floor);
+    if(!Check(map.SetPropTransform(floorIndex,{400.f,200.f,300.f},floor.rotation),
+              "legacy floor transform accepted"))return 11;
+    const auto moved=CollisionPreview::Build(map);
+    if(!Check(Close(map.CollisionPlanes()[0].position.x,400.f)&&
+              Close(moved.faces[0].position.x,300.f)&&
+              Close(moved.faces[0].position.x-preview.faces[0].position.x,300.f),
+              "live collision mesh comes from updated XML after prop movement"))return 12;
+    // A triangle whose ownership is unknown must never be hallucinated as
+    // moving with this unrelated visual prop.
+    if(!Check(Close(moved.faces[42].position.x,preview.faces[42].position.x),
+              "unbound native triangle retains its own XML location"))return 13;
+
+    // Explicitly owned triangle terrain must move with the corresponding prop.
+    MapDocument terrain;terrain.CreateBlank();
+    PropInstance hill;hill.library="Land Hills";hill.group="default";
+    hill.name="Land04";hill.position={1000.f,2000.f,100.f};
+    const auto hillIndex=terrain.AddProp(hill);
+    NativeCollisionImport::Result native;
+    VerifiedCollisionTemplates::Triangle tri;
+    tri.v0={-200.f,-200.f,0.f};tri.v1={200.f,-200.f,0.f};tri.v2={0.f,200.f,0.f};
+    native.triangles.push_back(tri);
+    if(!Check(terrain.AddImportedCollisionForProp(hillIndex,native),
+              "owned terrain source triangle installed"))return 14;
+    const auto before=CollisionPreview::Build(terrain);
+    if(!Check(terrain.SetPropTransform(hillIndex,{1600.f,2000.f,100.f},hill.rotation),
+              "owned terrain transform accepted"))return 15;
+    const auto after=CollisionPreview::Build(terrain);
+    if(!Check(after.triangles==1&&Close(after.faces[0].position.x-before.faces[0].position.x,600.f),
+              "owned native triangle follows moved hill in live geometry view"))return 16;
+    std::cout<<"PASS: native XML collision diagnostic and live moved plane / owned triangle geometry.\n";
     return 0;
 }

@@ -92,6 +92,10 @@ public:
                                    const std::vector<uint32_t>& triangles);
     void SetFunctionalGhost(const DirectX::XMFLOAT3& position, unsigned kind, bool active);
     bool UpdatePropTransform(int propIndex, const PropInstance& prop);
+    // Re-upload the *current document XML* collision meshes without rebuilding
+    // visual batches or touching map physics. Called on entering Geometry view
+    // and after edits made while Geometry view is visible.
+    void RefreshCollisionGeometry(const MapDocument& map);
     void SetSelected(int propIndex) { selectedProp_ = propIndex; selectedProps_.clear(); if (propIndex >= 0) selectedProps_.push_back(propIndex); }
     void SetSelection(const std::vector<int>& indices) { selectedProps_ = indices; selectedProp_ = indices.empty() ? -1 : indices.back(); }
     std::vector<int> SelectInScreenRect(float x0, float y0, float x1, float y1) const;

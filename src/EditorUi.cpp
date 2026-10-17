@@ -652,6 +652,7 @@ void EditorUi::ApplyLiveTransform(MapDocument& map, SceneRenderer& scene, int pr
         SetMessage("Transform blocked: collision ownership or rotation is unsupported. Resolve the source Library before moving this object.",true);return;
     }
     if (static_cast<size_t>(propIndex) < map.Props().size()) scene.UpdatePropTransform(propIndex, map.Props()[static_cast<size_t>(propIndex)]);
+    if (showCollision_) scene.RefreshCollisionGeometry(map);
 }
 
 void EditorUi::PushDiscreteTransform(MapDocument& map, SceneRenderer& scene, int propIndex, const PropTransformState& after, const char* label) {
@@ -896,6 +897,7 @@ void EditorUi::Undo(MapDocument& map, SceneRenderer& scene) {
         " boxes="+std::to_string(map.CollisionBoxes().size())+
         " triangles="+std::to_string(map.CollisionTriangles().size()));
     for (size_t i:changed) if (i<map.Props().size()) scene.UpdatePropTransform(static_cast<int>(i),map.Props()[i]);
+    if (showCollision_ && !changed.empty()) scene.RefreshCollisionGeometry(map);
     if (!changed.empty()) SelectOnly(static_cast<int>(changed.back()),scene);
     else { SelectOnly(-1,scene); functionalSelected_=FunctionalType::None; RequestSceneRebuild(true); }
 }
@@ -905,6 +907,7 @@ void EditorUi::Redo(MapDocument& map, SceneRenderer& scene) {
     std::vector<size_t> changed;
     if (!history_.Redo(map,changed)) return;
     for (size_t i:changed) if (i<map.Props().size()) scene.UpdatePropTransform(static_cast<int>(i),map.Props()[i]);
+    if (showCollision_ && !changed.empty()) scene.RefreshCollisionGeometry(map);
     if (!changed.empty()) SelectOnly(static_cast<int>(changed.back()),scene);
     else { SelectOnly(-1,scene); functionalSelected_=FunctionalType::None; RequestSceneRebuild(true); }
 }
@@ -1606,6 +1609,7 @@ void EditorUi::HandleEditorShortcuts(MapDocument& map, SceneRenderer& scene, con
             ghostProps_.clear();scene.ClearGhost();
             functionalPlacement_=FunctionalPlacement::None;functionalCommitRequested_=false;
             functionalGhostValid_=false;scene.SetFunctionalGhost({},0,false);
+            scene.RefreshCollisionGeometry(map);
         }
         return;
     }
@@ -1956,6 +1960,7 @@ void EditorUi::DrawMenu(MapDocument& map, SceneRenderer& scene) {
                 ghostProps_.clear();scene.ClearGhost();
                 functionalPlacement_=FunctionalPlacement::None;functionalCommitRequested_=false;
                 functionalGhostValid_=false;scene.SetFunctionalGhost({},0,false);
+                scene.RefreshCollisionGeometry(map);
             }
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Display actual XML collision surfaces, not material colors or passability.");
@@ -2043,6 +2048,7 @@ void EditorUi::DrawToolbar(MapDocument& map, SceneRenderer& scene) {
             ghostProps_.clear();scene.ClearGhost();
             functionalPlacement_=FunctionalPlacement::None;functionalCommitRequested_=false;
             functionalGhostValid_=false;scene.SetFunctionalGhost({},0,false);
+            scene.RefreshCollisionGeometry(map);
         }
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Diagnostic view of native XML physics; click again for textured editing.");
