@@ -31,6 +31,7 @@ struct PropInstance {
     // an in-memory provenance marker only; it is never serialized as a game flag.
     bool losslessNativeClone{};
     bool collisionOwnershipUnresolved{}; // Runtime-only: source helpers could not be matched to XML.
+    bool verifiedCollisionFreeSprite{}; // Runtime-only: source registry proves a pure sprite, with no colliders.
     int nativeCloneBatchId{-1};
     std::shared_ptr<const std::string> originalPropXml; // complete detached source <prop> subtree
     int legacySourceIndex{-1}; // original <static-geometry>/<prop> index, -1 for newly created props
@@ -137,7 +138,19 @@ public:
     bool SetPropTransform(size_t index, const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& rotation);
     size_t AddProp(PropInstance prop);
     void SetCollisionOwnershipUnresolved(size_t index,bool unresolved) {
-        if(index<props_.size())props_[index].collisionOwnershipUnresolved=unresolved;
+        if(index<props_.size()) {
+            props_[index].collisionOwnershipUnresolved=unresolved;
+            if(unresolved)props_[index].verifiedCollisionFreeSprite=false;
+        }
+    }
+    // Must only be called after looking up the exact source asset in the
+    // external library and verifying sprite != empty and mesh == empty.
+    void SetVerifiedCollisionFreeSprite(size_t index,bool verified) {
+        if(index<props_.size()) {
+            auto& p=props_[index];
+            p.verifiedCollisionFreeSprite=verified && p.nativeWithCollision!=1 &&
+                !p.collisionOwnershipUnresolved && !HasNativeCollisionForProp(index);
+        }
     }
     // Copies actual XML primitives. A subset requires verified owners; a full
     // static-map selection also carries opaque unowned collision records.

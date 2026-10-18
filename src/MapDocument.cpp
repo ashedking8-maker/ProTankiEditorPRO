@@ -368,12 +368,13 @@ bool MapDocument::SetPropTransform(size_t index, const DirectX::XMFLOAT3& positi
     const bool hasOpaqueCloneCollision=opaqueInBatch(collisionPlanes_) ||
         opaqueInBatch(collisionBoxes_) || opaqueInBatch(collisionTriangles_);
     if(!NativeCloneEditPolicy::MayEdit(p.collisionOwnershipUnresolved,
-            HasNativeCollisionForProp(index),hasOpaqueCloneCollision)) {
+            HasNativeCollisionForProp(index),hasOpaqueCloneCollision,
+            p.verifiedCollisionFreeSprite)) {
         Log::Warning("Transform refused: copied prop index="+std::to_string(index)+
             " identity="+p.library+"/"+p.group+"/"+p.name+
             " batch="+std::to_string(p.nativeCloneBatchId)+
-            ": no individually verified collision owner; other verified members "
-            "of this clone batch are independently editable.");return false;
+            ": neither exact collision ownership nor verified sprite-only source; "
+            "other verified members of this clone batch are independently editable.");return false;
     }
     if((rotation.x!=p.rotation.x || rotation.y!=p.rotation.y) && HasNativeCollisionForProp(index)) {
         Log::Warning("Transform refused: bound native props support Z rotation only.");return false;
@@ -532,7 +533,7 @@ bool MapDocument::DeletePropsWithCollision(const std::vector<size_t>& requested,
             const auto& p=props_[i];
             if(p.nativeCloneBatchId!=batch)continue;
             if(NativeCloneEditPolicy::MayEdit(p.collisionOwnershipUnresolved,
-                    HasNativeCollisionForProp(i),true))continue;
+                    HasNativeCollisionForProp(i),true,p.verifiedCollisionFreeSprite))continue;
             reason="Deletion blocked: copied prop "+std::to_string(i)+" ("+p.library+"/"+
                 p.group+"/"+p.name+") has no individually verified collision owner, " +
                 "while clone batch "+std::to_string(batch)+" retains "+std::to_string(opaque)+
@@ -663,7 +664,8 @@ bool MapDocument::CopyNativeCollisionForProps(const std::vector<size_t>& indices
     if(indices.empty()||!std::is_sorted(indices.begin(),indices.end())||
        std::adjacent_find(indices.begin(),indices.end())!=indices.end()||indices.back()>=props_.size())return false;
     const bool full=indices.size()==props_.size();
-    if(!full)for(auto i:indices)if(props_[i].collisionOwnershipUnresolved||!HasNativeCollisionForProp(i))return false;
+    if(!full)for(auto i:indices)if(props_[i].collisionOwnershipUnresolved ||
+        (!HasNativeCollisionForProp(i) && !props_[i].verifiedCollisionFreeSprite))return false;
     const auto copy=[&](const auto& source,auto& dest){
         for(auto c:source){
             if(c.authoredOwnerIndex<0){if(full)dest.push_back(std::move(c));continue;}
@@ -724,10 +726,14 @@ bool MapDocument::AppendLosslessNativeStaticClone(std::vector<PropInstance> prop
     collisionDirty_=dirty_=true;
     const auto countOpaque=[&](const auto& items){return std::count_if(items.begin(),items.end(),
         [batch](const auto& c){return c.nativeCloneBatchId==batch && c.authoredOwnerIndex<0;});};
-    size_t verifiedProps=0;
-    for(int id:inserted)if(HasNativeCollisionForProp(static_cast<size_t>(id)))++verifiedProps;
+    size_t verifiedProps=0, verifiedSprites=0;
+    for(int id:inserted) {
+        if(HasNativeCollisionForProp(static_cast<size_t>(id)))++verifiedProps;
+        else if(props_[static_cast<size_t>(id)].verifiedCollisionFreeSprite)++verifiedSprites;
+    }
     Log::Info("Lossless clone ownership: batch="+std::to_string(batch)+
         " verifiedProps="+std::to_string(verifiedProps)+"/"+std::to_string(inserted.size())+
+        " verifiedCollisionFreeSprites="+std::to_string(verifiedSprites)+
         " opaquePlanes="+std::to_string(countOpaque(collisionPlanes_))+
         " opaqueBoxes="+std::to_string(countOpaque(collisionBoxes_))+
         " opaqueTriangles="+std::to_string(countOpaque(collisionTriangles_)));

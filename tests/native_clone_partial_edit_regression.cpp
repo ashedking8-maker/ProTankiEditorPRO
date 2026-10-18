@@ -64,6 +64,43 @@ int main() {
     PT_REQUIRE(target.Props().size()==1 && target.CollisionTriangles().empty());
     PT_REQUIRE(target.Props()[0].name=="Background");
 
+    // Canyon reproducer: two legitimate sprite-only props coexist with
+    // unrelated opaque map triangles; neither may modify those triangles.
+    MapDocument sprites; sprites.CreateBlank();
+    std::vector<PropInstance> vegetation(3);
+    vegetation[0].library="Bush";vegetation[0].group="default";vegetation[0].name="Tree 1";
+    vegetation[1].library="Bush";vegetation[1].group="default";vegetation[1].name="Bush 1";
+    vegetation[2].library="Unknown";vegetation[2].group="default";vegetation[2].name="Unbound Mesh";
+    vegetation[0].position={100,0,0};vegetation[1].position={200,0,0};vegetation[2].position={300,0,0};
+    // Simulate EditorUi's exact external sprite-only asset verification.
+    sprites.AddProp(vegetation[0]);sprites.SetVerifiedCollisionFreeSprite(0,true);
+    sprites.AddProp(vegetation[1]);sprites.SetVerifiedCollisionFreeSprite(1,true);
+    PT_REQUIRE(sprites.Props()[0].verifiedCollisionFreeSprite);
+    PT_REQUIRE(sprites.Props()[1].verifiedCollisionFreeSprite);
+    vegetation[0]=sprites.Props()[0];vegetation[1]=sprites.Props()[1];
+    std::vector<int> spriteIds;
+    PT_REQUIRE(sprites.AppendLosslessNativeStaticClone(vegetation,{}, {},{opaque},spriteIds,error));
+    PT_REQUIRE(spriteIds.size()==3 && spriteIds[0]==2);
+    PT_REQUIRE(sprites.Props()[2].verifiedCollisionFreeSprite);
+    PT_REQUIRE(sprites.Props()[3].verifiedCollisionFreeSprite);
+    PT_REQUIRE(!sprites.Props()[4].verifiedCollisionFreeSprite);
+    auto newTree=sprites.Props()[2].position;newTree.x+=125;
+    PT_REQUIRE(sprites.SetPropTransform(2,newTree,sprites.Props()[2].rotation));
+    PT_REQUIRE(Close(sprites.CollisionTriangles()[0].position.x,3000));
+    PT_REQUIRE(!sprites.SetPropTransform(4,{400,0,0},sprites.Props()[4].rotation));
+    PT_REQUIRE(!sprites.DeletePropsWithCollision({3,4},error)); // atomic mixed ownership
+    PT_REQUIRE(sprites.DeletePropsWithCollision({3},error)); // copied Bush 1
+    PT_REQUIRE(sprites.DeletePropsWithCollision({2},error)); // copied Tree 1
+    PT_REQUIRE(sprites.Props().size()==3);
+    PT_REQUIRE(sprites.CollisionTriangles().size()==1); // opaque map triangles untouched
+    PT_REQUIRE(sprites.DeletePropsWithCollision({2},error)); // remaining full clone batch
+    PT_REQUIRE(sprites.CollisionTriangles().empty());
+    MapDocument explicitCollision;explicitCollision.CreateBlank();
+    PropInstance collidingSprite;collidingSprite.nativeWithCollision=1;
+    explicitCollision.AddProp(collidingSprite);
+    explicitCollision.SetVerifiedCollisionFreeSprite(0,true);
+    PT_REQUIRE(!explicitCollision.Props()[0].verifiedCollisionFreeSprite);
+
     // An opaque game flag alone does NOT establish ownership of independent
     // collision XML. Even with with_collision=0 we refuse to invent a match.
     MapDocument visual;visual.CreateBlank();

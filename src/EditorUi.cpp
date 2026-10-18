@@ -1738,6 +1738,13 @@ void EditorUi::Draw(MapDocument& map, AssetRegistry& assets, SceneRenderer& scen
             const auto& prop=map.Props()[i];
             if(map.HasNativeCollisionForProp(i))continue;
             const auto* asset=assets.Find(prop.library,prop.group,prop.name);
+            // Original library sprites have no 3DS collision helpers; they are
+            // not the same as an unresolved mesh. Keep this exact source proof
+            // on lossless clipboard clones without touching opaque map geometry.
+            if(asset && asset->mesh.empty() && !asset->sprite.empty()) {
+                map.SetVerifiedCollisionFreeSprite(i,true);
+                continue;
+            }
             if(!asset||asset->mesh.empty())continue;
             const auto key=asset->mesh.string()+"\x1f"+asset->meshObject;
             auto it=meshCache.find(key);

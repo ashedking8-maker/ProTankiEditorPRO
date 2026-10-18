@@ -3,6 +3,8 @@
 using namespace NativeCloneEditPolicy;
 static_assert(MayEdit(false,true,true));
 static_assert(!MayEdit(false,false,true));
+static_assert(MayEdit(false,false,true,true)); // real sprite, shared opaque map geometry
+static_assert(!MayEdit(true,false,true,true)); // explicit unresolved owner wins
 static_assert(!MayEdit(true,true,true));
 static_assert(MayEdit(false,false,false));
 static_assert(!MayEdit(true,false,false));
@@ -18,6 +20,7 @@ int main() {
             for (bool unresolved : {false,true}) {
                 const bool expected=!unresolved && (!opaque || owned);
                 if (MayEdit(unresolved,owned,opaque)!=expected)return 1;
+                if (MayEdit(unresolved,owned,opaque,true)!=(!unresolved))return 4;
             }
         }
     }
